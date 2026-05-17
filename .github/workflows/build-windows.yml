@@ -25,7 +25,9 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        # npm install statt npm ci: toleriert geringfügige Lockfile-Drift
+        # zwischen npm-Versionen, statt den Build hart abzubrechen.
+        run: npm install --no-audit --no-fund
 
       - name: Download & bundle Ollama runtime
         shell: pwsh
