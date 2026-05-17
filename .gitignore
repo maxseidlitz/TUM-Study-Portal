@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build output
+build/
+dist/
+
+# Bundled Ollama runtime — heruntergeladen vom CI, nicht einchecken
+resources/ollama/*
+!resources/ollama/.gitkeep
+
+# Logs & OS
+npm-debug.log*
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+
+# Env
+.env
+.env.local

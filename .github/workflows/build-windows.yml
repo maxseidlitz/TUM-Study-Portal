@@ -1,0 +1,61 @@
+name: Build Windows .exe
+
+# Baut bei jedem Push auf main eine unsignierte Windows-Installer-.exe.
+# Die Ollama-Runtime wird vor dem Build heruntergeladen und mitgepackt.
+# Das KI-Modell (gemma4:e2b) wird NICHT gebündelt – die App lädt es beim
+# ersten Start selbst herunter.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download & bundle Ollama runtime
+        shell: pwsh
+        run: |
+          $url = "https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip"
+          New-Item -ItemType Directory -Force -Path "resources/ollama" | Out-Null
+          Write-Host "Lade Ollama-Runtime: $url"
+          Invoke-WebRequest -Uri $url -OutFile "ollama.zip"
+          Expand-Archive -Path "ollama.zip" -DestinationPath "resources/ollama" -Force
+          Remove-Item "ollama.zip"
+          if (-not (Test-Path "resources/ollama/ollama.exe")) {
+            throw "ollama.exe nach dem Entpacken nicht gefunden!"
+          }
+          Write-Host "Ollama-Runtime gebündelt."
+
+      - name: Build React app
+        run: npm run build
+        env:
+          # CRA behandelt Warnungen sonst als Fehler in CI
+          CI: false
+
+      - name: Build Windows installer (electron-builder)
+        run: npx electron-builder --win --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TUM-Study-Portal-Windows
+          path: dist/*.exe
+          if-no-files-found: error
+          retention-days: 30
