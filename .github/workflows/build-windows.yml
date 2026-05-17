@@ -32,12 +32,37 @@ jobs:
       - name: Download & bundle Ollama runtime
         shell: pwsh
         run: |
-          $url = "https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip"
+          # Feste Version + direkter Asset-Link (kein flakiger latest/download-Redirect)
+          $version = "v0.24.0"
+          $url = "https://github.com/ollama/ollama/releases/download/$version/ollama-windows-amd64.zip"
           New-Item -ItemType Directory -Force -Path "resources/ollama" | Out-Null
-          Write-Host "Lade Ollama-Runtime: $url"
-          Invoke-WebRequest -Uri $url -OutFile "ollama.zip"
+          Write-Host "Lade Ollama-Runtime $version ..."
+
+          $ok = $false
+          for ($i = 1; $i -le 5; $i++) {
+            try {
+              Invoke-WebRequest -Uri $url -OutFile "ollama.zip" -MaximumRetryCount 3 -RetryIntervalSec 10
+              if ((Test-Path "ollama.zip") -and (Get-Item "ollama.zip").Length -gt 10MB) {
+                $ok = $true; break
+              }
+              Write-Host "Versuch ${i}: Datei zu klein / leer – neuer Versuch."
+            } catch {
+              Write-Host "Versuch ${i} fehlgeschlagen: $($_.Exception.Message)"
+            }
+            Start-Sleep -Seconds 15
+          }
+          if (-not $ok) { throw "Ollama-Download nach 5 Versuchen fehlgeschlagen." }
+
           Expand-Archive -Path "ollama.zip" -DestinationPath "resources/ollama" -Force
           Remove-Item "ollama.zip"
+
+          # Falls das Archiv in einen Unterordner entpackt: ollama.exe nach oben holen
+          if (-not (Test-Path "resources/ollama/ollama.exe")) {
+            $exe = Get-ChildItem -Path "resources/ollama" -Recurse -Filter "ollama.exe" | Select-Object -First 1
+            if ($exe) {
+              Get-ChildItem -Path $exe.Directory.FullName | Move-Item -Destination "resources/ollama" -Force
+            }
+          }
           if (-not (Test-Path "resources/ollama/ollama.exe")) {
             throw "ollama.exe nach dem Entpacken nicht gefunden!"
           }
