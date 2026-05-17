@@ -275,6 +275,12 @@
     "emptyCta": "İlk modülü oluştur",
     "openCourse": "Moodle aç",
     "noUrl": "Moodle URL yok",
+    "moodleSync": "Moodle Eşitle",
+    "moodleSyncModalTitle": "Moodle API Erişimi",
+    "moodleSyncModalBody": "Üzerinde çalışıyoruz! Maalesef TUM şu anda öğrenci geliştiricilere API erişimi vermiyor. Bize destek olmak için TUM e-postanızı buraya girin. Ne kadar çok ses toplarsak, üniversiteyi bize erişim vermesi için o kadar hızlı ikna edebiliriz!",
+    "moodleSyncEmailPlaceholder": "epostaniz@tum.de",
+    "moodleSyncSubmit": "Destekle",
+    "moodleSyncSuccess": "Desteğiniz için teşekkürler!",
     "editTitle": "Düzenle",
     "deleteTitleBtn": "Sil"
   },

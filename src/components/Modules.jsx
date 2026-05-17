@@ -19,6 +19,9 @@ export default function Modules() {
     return o;
   }, [t]);
   const [showModal, setShowModal] = useState(false);
+  const [showMoodleModal, setShowMoodleModal] = useState(false);
+  const [moodleEmail, setMoodleEmail] = useState('');
+  const [moodleSubmitted, setMoodleSubmitted] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -104,6 +107,9 @@ export default function Modules() {
           <p>{modules.length === 1 ? t('modules.countOne') : t('modules.countMany', { count: modules.length })}</p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
+          <button className="btn btn-secondary" onClick={() => setShowMoodleModal(true)}>
+            <SyncIcon /> {t('modules.moodleSync')}
+          </button>
           <button className="btn btn-secondary" onClick={() => openExternal('https://www.moodle.tum.de')}>
             <ExternalIcon /> {t('modules.openMoodle')}
           </button>
@@ -311,6 +317,46 @@ export default function Modules() {
           </div>
         </div>
       )}
+
+      {showMoodleModal && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowMoodleModal(false)}>
+          <div className="modal" style={{ maxWidth: 440 }}>
+            <div className="modal-header">
+              <h2>{t('modules.moodleSyncModalTitle')}</h2>
+              <button type="button" className="btn btn-ghost btn-icon" onClick={() => setShowMoodleModal(false)}><CloseIcon /></button>
+            </div>
+            {moodleSubmitted ? (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <div style={{ fontSize: 40, marginBottom: 16 }}>🎉</div>
+                <p style={{ fontWeight: 600, color: 'var(--success)' }}>{t('modules.moodleSyncSuccess')}</p>
+                <button type="button" className="btn btn-secondary" style={{ marginTop: 24 }} onClick={() => setShowMoodleModal(false)}>
+                  {t('common.close')}
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={(e) => { e.preventDefault(); setMoodleSubmitted(true); }}>
+                <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
+                  {t('modules.moodleSyncModalBody')}
+                </p>
+                <div className="form-group">
+                  <input
+                    className="form-input"
+                    type="email"
+                    required
+                    placeholder={t('modules.moodleSyncEmailPlaceholder')}
+                    value={moodleEmail}
+                    onChange={(e) => setMoodleEmail(e.target.value)}
+                  />
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowMoodleModal(false)}>{t('common.cancel')}</button>
+                  <button type="submit" className="btn btn-primary">{t('modules.moodleSyncSubmit')}</button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -370,6 +416,7 @@ function EmptyState({ onAdd, t }) {
 }
 
 function PlusIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>; }
+function SyncIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" /><polyline points="21 3 21 8 16 8" /></svg>; }
 function CloseIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>; }
 function ExternalIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>; }
 function EditIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>; }

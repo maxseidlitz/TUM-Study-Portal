@@ -275,6 +275,12 @@
     "emptyCta": "Create first module",
     "openCourse": "Open Moodle",
     "noUrl": "No Moodle URL",
+    "moodleSync": "Moodle Sync",
+    "moodleSyncModalTitle": "Moodle API Access",
+    "moodleSyncModalBody": "We're working on it! Unfortunately, TUM currently doesn't grant API access to student developers. Enter your TUM email here to support us. The more voices we gather, the faster we can convince the university to grant us access!",
+    "moodleSyncEmailPlaceholder": "your.email@tum.de",
+    "moodleSyncSubmit": "Support us",
+    "moodleSyncSuccess": "Thank you for your support!",
     "editTitle": "Edit",
     "deleteTitleBtn": "Delete"
   },
