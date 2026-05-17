@@ -5,7 +5,10 @@
       "Bash(npm run *)",
       "Bash(node --check public/electron.js)",
       "Bash(node --check public/preload.js)",
-      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('package.json','utf8'\\)\\); console.log\\('package.json OK'\\)\")"
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('package.json','utf8'\\)\\); console.log\\('package.json OK'\\)\")",
+      "Bash(command -v gh)",
+      "Bash(curl -s \"https://api.github.com/repos/maxseidlitz/TUM-Study-Portal/actions/runs?per_page=1\")",
+      "Bash(curl -s \"https://api.github.com/repos/ollama/ollama/releases/latest\")"
     ]
   }
 }
