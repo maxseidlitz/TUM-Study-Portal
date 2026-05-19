@@ -1,6 +1,6 @@
-name: Build Windows .exe
+name: Build Desktop Apps
 
-# Baut bei jedem Push auf main eine unsignierte Windows-Installer-.exe.
+# Baut bei jedem Push auf main unsignierte Windows- und macOS-Installer.
 # Die Ollama-Runtime wird vor dem Build heruntergeladen und mitgepackt.
 # Das KI-Modell (gemma4:e2b) wird NICHT gebündelt – die App lädt es beim
 # ersten Start selbst herunter.
@@ -84,5 +84,83 @@ jobs:
         with:
           name: TUM-Study-Portal-Windows
           path: dist/*.exe
+          if-no-files-found: error
+          retention-days: 30
+
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Download & bundle Ollama runtime
+        run: |
+          version="v0.24.0"
+          url="https://github.com/ollama/ollama/releases/download/${version}/ollama-darwin.tgz"
+          mkdir -p resources/ollama
+          echo "Lade Ollama-Runtime ${version} ..."
+
+          ok=false
+          for i in 1 2 3 4 5; do
+            if curl -fL --retry 3 --retry-delay 10 -o ollama.tgz "$url" \
+              && [ -s ollama.tgz ] \
+              && [ "$(wc -c < ollama.tgz | tr -d ' ')" -gt 10000000 ]; then
+              ok=true
+              break
+            fi
+            echo "Versuch ${i}: Download fehlgeschlagen oder Datei zu klein – neuer Versuch."
+            sleep 15
+          done
+          if [ "$ok" != true ]; then
+            echo "Ollama-Download nach 5 Versuchen fehlgeschlagen."
+            exit 1
+          fi
+
+          tar -xzf ollama.tgz -C resources/ollama
+          rm -f ollama.tgz
+          chmod +x resources/ollama/ollama
+
+          if [ ! -x resources/ollama/ollama ]; then
+            found="$(find resources/ollama -name ollama -type f | head -1)"
+            if [ -n "$found" ]; then
+              mv "$(dirname "$found")"/* resources/ollama/ 2>/dev/null || true
+              chmod +x resources/ollama/ollama
+            fi
+          fi
+          if [ ! -x resources/ollama/ollama ]; then
+            echo "ollama-Binary nach dem Entpacken nicht gefunden!"
+            exit 1
+          fi
+          echo "Ollama-Runtime gebündelt."
+
+      - name: Build React app
+        run: npm run build
+        env:
+          CI: false
+
+      - name: Build macOS app (electron-builder)
+        run: npx electron-builder --mac --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Unsignierter Build ohne Apple-Developer-Zertifikat
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: TUM-Study-Portal-macOS
+          path: |
+            dist/*.dmg
+            dist/*.zip
           if-no-files-found: error
           retention-days: 30

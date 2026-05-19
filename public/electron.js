@@ -373,8 +373,9 @@ function sendSetupState(patch) {
 
 // Absolute path to the bundled ollama executable, or null if not bundled.
 function bundledOllamaPath() {
-  if (process.platform !== 'win32') return null;
-  const exe = path.join(process.resourcesPath, 'ollama', 'ollama.exe');
+  if (process.platform !== 'win32' && process.platform !== 'darwin') return null;
+  const name = process.platform === 'win32' ? 'ollama.exe' : 'ollama';
+  const exe = path.join(process.resourcesPath, 'ollama', name);
   return fs.existsSync(exe) ? exe : null;
 }
 
@@ -422,13 +423,19 @@ function waitForOllama(ollamaUrl, timeoutMs = 30000) {
 // Returns true once it is reachable. The spawned process is tracked in
 // `ollamaProcess` so it can be stopped again when the app quits.
 async function startOllamaServer(ollamaUrl) {
+  const bundled = bundledOllamaPath();
   const exe = findOllamaExecutable();
+  const spawnOpts = {
+    env: { ...process.env, OLLAMA_HOST: '127.0.0.1:11434' },
+    stdio: 'ignore',
+    windowsHide: true,
+  };
+  // Dylibs der gebündelten macOS-Runtime liegen neben dem Binary
+  if (bundled && exe === bundled && process.platform === 'darwin') {
+    spawnOpts.cwd = path.dirname(bundled);
+  }
   try {
-    ollamaProcess = spawn(exe, ['serve'], {
-      env: { ...process.env, OLLAMA_HOST: '127.0.0.1:11434' },
-      stdio: 'ignore',
-      windowsHide: true,
-    });
+    ollamaProcess = spawn(exe, ['serve'], spawnOpts);
     // ENOENT (ollama nicht installiert) kommt asynchron als 'error'-Event.
     ollamaProcess.on('error', (e) => {
       console.error('Ollama konnte nicht gestartet werden:', e.message);

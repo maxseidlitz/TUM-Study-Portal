@@ -37,16 +37,16 @@ ollama pull gemma4:e2b
 
 ### Automatisch per GitHub Actions
 Bei **jedem Push auf `main`** baut der Workflow
-[`.github/workflows/build-windows.yml`](.github/workflows/build-windows.yml)
-automatisch eine Windows-Installer-`.exe`:
+[`.github/workflows/build-desktop.yml`](.github/workflows/build-desktop.yml)
+automatisch eine Windows-Installer-`.exe` und macOS-`.dmg`/`.zip`:
 
 1. GitHub-Repo anlegen und Remote setzen:
    ```bash
    git remote add origin https://github.com/<user>/<repo>.git
    git push -u origin main
    ```
-2. Unter **Actions** läuft der Build (`windows-latest`).
-3. Die fertige `.exe` liegt als **Artifact** (`TUM-Study-Portal-Windows`) am Workflow-Lauf.
+2. Unter **Actions** laufen die Builds parallel (`windows-latest`, `macos-latest`).
+3. Artefakte: **Windows** (`TUM-Study-Portal-Windows`, `.exe`) und **macOS** (`TUM-Study-Portal-macOS`, `.dmg` + `.zip`).
 
 Der Workflow lädt die **Ollama-Runtime** herunter und packt sie in die `.exe`.
 Das KI-Modell wird *nicht* mitgeliefert.

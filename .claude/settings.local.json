@@ -8,7 +8,11 @@
       "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('package.json','utf8'\\)\\); console.log\\('package.json OK'\\)\")",
       "Bash(command -v gh)",
       "Bash(curl -s \"https://api.github.com/repos/maxseidlitz/TUM-Study-Portal/actions/runs?per_page=1\")",
-      "Bash(curl -s \"https://api.github.com/repos/ollama/ollama/releases/latest\")"
+      "Bash(curl -s \"https://api.github.com/repos/ollama/ollama/releases/latest\")",
+      "Bash(npx react-scripts *)",
+      "Bash(sed -n '77,236p' public/electron.js)",
+      "Bash(sed -n '251,1016p' public/electron.js)",
+      "Bash(sed -n '1273,1457p' public/electron.js)"
     ]
   }
 }
