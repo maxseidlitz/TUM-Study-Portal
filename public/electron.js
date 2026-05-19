@@ -354,10 +354,12 @@ function registerIpcHandlers() {
 }
 
 
-// ---- Bundled Ollama Lifecycle ----
-// On Windows production builds the Ollama runtime is shipped inside the app
-// (extraResources → resources/ollama). The model itself is NOT bundled and is
-// downloaded on first launch. In dev / on macOS the user's system Ollama is used.
+// ---- Ollama Lifecycle ----
+// Beim App-Start wird geprüft, ob bereits ein Ollama-Server läuft. Falls nicht,
+// wird einer gestartet (gebündelte Windows-Runtime oder System-Installation).
+// Einen selbst gestarteten Server beendet die App beim Schließen wieder; ein
+// bereits vorhandener (vom Nutzer gestarteter) Server bleibt unangetastet.
+// Das Modell wird nicht gebündelt, sondern beim ersten Start heruntergeladen.
 
 let ollamaProcess = null; // child process — only set if WE started Ollama
 let ollamaSetupState = { phase: 'idle', percent: 0, message: '', model: DEFAULT_MODEL };
@@ -374,6 +376,28 @@ function bundledOllamaPath() {
   if (process.platform !== 'win32') return null;
   const exe = path.join(process.resourcesPath, 'ollama', 'ollama.exe');
   return fs.existsSync(exe) ? exe : null;
+}
+
+// Find an ollama executable: bundled runtime first, then known system install
+// locations, then the bare command via PATH as a last resort.
+function findOllamaExecutable() {
+  const bundled = bundledOllamaPath();
+  if (bundled) return bundled;
+
+  const candidates = process.platform === 'win32'
+    ? [
+        path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Ollama', 'ollama.exe'),
+        path.join(process.env.ProgramFiles || '', 'Ollama', 'ollama.exe'),
+      ]
+    : [
+        '/usr/local/bin/ollama',
+        '/opt/homebrew/bin/ollama',
+        '/usr/bin/ollama',
+      ];
+  for (const c of candidates) {
+    if (c && fs.existsSync(c)) return c;
+  }
+  return process.platform === 'win32' ? 'ollama.exe' : 'ollama';
 }
 
 // Resolves true if an Ollama server is already answering on the URL.
@@ -394,19 +418,26 @@ function waitForOllama(ollamaUrl, timeoutMs = 30000) {
   });
 }
 
-// Start the bundled ollama server. Returns true once it is reachable.
-async function startBundledOllama(ollamaUrl) {
-  const exe = bundledOllamaPath();
-  if (!exe) return false;
+// Start an ollama server (bundled or system install).
+// Returns true once it is reachable. The spawned process is tracked in
+// `ollamaProcess` so it can be stopped again when the app quits.
+async function startOllamaServer(ollamaUrl) {
+  const exe = findOllamaExecutable();
   try {
     ollamaProcess = spawn(exe, ['serve'], {
       env: { ...process.env, OLLAMA_HOST: '127.0.0.1:11434' },
       stdio: 'ignore',
       windowsHide: true,
     });
+    // ENOENT (ollama nicht installiert) kommt asynchron als 'error'-Event.
+    ollamaProcess.on('error', (e) => {
+      console.error('Ollama konnte nicht gestartet werden:', e.message);
+      ollamaProcess = null;
+    });
     ollamaProcess.on('exit', () => { ollamaProcess = null; });
     return await waitForOllama(ollamaUrl, 30000);
   } catch (e) {
+    console.error('Ollama konnte nicht gestartet werden:', e.message);
     return false;
   }
 }
@@ -474,11 +505,11 @@ async function runOllamaSetup() {
 
   sendSetupState({ phase: 'starting', percent: 0, message: 'Starte KI-Dienst…' });
 
-  // 1) Already running? (system Ollama in dev, or a previous instance)
+  // 1) Already running? (system Ollama, or a previous instance)
   let up = await isOllamaUp(ollamaUrl);
 
-  // 2) Otherwise start the bundled runtime (Windows production only)
-  if (!up) up = await startBundledOllama(ollamaUrl);
+  // 2) Otherwise start a server (bundled runtime or system install)
+  if (!up) up = await startOllamaServer(ollamaUrl);
 
   if (!up) {
     // App stays usable — AI features fall back to local rule-based logic.
@@ -534,7 +565,9 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-// Stop the bundled Ollama process we started (leave system Ollama untouched).
+// Beim App-Ende den selbst gestarteten Ollama-Server beenden.
+// Ein bereits laufender (vom Nutzer gestarteter) Server wird nicht angetastet,
+// da `ollamaProcess` dann null ist.
 app.on('will-quit', () => {
   if (ollamaProcess) {
     try { ollamaProcess.kill(); } catch { /* noop */ }
