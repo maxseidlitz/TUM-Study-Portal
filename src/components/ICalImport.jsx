@@ -1,13 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { useLocale } from '../context/LocaleContext';
-import { formatDate } from '../utils/helpers';
+import { formatDate, generateId } from '../utils/helpers';
+import { groupImportedItemsToModules } from '../utils/icalGrouping';
+import { CloseIcon, RefreshIcon, CheckIcon } from './icons/Icons';
 
 const COLORS_CYCLE = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4', '#F97316', '#6366F1'];
 
 export default function ICalImport({ onClose }) {
   const { t, intlLocale } = useLocale();
-  const { addLectures, lectures, deleteLecture } = useData();
+  const { addLectures, lectures, deleteLecture, modules, addModule, deleteModule } = useData();
+
+  // Gruppiert ausgewählte Termine zu Modulen + Einzelterminen und legt sie an.
+  const persistGrouped = async (items) => {
+    const { modules: mods, lectures: lecs } = groupImportedItemsToModules(items);
+    for (const m of mods) {
+      await addModule({
+        name: m.name, code: '', semester: '', moodleUrl: '', color: m.color, source: 'ical',
+        slots: m.slots.map((s) => ({ ...s, id: generateId() })),
+      });
+    }
+    if (lecs.length) await addLectures(lecs);
+    return { moduleCount: mods.length, lectureCount: lecs.length };
+  };
   const [url, setUrl] = useState('');
   const [savedUrl, setSavedUrl] = useState('');
   const [status, setStatus] = useState('idle'); // idle | loading | preview | error | success
@@ -52,8 +67,8 @@ export default function ICalImport({ onClose }) {
   };
 
   const handleImport = async (selectedItems) => {
-    const toImport = selectedItems.filter(i => i._selected !== false);
-    await addLectures(toImport.map(({ _selected, ...rest }) => rest));
+    const toImport = selectedItems.filter(i => i._selected !== false).map(({ _selected, ...rest }) => rest);
+    await persistGrouped(toImport);
 
     const now = new Date().toISOString();
     await window.api.settings.save({ icalUrl: url.trim(), icalLastSync: now });
@@ -86,14 +101,15 @@ export default function ICalImport({ onClose }) {
       return;
     }
 
-    const existingImported = lectures.filter(l => l.imported);
-    for (const l of existingImported) await deleteLecture(l.id);
+    // Alte iCal-Daten entfernen: importierte Einzeltermine + iCal-erzeugte Module
+    for (const l of lectures.filter(l => l.imported)) await deleteLecture(l.id);
+    for (const m of modules.filter(m => m.source === 'ical')) await deleteModule(m.id);
 
-    const withIds = items.map((l, idx) => ({
+    const withColors = items.map((l, idx) => ({
       ...l,
       color: COLORS_CYCLE[idx % COLORS_CYCLE.length],
     }));
-    await addLectures(withIds);
+    await persistGrouped(withColors);
 
     const now = new Date().toISOString();
     await window.api.settings.save({ icalLastSync: now });
@@ -181,6 +197,9 @@ function ImportPreview({ items, onImport, onCancel, t, intlLocale }) {
   };
 
   const selectedCount = selected.filter(i => i._selected).length;
+  const grouped = groupImportedItemsToModules(
+    selected.filter(i => i._selected).map(({ _selected, ...rest }) => rest)
+  );
 
   return (
     <>
@@ -226,6 +245,12 @@ function ImportPreview({ items, onImport, onCancel, t, intlLocale }) {
         ))}
       </div>
 
+      {selectedCount > 0 && (
+        <div style={styles.groupSummary}>
+          {`Wird angelegt als ${grouped.modules.length} Modul(e) · ${grouped.lectures.length} Einzeltermin(e)`}
+        </div>
+      )}
+
       <div className="modal-footer">
         <button className="btn btn-secondary" onClick={onCancel}>{t('common.cancel')}</button>
         <button
@@ -239,10 +264,6 @@ function ImportPreview({ items, onImport, onCancel, t, intlLocale }) {
     </>
   );
 }
-
-function CloseIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>; }
-function RefreshIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>; }
-function CheckIcon() { return <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>; }
 
 const styles = {
   syncInfo: {
@@ -273,4 +294,8 @@ const styles = {
   },
   previewName: { fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' },
   previewMeta: { display: 'flex', gap: 10, fontSize: 12, color: 'var(--text-muted)', marginTop: 2 },
+  groupSummary: {
+    fontSize: 12, color: 'var(--accent-hover)', background: 'var(--accent-subtle)',
+    border: '1px solid var(--accent-light)', borderRadius: 8, padding: '8px 12px', marginBottom: 4,
+  },
 };
