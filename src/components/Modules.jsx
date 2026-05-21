@@ -1,23 +1,19 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { useLocale } from '../context/LocaleContext';
 import { generateId, openExternal } from '../utils/helpers';
+import EmptyState from './ui/EmptyState';
+import { PlusIcon, CloseIcon, SyncIcon, ExternalIcon } from './icons/Icons';
+import ModuleCard from './modules/ModuleCard';
+import WeekScheduleEditor from './modules/WeekScheduleEditor';
 
 const COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4', '#F97316', '#6366F1', '#EF4444', '#14B8A6'];
-const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 const EMPTY_SLOT = { id: '', day: 'Mo', time: '', end_time: '', room: '', lecturer: '', allDay: false };
 const EMPTY_FORM = { name: '', code: '', semester: '', moodleUrl: '', color: COLORS[0], slots: [] };
 
 export default function Modules() {
   const { t } = useLocale();
   const { modules, addModule, updateModule, deleteModule, loading } = useData();
-  const dayNames = useMemo(() => {
-    const o = {};
-    DAYS.forEach((d) => {
-      o[d] = t(`lectures.daysLong.${d}`);
-    });
-    return o;
-  }, [t]);
   const [showModal, setShowModal] = useState(false);
   const [showMoodleModal, setShowMoodleModal] = useState(false);
   const [moodleEmail, setMoodleEmail] = useState('');
@@ -77,27 +73,6 @@ export default function Modules() {
     setDeleteConfirm(null);
   };
 
-  const addSlot = () => {
-    setForm((f) => ({
-      ...f,
-      slots: [...(f.slots || []), { ...EMPTY_SLOT, id: generateId() }],
-    }));
-  };
-
-  const updateSlot = (index, patch) => {
-    setForm((f) => {
-      const slots = [...(f.slots || [])];
-      slots[index] = { ...slots[index], ...patch };
-      return { ...f, slots };
-    });
-  };
-
-  const removeSlot = (index) => {
-    setForm((f) => ({
-      ...f,
-      slots: (f.slots || []).filter((_, i) => i !== index),
-    }));
-  };
 
   return (
     <div>
@@ -120,7 +95,7 @@ export default function Modules() {
       </div>
 
       {modules.length === 0 ? (
-        <EmptyState onAdd={openAdd} t={t} />
+        <EmptyState icon="📚" title={t('modules.emptyTitle')} actionLabel={t('modules.emptyCta')} onAction={openAdd} />
       ) : (
         <div className="grid-2">
           {modules.map((mod) => (
@@ -137,7 +112,7 @@ export default function Modules() {
 
       {showModal && (
         <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && closeModal()}>
-          <div className="modal" style={{ maxWidth: 520 }}>
+          <div className="modal" style={{ maxWidth: 760 }}>
             <div className="modal-header">
               <h2>{editing ? t('modules.modalEdit') : t('modules.modalNew')}</h2>
               <button type="button" className="btn btn-ghost btn-icon" onClick={closeModal}><CloseIcon /></button>
@@ -202,94 +177,17 @@ export default function Modules() {
                 </div>
               </div>
 
-              <div style={styles.slotsHead}>
-                <span className="form-label" style={{ margin: 0 }}>{t('modules.slotsTitle')}</span>
-                <button type="button" className="btn btn-secondary btn-sm" onClick={addSlot}>
-                  <PlusIcon /> {t('modules.addSlot')}
-                </button>
+              <div className="form-group">
+                <label className="form-label">{t('modules.slotsTitle')}</label>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 0, marginBottom: 10 }}>
+                  {t('modules.slotsHint')}
+                </p>
+                <WeekScheduleEditor
+                  slots={form.slots || []}
+                  color={form.color}
+                  onChange={(slots) => setForm((f) => ({ ...f, slots }))}
+                />
               </div>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 0, marginBottom: 12 }}>
-                {t('modules.slotsHint')}
-              </p>
-              {(form.slots || []).length === 0 ? (
-                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>{t('modules.noSlots')}</div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
-                  {(form.slots || []).map((slot, index) => (
-                    <div key={slot.id || index} style={styles.slotCard}>
-                      <div className="form-row">
-                        <div className="form-group">
-                          <label className="form-label">{t('lectures.fieldDay')}</label>
-                          <select
-                            className="form-select"
-                            value={slot.day}
-                            onChange={(e) => updateSlot(index, { day: e.target.value })}
-                          >
-                            {DAYS.map((d) => <option key={d} value={d}>{dayNames[d]}</option>)}
-                          </select>
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">{t('lectures.fieldFrom')}</label>
-                          <input
-                            className="form-input"
-                            type="time"
-                            disabled={slot.allDay}
-                            value={slot.time}
-                            onChange={(e) => updateSlot(index, { time: e.target.value })}
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">{t('lectures.fieldTo')}</label>
-                          <input
-                            className="form-input"
-                            type="time"
-                            disabled={slot.allDay}
-                            value={slot.end_time}
-                            onChange={(e) => updateSlot(index, { end_time: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                      <div className="form-row">
-                        <div className="form-group">
-                          <label className="form-label">{t('lectures.fieldRoom')}</label>
-                          <input
-                            className="form-input"
-                            placeholder={t('lectures.placeholderRoom')}
-                            value={slot.room}
-                            onChange={(e) => updateSlot(index, { room: e.target.value })}
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">{t('lectures.fieldLecturer')}</label>
-                          <input
-                            className="form-input"
-                            placeholder={t('lectures.placeholderLecturer')}
-                            value={slot.lecturer}
-                            onChange={(e) => updateSlot(index, { lecturer: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
-                          <input
-                            type="checkbox"
-                            checked={Boolean(slot.allDay)}
-                            onChange={(e) => updateSlot(index, {
-                              allDay: e.target.checked,
-                              time: e.target.checked ? '' : slot.time,
-                              end_time: e.target.checked ? '' : slot.end_time,
-                            })}
-                          />
-                          {t('lectures.fieldAllDay')}
-                        </label>
-                        <button type="button" className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => removeSlot(index)}>
-                          {t('modules.removeSlot')}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
 
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={closeModal}>{t('common.cancel')}</button>
@@ -360,67 +258,6 @@ export default function Modules() {
     </div>
   );
 }
-
-function ModuleCard({ mod, onEdit, onDelete, t }) {
-  const initials = (mod.name || '')
-    .split(' ')
-    .filter((w) => w.length > 2)
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join('');
-  const slotCount = Array.isArray(mod.slots) ? mod.slots.length : 0;
-
-  return (
-    <div className="card" style={styles.card}>
-      <div style={styles.cardTop}>
-        <div style={{ ...styles.courseIcon, background: mod.color || 'var(--accent)' }}>
-          {initials || '?'}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={styles.courseName}>{mod.name}</h3>
-          <div style={styles.courseMeta}>
-            {mod.code && <span className="badge badge-muted">{mod.code}</span>}
-            {mod.semester && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{mod.semester}</span>}
-            <span className="badge badge-muted">{t('modules.slotCount', { count: slotCount })}</span>
-          </div>
-        </div>
-      </div>
-
-      <div style={styles.cardActions}>
-        {mod.moodleUrl ? (
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => openExternal(mod.moodleUrl)} style={{ flex: 1 }}>
-            <ExternalIcon /> {t('modules.openCourse')}
-          </button>
-        ) : (
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', flex: 1 }}>{t('modules.noUrl')}</span>
-        )}
-        <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => onEdit(mod)} title={t('modules.editTitle')}>
-          <EditIcon />
-        </button>
-        <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => onDelete(mod.id)} title={t('modules.deleteTitleBtn')} style={{ color: 'var(--danger)' }}>
-          <TrashIcon />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function EmptyState({ onAdd, t }) {
-  return (
-    <div className="empty-state">
-      <span style={{ fontSize: 48 }}>📚</span>
-      <p>{t('modules.emptyTitle')}</p>
-      <button type="button" className="btn btn-primary" onClick={onAdd}>{t('modules.emptyCta')}</button>
-    </div>
-  );
-}
-
-function PlusIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>; }
-function SyncIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" /><polyline points="21 3 21 8 16 8" /></svg>; }
-function CloseIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>; }
-function ExternalIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>; }
-function EditIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>; }
-function TrashIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>; }
 
 const styles = {
   pageHeader: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32 },
