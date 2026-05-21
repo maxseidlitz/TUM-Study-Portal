@@ -9,6 +9,7 @@ import {
   dayCodeFromISODate,
   sortByDay,
   getStudyProgress,
+  lectureMatchesCalendarDay,
 } from './helpers';
 
 describe('generateId', () => {
@@ -112,5 +113,35 @@ describe('getStudyProgress', () => {
     const v = getStudyProgress(formatISODateLocal(new Date()));
     expect(v).toBeGreaterThanOrEqual(0);
     expect(v).toBeLessThanOrEqual(100);
+  });
+});
+
+describe('lectureMatchesCalendarDay (Einzel-Instanz-Overrides)', () => {
+  // 2026-05-18 = Montag, 2026-05-25 = Montag
+  const monday = new Date(2026, 4, 18);
+  const nextMonday = new Date(2026, 4, 25);
+  const tuesday = new Date(2026, 4, 19);
+
+  test('wöchentliche Basis matcht nach Wochentag', () => {
+    const base = { day: 'Mo', eventDate: '' };
+    expect(lectureMatchesCalendarDay(base, monday)).toBe(true);
+    expect(lectureMatchesCalendarDay(base, tuesday)).toBe(false);
+  });
+
+  test('Basis wird an Override-Tag (abgesagt) unterdrückt, andere Wochen bleiben', () => {
+    const base = { day: 'Mo', eventDate: '', overrides: { '2026-05-18': { canceled: true } } };
+    expect(lectureMatchesCalendarDay(base, monday)).toBe(false);
+    expect(lectureMatchesCalendarDay(base, nextMonday)).toBe(true);
+  });
+
+  test('Basis wird an Override-Tag (verschoben) unterdrückt', () => {
+    const base = { day: 'Mo', eventDate: '', overrides: { '2026-05-18': { time: '14:00' } } };
+    expect(lectureMatchesCalendarDay(base, monday)).toBe(false);
+  });
+
+  test('dattierte Override-Instanz matcht nur an ihrem Datum', () => {
+    const ov = { eventDate: '2026-05-18', isOverride: true };
+    expect(lectureMatchesCalendarDay(ov, monday)).toBe(true);
+    expect(lectureMatchesCalendarDay(ov, nextMonday)).toBe(false);
   });
 });

@@ -45,13 +45,32 @@ function normalizeStoreAfterLoad() {
   if (!Array.isArray(store.lectures)) store.lectures = [];
   if (!Array.isArray(store.moodle_courses)) store.moodle_courses = [];
   if (!Array.isArray(store.todos)) store.todos = [];
+  if (!store.settings) store.settings = {};
+  if (store.settings.targetEcts === undefined) store.settings.targetEcts = 180;
+  if (store.settings.targetGpa === undefined) store.settings.targetGpa = 1.0;
+  if (store.settings.preferredMensaId === undefined) store.settings.preferredMensaId = '422'; // Garching
 }
 
 /** Vorlesungszeile aus Modul-Slot (id = moduleId::slotId). */
+const STORE_DAY_CODES = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+function dayCodeForIso(iso) {
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return 'Mo';
+  return STORE_DAY_CODES[new Date(+m[1], +m[2] - 1, +m[3]).getDay()];
+}
+
+/**
+ * Composite-Lecture-ID:
+ *  - "moduleId::slotId"          → wöchentlicher Slot
+ *  - "moduleId::slotId::isoDate" → Einzel-Instanz-Override an diesem Datum
+ */
 function parseCompositeLectureId(id) {
   if (typeof id !== 'string' || !id.includes('::')) return null;
-  const i = id.indexOf('::');
-  return { moduleId: id.slice(0, i), slotId: id.slice(i + 2) };
+  const parts = id.split('::');
+  if (parts.length >= 3) {
+    return { moduleId: parts[0], slotId: parts[1], overrideDate: parts.slice(2).join('::') };
+  }
+  return { moduleId: parts[0], slotId: parts[1] };
 }
 
 function expandModulesToLectures(modules) {
@@ -61,6 +80,8 @@ function expandModulesToLectures(modules) {
     const slots = Array.isArray(mod.slots) ? mod.slots : [];
     for (const slot of slots) {
       if (!slot || typeof slot.id !== 'string' || !slot.id) continue;
+      const overrides = (slot.overrides && typeof slot.overrides === 'object') ? slot.overrides : {};
+      // Wöchentliche Basis-Instanz (trägt overrides zur Unterdrückung einzelner Tage)
       out.push({
         id: `${mod.id}::${slot.id}`,
         moduleId: mod.id,
@@ -74,10 +95,46 @@ function expandModulesToLectures(modules) {
         color: mod.color || '#3B82F6',
         eventDate: '',
         allDay: Boolean(slot.allDay),
+        overrides,
       });
+      // Verschobene/geänderte Einzeltermine als dattierte Instanzen (abgesagte nicht)
+      for (const [iso, ov] of Object.entries(overrides)) {
+        if (!ov || ov.canceled) continue;
+        out.push({
+          id: `${mod.id}::${slot.id}::${iso}`,
+          moduleId: mod.id,
+          slotId: slot.id,
+          overrideDate: iso,
+          isOverride: true,
+          name: mod.name || '',
+          day: dayCodeForIso(iso),
+          time: ov.time != null ? ov.time : (slot.time || ''),
+          end_time: ov.end_time != null ? ov.end_time : (slot.end_time || ''),
+          room: ov.room != null ? ov.room : (slot.room || ''),
+          lecturer: slot.lecturer || '',
+          color: mod.color || '#3B82F6',
+          eventDate: iso,
+          allDay: Boolean(slot.allDay),
+        });
+      }
     }
   }
   return out;
+}
+
+/** Setzt/merged einen Einzel-Instanz-Override (verschieben/ändern). */
+function setSlotOverride(moduleId, slotId, iso, patch) {
+  const mod = (store.modules || []).find((m) => m.id === moduleId);
+  if (!mod) return { success: false, error: 'Modul nicht gefunden.' };
+  const slots = [...(mod.slots || [])];
+  const si = slots.findIndex((s) => s.id === slotId);
+  if (si < 0) return { success: false, error: 'Termin nicht gefunden.' };
+  const overrides = { ...(slots[si].overrides || {}) };
+  overrides[iso] = { ...(overrides[iso] || {}), ...patch };
+  slots[si] = { ...slots[si], overrides };
+  store.modules = (store.modules || []).map((m) => (m.id === moduleId ? { ...mod, slots } : m));
+  saveStore();
+  return { success: true };
 }
 
 function getMergedLecturesForClient() {
@@ -176,4 +233,5 @@ module.exports = {
   getMergedLecturesForClient,
   parseCompositeLectureId,
   expandModulesToLectures,
+  setSlotOverride,
 };

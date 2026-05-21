@@ -9,12 +9,14 @@ import {
   formatISODateLocal,
   dateToDayCode,
   sortCalendarImports,
-  formatDate,
   dayCodeFromISODate,
 } from '../utils/helpers';
 import { timeToMinutes } from '../utils/weekGridLayout';
 import ICalImport from './ICalImport';
 import WeekTimeGridView from './WeekTimeGridView';
+import EmptyState from './ui/EmptyState';
+import { PlusIcon, CloseIcon, CalIcon } from './icons/Icons';
+import LectureCard from './lectures/LectureList';
 
 const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 const COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4', '#F97316', '#6366F1'];
@@ -22,6 +24,19 @@ const EMPTY_FORM = {
   name: '', day: 'Mo', time: '', end_time: '', room: '', lecturer: '', color: COLORS[0],
   eventDate: '', allDay: false,
 };
+
+const DAY_CODES_LOCAL = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+/** Nächstes Datum (ab heute) mit passendem Wochentag-Code, als ISO-String. */
+function nextDateForDay(dayCode) {
+  const d = new Date();
+  for (let i = 0; i < 14; i += 1) {
+    if (DAY_CODES_LOCAL[d.getDay()] === dayCode) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  return '';
+}
 
 export default function Lectures() {
   const { t, intlLocale } = useLocale();
@@ -40,6 +55,8 @@ export default function Lectures() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [editScope, setEditScope] = useState('series'); // 'series' | 'single' (nur Modul-Slots)
+  const [overrideDate, setOverrideDate] = useState('');
 
   const today = getTodayDayCode();
   const todayIso = formatISODateLocal(new Date());
@@ -81,9 +98,12 @@ export default function Lectures() {
     [weekMonday, sortedManual, calendarImports],
   );
 
-  const openAdd = () => { setForm(EMPTY_FORM); setEditing(null); setShowModal(true); };
-  const openEdit = (l) => { setForm({ ...l }); setEditing(l.id); setShowModal(true); };
+  const openAdd = () => { setForm(EMPTY_FORM); setEditing(null); setEditScope('series'); setOverrideDate(''); setShowModal(true); };
+  const openEdit = (l) => { setForm({ ...l }); setEditing(l.id); setEditScope('series'); setOverrideDate(nextDateForDay(l.day)); setShowModal(true); };
   const closeModal = () => { setShowModal(false); setEditing(null); };
+
+  // Modul-Slot (wöchentliche Basis), für den Einzel-Instanz-Overrides möglich sind
+  const isModuleBase = Boolean(form.moduleId) && !form.eventDate;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -95,8 +115,28 @@ export default function Lectures() {
       payload.time = '';
       payload.end_time = '';
     }
-    if (editing) await updateLecture({ ...payload, id: editing });
-    else await addLecture(payload);
+    if (editing) {
+      if (isModuleBase && editScope === 'single' && overrideDate) {
+        // Nur diesen Termin verschieben/ändern → Override-ID moduleId::slotId::datum
+        await updateLecture({
+          id: `${editing}::${overrideDate}`,
+          time: payload.time,
+          end_time: payload.end_time,
+          room: payload.room,
+        });
+      } else {
+        await updateLecture({ ...payload, id: editing });
+      }
+    } else {
+      await addLecture(payload);
+    }
+    closeModal();
+  };
+
+  // Einzelnen Termin einer Reihe absagen
+  const handleCancelOccurrence = async () => {
+    if (!editing || !overrideDate) return;
+    await deleteLecture(`${editing}::${overrideDate}`);
     closeModal();
   };
 
@@ -144,7 +184,7 @@ export default function Lectures() {
       </div>
 
       {lectures.length === 0 ? (
-        <EmptyState onAdd={openAdd} t={t} />
+        <EmptyState icon="📚" title={t('lectures.emptyTitle')} actionLabel={t('lectures.emptyCta')} onAction={openAdd} />
       ) : viewMode === 'list' ? (
         <div style={styles.schedule}>
           {DAYS.map(day => (
@@ -240,6 +280,51 @@ export default function Lectures() {
               <button className="btn btn-ghost btn-icon" onClick={closeModal}><CloseIcon /></button>
             </div>
             <form onSubmit={handleSubmit}>
+              {isModuleBase && (
+                <div className="form-group" style={styles.scopeBox}>
+                  <label className="form-label" style={{ marginBottom: 6 }}>Bearbeiten</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={editScope === 'series' ? { ...styles.scopeBtn, ...styles.scopeBtnActive } : styles.scopeBtn}
+                      onClick={() => setEditScope('series')}
+                    >
+                      Ganze Reihe
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={editScope === 'single' ? { ...styles.scopeBtn, ...styles.scopeBtnActive } : styles.scopeBtn}
+                      onClick={() => setEditScope('single')}
+                    >
+                      Einzelner Termin
+                    </button>
+                  </div>
+                  {editScope === 'single' && (
+                    <div style={{ marginTop: 10 }}>
+                      <input
+                        className="form-input"
+                        type="date"
+                        value={overrideDate}
+                        onChange={e => setOverrideDate(e.target.value)}
+                      />
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+                        Änderungen gelten nur für dieses Datum – die wöchentliche Reihe bleibt unverändert.
+                      </p>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        style={{ color: 'var(--danger)', marginTop: 2 }}
+                        disabled={!overrideDate}
+                        onClick={handleCancelOccurrence}
+                      >
+                        Diesen Termin absagen
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="form-group">
                 <label className="form-label">{t('lectures.fieldName')}</label>
                 <input className="form-input" required placeholder={t('lectures.placeholderName')}
@@ -366,89 +451,6 @@ export default function Lectures() {
   );
 }
 
-function LectureCard({ lecture, isToday, onEdit, onDelete, intlLocale, t }) {
-  const [hover, setHover] = useState(false);
-  const dateLabel = lecture.eventDate ? formatDate(lecture.eventDate, intlLocale) : null;
-  return (
-    <div
-      role="group"
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        ...styles.lectureCard,
-        borderLeft: `4px solid ${lecture.color || 'var(--accent)'}`,
-        ...(isToday ? { background: 'var(--accent-subtle)' } : {}),
-      }}
-    >
-      <div style={styles.lectureTop}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <span style={styles.lectureName}>{lecture.name}</span>
-          {dateLabel && (
-            <span style={styles.lectureDateBadge}>{dateLabel}</span>
-          )}
-        </div>
-        <div style={{ ...styles.lectureActions, opacity: hover ? 1 : 0.5 }}>
-          <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => onEdit(lecture)} title={t('lectures.editTitle')}>
-            <EditIcon />
-          </button>
-          <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => onDelete(lecture.id)} title={t('lectures.deleteTitleBtn')} style={{ color: 'var(--danger)' }}>
-            <TrashIcon />
-          </button>
-        </div>
-      </div>
-      <div style={styles.lectureMeta}>
-        {lecture.allDay ? (
-          <span style={{
-            color: lecture.color || 'var(--accent)',
-            fontWeight: 600,
-            fontSize: 12,
-          }}
-          >
-            {t('lectures.allDay')}
-          </span>
-        ) : (lecture.time || lecture.end_time) ? (
-          <span style={{
-            color: lecture.color || 'var(--accent)',
-            fontWeight: 600,
-            fontSize: 12,
-          }}
-          >
-            {lecture.time}{lecture.end_time ? `–${lecture.end_time}` : ''}
-          </span>
-        ) : null}
-        {lecture.room && <span>📍 {lecture.room}</span>}
-        {lecture.lecturer && <span>👤 {lecture.lecturer}</span>}
-      </div>
-    </div>
-  );
-}
-
-function EmptyState({ onAdd, t }) {
-  return (
-    <div className="empty-state">
-      <span style={{ fontSize: 48 }}>📚</span>
-      <p>{t('lectures.emptyTitle')}</p>
-      <button className="btn btn-primary" onClick={onAdd}>{t('lectures.emptyCta')}</button>
-    </div>
-  );
-}
-
-function PlusIcon() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>;
-}
-function CalIcon() {
-  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>;
-}
-function CloseIcon() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>;
-}
-function EditIcon() {
-  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>;
-}
-function TrashIcon() {
-  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>;
-}
-
 const styles = {
   pageHeader: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32 },
   schedule: { display: 'flex', flexDirection: 'column', gap: 20 },
@@ -502,6 +504,9 @@ const styles = {
   lectureMeta: { display: 'flex', flexWrap: 'wrap', gap: 14, fontSize: 12, color: 'var(--text-secondary)' },
   colorPicker: { display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 8 },
   colorSwatch: { width: 24, height: 24, borderRadius: '50%', border: 'none', cursor: 'pointer', transition: 'transform var(--transition)' },
+  scopeBox: { background: 'var(--bg-tertiary)', borderRadius: 10, padding: 12 },
+  scopeBtn: { flex: 1 },
+  scopeBtnActive: { borderColor: 'var(--accent)', boxShadow: '0 0 0 1px var(--accent)', color: 'var(--accent-hover)', fontWeight: 600 },
   calendarSection: {
     marginTop: 8,
     background: 'var(--bg-card)',

@@ -64,10 +64,13 @@ export function getTodayISODate() {
   return formatISODateLocal(new Date());
 }
 
-/** Termin gehört zum angegebenen Kalendertag (manuell: Wochentag; Import: eventDate). */
+/** Termin gehört zum angegebenen Kalendertag (manuell: Wochentag; Import/Override: eventDate). */
 export function lectureMatchesCalendarDay(lecture, date = new Date()) {
   const iso = formatISODateLocal(date);
   if (lecture.eventDate) return lecture.eventDate === iso;
+  // Wöchentliche Basis-Instanz: an Tagen mit Override (verschoben/abgesagt) NICHT
+  // anzeigen – die dattierte Override-Instanz übernimmt bzw. der Tag entfällt.
+  if (lecture.overrides && lecture.overrides[iso]) return false;
   const code = dateToDayCode(date);
   return lecture.day === code;
 }

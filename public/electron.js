@@ -7,7 +7,7 @@ const { spawn } = require('child_process');
 const { parseIcal, eventsToCalendarItems } = require('./ical');
 const {
   store, saveStore, initStore,
-  getMergedLecturesForClient, parseCompositeLectureId,
+  getMergedLecturesForClient, parseCompositeLectureId, setSlotOverride,
 } = require('./store');
 const {
   DEFAULT_MODEL, normalizeOllamaUrl, describeConnectionError, listOllamaModels,
@@ -89,6 +89,9 @@ function fetchUrl(urlStr) {
     const parsed = new URL(urlStr);
     const mod = parsed.protocol === 'https:' ? https : http;
     mod.get(urlStr, { timeout: 10000 }, (res) => {
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        return reject(new Error(`HTTP ${res.statusCode}`));
+      }
       let data = '';
       res.on('data', chunk => { data += chunk; });
       res.on('end', () => resolve(data));
@@ -123,6 +126,15 @@ function registerIpcHandlers() {
   });
   ipcMain.handle('lectures:update', (_, lecture) => {
     const parsed = parseCompositeLectureId(lecture.id);
+    if (parsed && parsed.overrideDate) {
+      // Einzel-Instanz verschieben/ändern (überschreibt nur diesen Tag)
+      return setSlotOverride(parsed.moduleId, parsed.slotId, parsed.overrideDate, {
+        canceled: false,
+        time: lecture.time || '',
+        end_time: lecture.end_time || '',
+        room: lecture.room || '',
+      });
+    }
     if (parsed) {
       const mod = (store.modules || []).find((m) => m.id === parsed.moduleId);
       if (!mod) return { success: false, error: 'Modul nicht gefunden.' };
@@ -147,6 +159,10 @@ function registerIpcHandlers() {
   });
   ipcMain.handle('lectures:delete', (_, id) => {
     const parsed = parseCompositeLectureId(id);
+    if (parsed && parsed.overrideDate) {
+      // Einzel-Instanz absagen (Reihe bleibt bestehen)
+      return setSlotOverride(parsed.moduleId, parsed.slotId, parsed.overrideDate, { canceled: true });
+    }
     if (parsed) {
       const mod = (store.modules || []).find((m) => m.id === parsed.moduleId);
       if (!mod) return { success: false, error: 'Modul nicht gefunden.' };
@@ -351,6 +367,18 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle('shell:openExternal', (_, url) => shell.openExternal(url));
+
+  // Mensa
+  ipcMain.handle('mensa:fetch', async (_, canteenId) => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const url = `https://openmensa.org/api/v2/canteens/${canteenId}/days/${today}/meals`;
+      const data = await fetchUrl(url);
+      return { success: true, meals: JSON.parse(data) };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  });
 }
 
 
