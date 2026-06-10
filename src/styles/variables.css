@@ -17,6 +17,7 @@
 
   /* TUM Blue as accent */
   --accent: #0065bd;
+  --accent-rgb: 0, 101, 189;
   --accent-hover: #0074d9;
   --accent-light: #1a4a7a;
   --accent-subtle: rgba(0, 101, 189, 0.12);

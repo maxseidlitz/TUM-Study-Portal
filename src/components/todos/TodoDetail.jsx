@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useLocale } from '../context/LocaleContext';
-import { useData } from '../context/DataContext';
-import { formatDate, getDaysUntil } from '../utils/helpers';
+import { useLocale } from '../../context/LocaleContext';
+import { useData } from '../../context/DataContext';
+import { formatDate, getDaysUntil } from '../../utils/helpers';
+import { CloseIcon, CheckIcon, TrashIcon } from '../icons/Icons';
 
 const PRIORITY_KEYS = ['high', 'medium', 'low'];
 const PRIORITY_COLORS = { high: 'var(--danger)', medium: 'var(--warning)', low: 'var(--success)' };
@@ -194,10 +195,6 @@ export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose
     </aside>
   );
 }
-
-function CloseIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>; }
-function CheckIcon() { return <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>; }
-function TrashIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>; }
 
 const styles = {
   panel: {

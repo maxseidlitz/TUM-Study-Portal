@@ -10,7 +10,8 @@ import {
   formatISODateLocal,
   resolveTodoCourseLabel,
 } from '../utils/helpers';
-import AiRecommendation from './AiRecommendation';
+import AiRecommendation from '../components/AiRecommendation';
+import MensaWidget from '../components/dashboard/MensaWidget';
 
 export default function Dashboard() {
   const { t, intlLocale } = useLocale();
@@ -61,7 +62,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid-4" style={{ marginBottom: 32 }}>
+      <div className="grid-4" style={{ marginBottom: 32 }} data-tour-id="dashboard-stats">
         <StatCard
           label={t('dashboard.statExams')}
           value={exams.length}
@@ -138,12 +139,17 @@ export default function Dashboard() {
         {/* Right column */}
         <div style={styles.rightCol}>
           {/* AI tip */}
-          <div style={{ marginBottom: 20 }}>
+          <div style={{ marginBottom: 20 }} data-tour-id="ai-recommendation">
             <AiRecommendation />
           </div>
 
+          {/* Mensa widget */}
+          <div style={{ marginBottom: 20 }}>
+            <MensaWidget />
+          </div>
+
           {/* Week overview */}
-          <div className="card">
+          <div className="card" data-tour-id="week-overview">
             <div style={styles.cardTitle}>{t('dashboard.weekOverview')}</div>
             <div style={styles.weekGrid}>
               {lecturesByDay.map(({ day, hasLecture, hasExam }) => (

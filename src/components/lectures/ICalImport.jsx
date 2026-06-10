@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useData } from '../context/DataContext';
-import { useLocale } from '../context/LocaleContext';
-import { formatDate, generateId } from '../utils/helpers';
-import { groupImportedItemsToModules } from '../utils/icalGrouping';
-import { CloseIcon, RefreshIcon, CheckIcon } from './icons/Icons';
+import { useData } from '../../context/DataContext';
+import { useLocale } from '../../context/LocaleContext';
+import { formatDate, generateId } from '../../utils/helpers';
+import { groupImportedItemsToModules } from '../../utils/icalGrouping';
+import { CloseIcon, RefreshIcon, CheckIcon } from '../icons/Icons';
 
 const COLORS_CYCLE = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4', '#F97316', '#6366F1'];
 

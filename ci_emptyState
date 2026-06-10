@@ -1,0 +1,151 @@
+CI-Fix: Fehlende UI-Komponenten committen
+
+Diagnose
+
+Auf main (Commit 817546f) importieren mehrere Dateien unter [src/components/](src/components/) Module, die nicht im Git-Index liegen:
+
+
+
+
+
+
+
+Fehlende Datei
+
+
+
+Importiert von
+
+
+
+
+
+[src/components/ui/EmptyState.jsx](src/components/ui/EmptyState.jsx)
+
+
+
+Lectures.jsx, Modules.jsx
+
+
+
+
+
+[src/components/icons/Icons.jsx](src/components/icons/Icons.jsx)
+
+
+
+Lectures.jsx, Modules.jsx, ICalImport.jsx
+
+
+
+
+
+[src/components/lectures/LectureList.jsx](src/components/lectures/LectureList.jsx)
+
+
+
+Lectures.jsx
+
+
+
+
+
+[src/components/modules/ModuleCard.jsx](src/components/modules/ModuleCard.jsx)
+
+
+
+Modules.jsx
+
+Alle vier Dateien existieren bereits lokal (Status ??, untracked) und sind funktionsfähig implementiert. Der gemeldete Fehler (Can't resolve './ui/EmptyState') ist nur der erste Webpack-Fehler; ohne die anderen drei Dateien würde der Build unmittelbar danach erneut abbrechen.
+
+Hinweis zur Pfadangabe: Der Fehler bezieht sich auf [src/components/Lectures.jsx](src/components/Lectures.jsx) (committed auf main), nicht auf die lokale, uncommitted Refactor-Version unter src/pages/Lectures.jsx.
+
+flowchart TD
+  CI["GitHub Actions: npm run build"]
+  Lectures["src/components/Lectures.jsx"]
+  Modules["src/components/Modules.jsx"]
+  ICal["src/components/ICalImport.jsx"]
+  EmptyState["ui/EmptyState.jsx ❌"]
+  Icons["icons/Icons.jsx ❌"]
+  LectureList["lectures/LectureList.jsx ❌"]
+  ModuleCard["modules/ModuleCard.jsx ❌"]
+
+  CI --> Lectures & Modules & ICal
+  Lectures --> EmptyState & Icons & LectureList
+  Modules --> EmptyState & Icons & ModuleCard
+  ICal --> Icons
+
+Bestehende Implementierung (keine Code-Änderung nötig)
+
+[EmptyState.jsx](src/components/ui/EmptyState.jsx) nutzt die bereits vorhandene CSS-Klasse .empty-state aus [src/styles/global.css](src/styles/global.css) (Zeilen 226–237) und akzeptiert die Props icon, title, actionLabel, onAction — exakt so, wie sie in Lectures.jsx und Modules.jsx verwendet werden:
+
+<EmptyState icon="📚" title={t('lectures.emptyTitle')} actionLabel={t('lectures.emptyCta')} onAction={openAdd} />
+
+Die übrigen drei Dateien sind eigenständige Extraktionen ohne weitere fehlende Abhängigkeiten (Icons importiert nur React; LectureList/ModuleCard importieren nur Icons und bestehende Utils).
+
+Umsetzungsschritte
+
+
+
+
+
+Vier Dateien zum Staging hinzufügen:
+
+
+
+
+
+src/components/ui/EmptyState.jsx
+
+
+
+src/components/icons/Icons.jsx
+
+
+
+src/components/lectures/LectureList.jsx
+
+
+
+src/components/modules/ModuleCard.jsx
+
+
+
+Lokal verifizieren (vor dem Push):
+
+   npm run build
+   
+
+
+   Erwartung: Build erfolgreich, kein Module not found.
+
+
+
+
+
+Commit mit klarer Message, z. B.:
+
+   fix: fehlende UI-Komponenten für Desktop-Build hinzufügen
+   
+
+
+   Begründung: Imports aus 817546f waren ohne die zugehörigen Dateien committed.
+
+
+
+
+
+Push auf main — löst [build-desktop.yml](.github/workflows/build-desktop.yml) aus; beide Jobs (build-windows, build-macos) nutzen denselben npm run build-Schritt und profitieren vom Fix.
+
+Bewusst außerhalb des Scopes
+
+
+
+
+
+Die lokale, uncommitted Umstrukturierung (src/pages/, verschobene lectures/-Dateien etc.) wird nicht mit committed — sie ist unabhängig vom main-CI-Fix und kann separat erfolgen.
+
+
+
+Keine Änderungen an Workflow-Dateien oder Import-Pfaden nötig; die committed Imports auf main stimmen bereits mit den Dateipfaden überein.
+

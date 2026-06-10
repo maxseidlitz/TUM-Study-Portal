@@ -159,8 +159,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: TUM-Study-Portal-macOS
-          path: |
-            dist/*.dmg
-            dist/*.zip
+          path: dist/*.dmg
           if-no-files-found: error
           retention-days: 7

@@ -8,6 +8,7 @@ const { parseIcal, eventsToCalendarItems } = require('./ical');
 const {
   store, saveStore, initStore,
   getMergedLecturesForClient, parseCompositeLectureId, setSlotOverride,
+  autoBackup,
 } = require('./store');
 const {
   DEFAULT_MODEL, normalizeOllamaUrl, describeConnectionError, listOllamaModels,
@@ -218,6 +219,9 @@ function registerIpcHandlers() {
   ipcMain.handle('studylogs:getByExam', (_, examId) =>
     store.study_logs.filter(l => l.exam_id === examId).sort((a, b) => b.date.localeCompare(a.date))
   );
+  ipcMain.handle('studylogs:getByTodo', (_, todoId) =>
+    store.study_logs.filter(l => l.todo_id === todoId).sort((a, b) => b.date.localeCompare(a.date))
+  );
   ipcMain.handle('studylogs:create', (_, log) => {
     store.study_logs.push(log); saveStore(); return { success: true };
   });
@@ -367,6 +371,29 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle('shell:openExternal', (_, url) => shell.openExternal(url));
+
+  // Backup — Export / Import
+  ipcMain.handle('backup:export', () => {
+    try {
+      return { success: true, data: JSON.stringify(store, null, 2) };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  });
+
+  ipcMain.handle('backup:import', (_, jsonString) => {
+    try {
+      const parsed = JSON.parse(jsonString);
+      // Write a safety-backup before overwriting
+      autoBackup();
+      Object.keys(store).forEach((k) => { delete store[k]; });
+      Object.assign(store, parsed);
+      saveStore();
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  });
 
   // Mensa
   ipcMain.handle('mensa:fetch', async (_, canteenId) => {

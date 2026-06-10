@@ -1,76 +1,122 @@
-# TUM Study Portal
-
-Persönliches Studiums-Dashboard für TU-München-Studenten — Electron-Desktop-App
-mit Prüfungen, Stundenplan, To-Dos, Moodle-Kursen und einem lokalen KI-Assistenten
-(Ollama).
-
-## Funktionen
-- Dashboard & Tagesansicht mit Countdown zur nächsten Prüfung
-- Prüfungsverwaltung inkl. Lern-Log & Notenberechnung
-- Stundenplan mit iCal-Import (z. B. TUMonline)
-- Asana-artige To-Do-Verwaltung
-- Moodle-Kurse & TUM-Links
-- KI-Assistent (Chat + Empfehlungen) über ein **lokales** Ollama-Modell
+# TUM Study Portal 🎓
+Das persönliche Dashboard für Studierende der TU München. Alles an einem Ort: Prüfungen, Stundenplan, To-Dos und ein privater KI-Assistent.
 
 ---
 
-## Entwicklung (lokal)
+## 🚀 Schnelleinstieg (Onboarding)
 
-Voraussetzungen: Node.js 18+ und – für die KI-Funktionen – ein lokal laufendes
-[Ollama](https://ollama.ai).
+Willkommen beim TUM Study Portal! Folge diesen Schritten, um in weniger als 5 Minuten startklar zu sein:
 
+### 1. Installation
+*   **Windows:** Lade die neueste `.exe` aus den [GitHub Actions Artefakten](https://github.com/maxseidlitz/TUM_Student-Dashboard/actions) herunter und installiere sie.
+*   **macOS:** Lade die `.dmg` herunter, ziehe die App in deinen Programme-Ordner und schalte sie einmalig im Terminal frei:
+    ```bash
+    xattr -cr /Applications/TUM\ Study\ Portal.app
+    ```
+
+### 2. Erster Start & KI-Setup
+Beim ersten Öffnen lädt die App automatisch die **Ollama-KI-Runtime** und das Sprachmodell (`gemma4:e2b`).
+*   Dieser Vorgang dauert je nach Internetleitung ein paar Minuten (ca. 7GB).
+*   Ein Fortschrittsbalken zeigt dir den Status an. Sobald dieser fertig ist, ist dein lokaler KI-Assistent einsatzbereit!
+
+### 3. Stundenplan importieren
+Gehe zum Tab **Stundenplan** und klicke auf **iCal Import**.
+*   Logge dich in [TUMonline](https://online.tum.de) ein.
+*   Suche deinen persönlichen Kalender-Link (iCal-Export).
+*   Kopiere den Link in die App – dein Stundenplan wird nun automatisch synchronisiert.
+
+---
+
+## ✨ Features im Überblick
+
+### 🤖 Lokaler KI-Assistent (Privacy First)
+*   **Chat:** Stelle Fragen zu deinem Studium, lass dir Lernpläne erstellen oder Aufgaben zusammenfassen.
+*   **Hintergrund-KI:** Die KI arbeitet weiter, auch wenn du den Chat verlässt. Ein kleiner Roboter-Button unten rechts zeigt dir den Status an.
+*   **Mini-Chat:** Über den schwebenden Button kannst du schnell auf Antworten zugreifen, ohne deine aktuelle Ansicht zu verlassen.
+*   **Alles lokal:** Deine Chats und Daten verlassen niemals deinen Rechner.
+
+### 📅 Akademisches Dashboard
+*   **Prüfungsverwaltung:** Behalte alle Termine im Blick, logge deine Lernstunden und berechne deinen voraussichtlichen Schnitt.
+*   **Stundenplan:** Eine übersichtliche Grid-Ansicht deiner Vorlesungen mit automatischer iCal-Synchronisation.
+*   **Moodle-Integration:** Direkter Zugriff auf deine Kurse und wichtige TUM-Links.
+
+### ✅ Aufgaben & Organisation
+*   **To-Do-Listen:** Verwalte deine Aufgaben mit Prioritäten (Asana-Style).
+*   **KI-Aufgaben:** Die KI kann automatisch To-Dos aus deinem Chatverlauf erstellen und für dich speichern.
+
+---
+
+## 🛠️ Entwicklung & Technische Details
+
+### Voraussetzungen
+*   Node.js 18+
+*   Optional: Ein bereits installiertes [Ollama](https://ollama.ai) (die App nutzt sonst ihre eigene Runtime).
+
+### Lokaler Start
 ```bash
 npm install
 npm run dev
 ```
 
-Im Dev-Modus nutzt die App das auf dem System installierte Ollama
-(`http://localhost:11434`). Modell laden, falls noch nicht vorhanden:
+### Build-Befehle
+*   `npm run dist:win`: Erstellt einen Windows-Installer.
+*   `npm run dist:mac`: Erstellt ein macOS Disk-Image (.dmg).
 
+### Tests
 ```bash
-ollama pull gemma4:e2b
+npm test
 ```
 
 ---
 
-## Windows-Build (.exe)
+## Architektur (Entwickler)
 
-### Automatisch per GitHub Actions
-Bei **jedem Push auf `main`** baut der Workflow
-[`.github/workflows/build-desktop.yml`](.github/workflows/build-desktop.yml)
-automatisch eine Windows-Installer-`.exe` und macOS-`.dmg`/`.zip`:
+### Stack
+React (Renderer) ↔ `preload.js` (contextBridge) ↔ Electron `ipcMain` ↔ `store.js` / `ai.js` / `ical.js`
 
-1. GitHub-Repo anlegen und Remote setzen:
-   ```bash
-   git remote add origin https://github.com/<user>/<repo>.git
-   git push -u origin main
-   ```
-2. Unter **Actions** laufen die Builds parallel (`windows-latest`, `macos-latest`).
-3. Artefakte: **Windows** (`TUM-Study-Portal-Windows`, `.exe`) und **macOS** (`TUM-Study-Portal-macOS`, `.dmg` + `.zip`).
+### Provider-Reihenfolge
+`LocaleProvider` → `ThemeProvider` → `DataProvider` → App-Shell
 
-Der Workflow lädt die **Ollama-Runtime** herunter und packt sie in die `.exe`.
-Das KI-Modell wird *nicht* mitgeliefert.
+### Ordnerkonventionen (`src/`)
+| Pfad | Inhalt |
+|------|--------|
+| `components/icons/` | Gemeinsame SVG-Icons |
+| `components/ui/` | Wiederverwendbare UI-Bausteine (z. B. `EmptyState`) |
+| `components/chat/` | Chat-Nachrichten, Markdown, Thinking-Bubble |
+| `components/exams/`, `lectures/`, `modules/` | Feature-Unterkomponenten |
+| `hooks/` | `useChatSessions`, `useEntityCrud` |
+| `utils/` | Hilfsfunktionen (`helpers.js`, `chat.js`) |
+| `context/` | Globaler State (`DataContext`, `ThemeContext`, `LocaleContext`) |
 
-### Lokaler Build (optional)
-```bash
-# Ollama-Runtime nach resources/ollama/ legen, dann:
-npm run dist:win
+### `window.api` (über Preload)
+| Namespace | Methoden |
+|-----------|----------|
+| `exams`, `lectures`, `todos`, `modules`, `moodle` | `getAll`, `create`, `update`, `delete` |
+| `chats` | `getAll`, `save`, `delete` |
+| `settings` | `get`, `save` |
+| `studyLogs` | `getByExam`, `create`, `delete` |
+| `ai` | `chat`, `getSettings`, `saveSettings`, … |
+| `ical` | `fetch`, `parse` |
+
+### Chat-Datenfluss
+```mermaid
+flowchart LR
+  userInput[User Input] --> sendAiMessage
+  sendAiMessage --> ipcAi[window.api.ai.chat]
+  ipcAi --> activeAiChat[activeAiChat State]
+  activeAiChat --> ChatPage[Chat.jsx]
+  activeAiChat --> ChatContinuity[ChatContinuity FAB]
+  sendAiMessage --> chatsSave[window.api.chats.save]
 ```
+
+Schwere Seiten (`Chat`, `Exams`, `Lectures`, `Modules`) werden per `React.lazy` erst bei Navigation geladen.
 
 ---
 
-## Erster Start der App
-- Die App enthält die Ollama-Runtime, lädt aber das Modell **`gemma4:e2b`
-  (~7,2 GB) beim ersten Start automatisch herunter** — einmalig.
-- Während des Downloads zeigt die App ein Fortschritts-Overlay; sie ist
-  währenddessen bereits nutzbar (KI-Funktionen nutzen bis dahin eine lokale
-  Fallback-Logik).
-- Läuft bereits ein Ollama auf dem System, wird dieses verwendet.
+## 🔒 Datenschutz & Sicherheit
+*   Alle Daten werden in einer lokalen JSON-Datenbank gespeichert (`%APPDATA%/tum-study-portal`).
+*   Keine Telemetrie, kein Cloud-Zwang.
+*   Die App ist Open Source – du hast die volle Kontrolle über deine Daten.
 
-## Hinweise
-- Die `.exe` ist **nicht signiert** — Windows zeigt beim ersten Start eine
-  SmartScreen-Warnung („Weitere Informationen“ → „Trotzdem ausführen“).
-- Alle Daten werden **lokal** gespeichert (`%APPDATA%/tum-study-portal`),
-  kein Cloud-Upload.
-- App-Icon: optional `assets/icon.ico` (256×256) ablegen — wird automatisch
-  übernommen; ohne Icon nutzt der Build das Standard-Electron-Icon.
+---
+*Entwickelt für Studenten der TU München.* 🚀

@@ -2,12 +2,12 @@ import React from 'react';
 import { useData } from '../context/DataContext';
 import { useLocale } from '../context/LocaleContext';
 import {
-  getDaysUntil, formatDate, formatDateLong,
+  getDaysUntil, formatDate, formatDateLong, getCountdownColor, getCountdownClass,
   lectureMatchesCalendarDay,
   formatISODateLocal,
   resolveTodoCourseLabel,
 } from '../utils/helpers';
-import AiRecommendation from './AiRecommendation';
+import AiRecommendation from '../components/AiRecommendation';
 
 export default function Today() {
   const { t, intlLocale } = useLocale();
@@ -52,7 +52,7 @@ export default function Today() {
         <div className="card" style={{ ...styles.bigCountdown, borderColor: countdownBorder(nextExam.days) }}>
           <div style={styles.countdownLabel}>{t('today.nextExam')}</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, margin: '8px 0' }}>
-            <span style={{ ...styles.countdownNumber, color: countdownColor(nextExam.days) }}>
+            <span style={{ ...styles.countdownNumber, color: getCountdownColor(nextExam.days) }}>
               {nextExam.days === 0 ? t('today.todayWord') : nextExam.days}
             </span>
             {nextExam.days > 0 && <span style={styles.countdownUnit}>{t('today.daysUnit')}</span>}
@@ -69,7 +69,7 @@ export default function Today() {
               <div className="progress-bar">
                 <div
                   className="progress-fill"
-                  style={{ width: `${Math.min(100, Math.max(5, 100 - (nextExam.days / 90) * 100))}%`, background: countdownColor(nextExam.days) }}
+                  style={{ width: `${Math.min(100, Math.max(5, 100 - (nextExam.days / 90) * 100))}%`, background: getCountdownColor(nextExam.days) }}
                 />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 11, color: 'var(--text-muted)' }}>
@@ -144,7 +144,7 @@ export default function Today() {
                 {upcomingExams.slice(1, 4).map(exam => (
                   <div key={exam.id} style={styles.miniExam}>
                     <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)' }}>{exam.name}</span>
-                    <span style={{ fontSize: 11, color: countdownColor(exam.days) }}>{exam.days}d</span>
+                    <span style={{ fontSize: 11, color: getCountdownColor(exam.days) }}>{exam.days}d</span>
                   </div>
                 ))}
               </div>
@@ -203,14 +203,11 @@ function TodoCard({ todo, modules, moodleCourses, onToggle, t, intlLocale }) {
   );
 }
 
-function countdownColor(days) {
-  if (days <= 7) return 'var(--danger)';
-  if (days <= 21) return 'var(--warning)';
-  return 'var(--success)';
-}
 function countdownBorder(days) {
-  if (days <= 7) return 'var(--danger)';
-  if (days <= 21) return 'var(--warning)';
+  const cls = getCountdownClass(days);
+  if (cls === 'danger') return 'var(--countdown-red)';
+  if (cls === 'warning') return 'var(--countdown-orange)';
+  if (cls === 'success') return 'var(--countdown-green)';
   return 'var(--border-color)';
 }
 

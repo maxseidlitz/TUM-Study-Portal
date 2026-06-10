@@ -86,6 +86,7 @@ export default function Sidebar({ activePage, onNavigate }) {
               return (
                 <button
                   key={item.id}
+                  data-tour-id={`nav-${item.id}`}
                   onClick={() => onNavigate(item.id)}
                   style={{
                     ...styles.navItem,

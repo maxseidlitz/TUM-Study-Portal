@@ -1,19 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocale } from '../context/LocaleContext';
 
-/**
- * First-run overlay for the bundled Ollama setup.
- * Shows progress while the KI model (gemma4:e2b, ~7.2 GB) is downloaded.
- * The app stays usable underneath — the overlay can be dismissed and the
- * download continues in the background.
- */
 export default function OllamaSetup() {
-  const [state, setState] = useState(null); // { phase, percent, message, model }
+  const { t } = useLocale();
+  const [state, setState] = useState(null);
   const [dismissed, setDismissed] = useState(false);
   const [retrying, setRetrying] = useState(false);
 
   useEffect(() => {
     if (!window.api?.ollama) return undefined;
-
     window.api.ollama.getSetupState().then(setState).catch(() => {});
     const unsubscribe = window.api.ollama.onSetupProgress(setState);
     return unsubscribe;
@@ -33,7 +28,6 @@ export default function OllamaSetup() {
   if (!state) return null;
   const { phase, percent = 0, message, model } = state;
 
-  // Overlay only matters while starting / downloading / on error
   const shouldShow = ['starting', 'downloading', 'error'].includes(phase);
   if (!shouldShow || dismissed) return null;
 
@@ -47,18 +41,18 @@ export default function OllamaSetup() {
 
         <h2 style={styles.title}>
           {isError
-            ? 'KI-Einrichtung fehlgeschlagen'
+            ? t('ollama.setupFailed')
             : isDownloading
-              ? 'KI-Modell wird geladen'
-              : 'KI-Dienst wird gestartet…'}
+              ? t('ollama.setupDownloading')
+              : t('ollama.setupStarting')}
         </h2>
 
         <p style={styles.subtitle}>
           {isError
-            ? message || 'Beim Einrichten des KI-Modells ist ein Fehler aufgetreten.'
+            ? message || t('ollama.setupErrorMsg')
             : isDownloading
-              ? `Einmaliger Download von "${model}" (ca. 7,2 GB). Das kann je nach Internetverbindung einige Minuten dauern.`
-              : 'Der lokale KI-Dienst (Ollama) wird vorbereitet…'}
+              ? t('ollama.setupDownloadHint').replace('{model}', model || '')
+              : t('ollama.setupStartingHint')}
         </p>
 
         {isDownloading && (
@@ -67,7 +61,7 @@ export default function OllamaSetup() {
               <div style={{ ...styles.progressFill, width: `${percent}%` }} />
             </div>
             <div style={styles.progressMeta}>
-              <span>{message || 'Lade…'}</span>
+              <span>{message || t('common.loadingShort')}</span>
               <span>{percent}%</span>
             </div>
           </>
@@ -82,19 +76,15 @@ export default function OllamaSetup() {
         <div style={styles.actions}>
           {isError && (
             <button className="btn btn-primary" onClick={handleRetry} disabled={retrying}>
-              {retrying ? 'Wird wiederholt…' : 'Erneut versuchen'}
+              {retrying ? t('ollama.setupRetrying') : t('ollama.setupRetry')}
             </button>
           )}
           <button className="btn btn-secondary" onClick={() => setDismissed(true)}>
-            {isError ? 'Ohne KI fortfahren' : 'Im Hintergrund laden'}
+            {isError ? t('ollama.setupDismissError') : t('ollama.setupDismissDownload')}
           </button>
         </div>
 
-        <p style={styles.hint}>
-          Die App ist auch ohne KI-Modell voll nutzbar – Empfehlungen nutzen dann
-          eine lokale Logik. Der Download lässt sich später in den Einstellungen
-          erneut anstoßen.
-        </p>
+        <p style={styles.hint}>{t('ollama.setupHint')}</p>
       </div>
     </div>
   );
@@ -102,73 +92,30 @@ export default function OllamaSetup() {
 
 const styles = {
   overlay: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(8, 10, 16, 0.82)',
-    backdropFilter: 'blur(6px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2000,
-    padding: 24,
+    position: 'fixed', inset: 0, background: 'rgba(8, 10, 16, 0.82)',
+    backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center',
+    justifyContent: 'center', zIndex: 2000, padding: 24,
   },
   card: {
-    width: '100%',
-    maxWidth: 460,
-    background: 'var(--bg-card)',
-    border: '1px solid var(--border-color)',
-    borderRadius: 'var(--radius-xl)',
-    padding: 32,
-    textAlign: 'center',
-    boxShadow: 'var(--shadow-lg)',
+    width: '100%', maxWidth: 460, background: 'var(--bg-card)',
+    border: '1px solid var(--border-color)', borderRadius: 'var(--radius-xl)',
+    padding: 32, textAlign: 'center', boxShadow: 'var(--shadow-lg)',
   },
   icon: { fontSize: 44, marginBottom: 12 },
   title: {
-    fontFamily: 'var(--font-serif)',
-    fontSize: 'var(--text-xl)',
-    fontWeight: 700,
-    color: 'var(--text-primary)',
-    marginBottom: 8,
+    fontFamily: 'var(--font-serif)', fontSize: 'var(--text-xl)', fontWeight: 700,
+    color: 'var(--text-primary)', marginBottom: 8,
   },
   subtitle: {
-    fontSize: 'var(--text-sm)',
-    color: 'var(--text-secondary)',
-    lineHeight: 1.6,
-    marginBottom: 20,
+    fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20,
   },
-  progressTrack: {
-    height: 8,
-    background: 'var(--bg-tertiary)',
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    background: 'var(--accent)',
-    borderRadius: 999,
-    transition: 'width 300ms ease',
-  },
-  indeterminate: {
-    width: '40%',
-    animation: 'indeterminateSlide 1.4s ease-in-out infinite',
-  },
+  progressTrack: { height: 8, background: 'var(--bg-tertiary)', borderRadius: 999, overflow: 'hidden' },
+  progressFill: { height: '100%', background: 'var(--accent)', borderRadius: 999, transition: 'width 300ms ease' },
+  indeterminate: { width: '40%', animation: 'indeterminateSlide 1.4s ease-in-out infinite' },
   progressMeta: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: 'var(--text-xs)',
-    color: 'var(--text-muted)',
-    marginTop: 8,
+    display: 'flex', justifyContent: 'space-between',
+    fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 8,
   },
-  actions: {
-    display: 'flex',
-    gap: 10,
-    justifyContent: 'center',
-    marginTop: 20,
-  },
-  hint: {
-    fontSize: 'var(--text-xs)',
-    color: 'var(--text-muted)',
-    lineHeight: 1.6,
-    marginTop: 18,
-  },
+  actions: { display: 'flex', gap: 10, justifyContent: 'center', marginTop: 20 },
+  hint: { fontSize: 'var(--text-xs)', color: 'var(--text-muted)', lineHeight: 1.6, marginTop: 18 },
 };

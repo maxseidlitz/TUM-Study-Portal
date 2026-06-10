@@ -12,7 +12,8 @@
       "Bash(npx react-scripts *)",
       "Bash(sed -n '77,236p' public/electron.js)",
       "Bash(sed -n '251,1016p' public/electron.js)",
-      "Bash(sed -n '1273,1457p' public/electron.js)"
+      "Bash(sed -n '1273,1457p' public/electron.js)",
+      "Bash(git mv *)"
     ]
   }
 }

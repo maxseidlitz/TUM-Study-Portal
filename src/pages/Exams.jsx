@@ -1,20 +1,42 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useData } from '../context/DataContext';
 import { useLocale } from '../context/LocaleContext';
-import { getDaysUntil, getCountdownClass, formatDate, getStudyProgress, generateId } from '../utils/helpers';
+import { useToast } from '../context/ToastContext';
+import { getDaysUntil, formatDate, generateId } from '../utils/helpers';
+import EmptyState from '../components/ui/EmptyState';
+import { PlusIcon, CloseIcon, TrashIcon } from '../components/icons/Icons';
+import ExamCard from '../components/exams/ExamCard';
+import ExamFormModal from '../components/exams/ExamFormModal';
+import GradeAnalytics from '../components/exams/GradeAnalytics';
+import ExamICalImport from '../components/exams/ExamICalImport';
 
 const EMPTY_FORM = { name: '', date: '', time: '', room: '', credits: '', notes: '' };
 const GRADES = ['1.0', '1.3', '1.7', '2.0', '2.3', '2.7', '3.0', '3.3', '3.7', '4.0', '5.0'];
 
 export default function Exams() {
   const { t, intlLocale } = useLocale();
-  const { exams, addExam, updateExam, deleteExam, loading } = useData();
+  const { exams, addExam, addTodo, updateExam, deleteExam, loading } = useData();
+  const showToast = useToast();
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [logExamId, setLogExamId] = useState(null);
   const [gradeExamId, setGradeExamId] = useState(null);
+  const [showIcalImport, setShowIcalImport] = useState(false);
+  const [suggestTodoExam, setSuggestTodoExam] = useState(null);
+
+  const [settings, setSettings] = useState({ targetGpa: 1.0, targetEcts: 180 });
+  const [showAnalytics] = useState(true);
+
+  useEffect(() => {
+    window.api.settings.get().then(s => {
+      if (s) setSettings({ 
+        targetGpa: s.targetGpa ?? 1.0, 
+        targetEcts: s.targetEcts ?? 180 
+      });
+    });
+  }, []);
 
   if (loading) return <div className="loading">{t('common.loading')}</div>;
 
@@ -34,9 +56,47 @@ export default function Exams() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const data = { ...form, credits: form.credits ? parseInt(form.credits) : null };
-    if (editing) await updateExam({ ...data, id: editing });
-    else await addExam(data);
+    if (editing) {
+      await updateExam({ ...data, id: editing });
+    } else {
+      const newExam = await addExam(data);
+      if (data.date) setSuggestTodoExam(newExam || { ...data, id: generateId() });
+    }
     closeModal();
+  };
+
+  const handleIcalImport = async (candidates) => {
+    for (const c of candidates) {
+      await addExam({ ...c, id: generateId() });
+    }
+    showToast(
+      candidates.length === 1
+        ? t('exams.icalSuccess')
+        : t('exams.icalSuccessMany', { count: candidates.length }),
+      'success'
+    );
+  };
+
+  const handleExportCsv = () => {
+    const headers = ['Name', 'Datum', 'Uhrzeit', 'Raum', 'ECTS', 'Note', 'Bestanden'];
+    const rows = exams.map(e => [
+      `"${(e.name || '').replace(/"/g, '""')}"`,
+      e.date || '',
+      e.time || '',
+      `"${(e.room || '').replace(/"/g, '""')}"`,
+      e.credits ?? '',
+      e.grade != null ? e.grade.toFixed(1) : '',
+      e.passed != null ? (e.passed ? 'Ja' : 'Nein') : '',
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `pruefungen-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(t('exams.exportCsvSuccess'), 'success');
   };
 
   const handleDelete = async (id) => {
@@ -69,13 +129,31 @@ export default function Exams() {
               : t('exams.summary', { upcoming: upcomingExams.length, past: pastExams.length })}
           </p>
         </div>
-        <button className="btn btn-primary" onClick={openAdd}>
-          <PlusIcon /> {t('exams.addExam')}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {exams.length > 0 && (
+            <button className="btn btn-secondary" onClick={handleExportCsv}>
+              {t('exams.exportCsvBtn')}
+            </button>
+          )}
+          <button className="btn btn-secondary" onClick={() => setShowIcalImport(true)}>
+            {t('exams.icalImportBtn')}
+          </button>
+          <button className="btn btn-primary" onClick={openAdd}>
+            <PlusIcon size={14} strokeWidth={2.5} /> {t('exams.addExam')}
+          </button>
+        </div>
       </div>
 
+      {exams.length > 0 && showAnalytics && (
+        <GradeAnalytics 
+          exams={exams} 
+          targetGpa={settings.targetGpa} 
+          targetEcts={settings.targetEcts} 
+        />
+      )}
+
       {exams.length === 0 ? (
-        <EmptyState onAdd={openAdd} t={t} />
+        <EmptyState icon="📋" title={t('exams.emptyTitle')} actionLabel={t('exams.emptyCta')} onAction={openAdd} />
       ) : (
         <>
           {upcomingExams.length > 0 && (
@@ -115,56 +193,15 @@ export default function Exams() {
         </>
       )}
 
-      {/* Add/Edit Modal */}
       {showModal && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
-          <div className="modal">
-            <div className="modal-header">
-              <h2>{editing ? t('exams.modalEdit') : t('exams.modalNew')}</h2>
-              <button className="btn btn-ghost btn-icon" onClick={closeModal}><CloseIcon /></button>
-            </div>
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label className="form-label">{t('exams.fieldName')}</label>
-                <input className="form-input" required placeholder={t('exams.placeholderName')}
-                  value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">{t('exams.fieldDate')}</label>
-                  <input className="form-input" type="date" required
-                    value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">{t('exams.fieldTime')}</label>
-                  <input className="form-input" type="time"
-                    value={form.time} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">{t('exams.fieldRoom')}</label>
-                  <input className="form-input" placeholder={t('exams.placeholderRoom')}
-                    value={form.room} onChange={e => setForm(f => ({ ...f, room: e.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">{t('exams.fieldCredits')}</label>
-                  <input className="form-input" type="number" min="0" max="30" placeholder="0"
-                    value={form.credits} onChange={e => setForm(f => ({ ...f, credits: e.target.value }))} />
-                </div>
-              </div>
-              <div className="form-group">
-                <label className="form-label">{t('exams.fieldNotes')}</label>
-                <textarea className="form-textarea" placeholder={t('exams.placeholderNotes')}
-                  value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={closeModal}>{t('common.cancel')}</button>
-                <button type="submit" className="btn btn-primary">{editing ? t('common.save') : t('common.add')}</button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <ExamFormModal
+          editing={editing}
+          form={form}
+          setForm={setForm}
+          onSubmit={handleSubmit}
+          onClose={closeModal}
+          t={t}
+        />
       )}
 
       {/* Study Log Modal */}
@@ -205,79 +242,80 @@ export default function Exams() {
           </div>
         </div>
       )}
+
+      {/* iCal Import */}
+      {showIcalImport && (
+        <ExamICalImport
+          existingExams={exams}
+          onImport={handleIcalImport}
+          onClose={() => setShowIcalImport(false)}
+        />
+      )}
+
+      {/* Suggest Study Todo */}
+      {suggestTodoExam && (
+        <SuggestTodoModal
+          exam={suggestTodoExam}
+          onConfirm={async (todoText, dueDate) => {
+            await addTodo({ id: generateId(), text: todoText, done: false, dueDate, examId: suggestTodoExam.id });
+            showToast(t('exams.suggestTodoCreated'), 'success');
+            setSuggestTodoExam(null);
+          }}
+          onClose={() => setSuggestTodoExam(null)}
+          t={t}
+        />
+      )}
     </div>
   );
 }
 
 // ---- Sub-components ----
 
-function ExamCard({ exam, onEdit, onDelete, onOpenLog, onOpenGrade, onRemoveGrade, past, intlLocale, t }) {
-  const days = getDaysUntil(exam.date);
-  const cls = getCountdownClass(days);
-  const colorMap = { danger: 'var(--danger)', warning: 'var(--warning)', success: 'var(--success)' };
-  const countdownColor = past ? 'var(--text-muted)' : (colorMap[cls] || 'var(--text-muted)');
-  const progress = getStudyProgress(exam.date);
-
-  const gradeColor = exam.grade != null
-    ? exam.grade <= 1.5 ? 'var(--success)' : exam.grade <= 3.0 ? 'var(--warning)' : 'var(--danger)'
-    : null;
+function SuggestTodoModal({ exam, onConfirm, onClose, t }) {
+  const defaultText = t('exams.suggestTodoTaskTitle', { name: exam.name || '' });
+  // Suggest a due date 3 days before the exam
+  const defaultDue = (() => {
+    if (!exam.date) return '';
+    const d = new Date(exam.date);
+    d.setDate(d.getDate() - 3);
+    return d.toISOString().split('T')[0];
+  })();
+  const [text, setText] = useState(defaultText);
+  const [dueDate, setDueDate] = useState(defaultDue);
 
   return (
-    <div className="card" style={{ ...styles.examCard, opacity: past && !exam.grade ? 0.65 : 1 }}>
-      <div style={styles.examCardHeader}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={styles.examName}>{exam.name}</h3>
-          <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-            {exam.credits && <span className="badge badge-accent">{exam.credits} ECTS</span>}
-            {exam.grade != null && (
-              <span style={{ ...styles.gradeBadge, color: gradeColor, borderColor: gradeColor }}>
-                {t('exams.gradeLabel')} {exam.grade.toFixed(1)} {exam.passed ? t('exams.passed') : t('exams.failed')}
-              </span>
-            )}
-          </div>
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: 420 }}>
+        <div className="modal-header">
+          <h2>{t('exams.suggestTodoTitle')}</h2>
+          <button className="btn btn-ghost btn-icon" onClick={onClose}><CloseIcon /></button>
         </div>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ ...styles.daysCount, color: countdownColor }}>
-            {past ? (exam.grade != null ? '' : t('exams.pastLabel')) : days === 0 ? t('exams.todayExclaim') : t('exams.daysShort', { days })}
-          </div>
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
+          {t('exams.suggestTodoBody', { name: exam.name || '' })}
+        </p>
+        <div className="form-group">
+          <label className="form-label">{t('todoDetail.placeholderTitle')}</label>
+          <input
+            className="form-input"
+            value={text}
+            onChange={e => setText(e.target.value)}
+          />
         </div>
-      </div>
-
-      <div style={styles.examMeta}>
-        <MetaItem icon="📅" text={formatDate(exam.date, intlLocale)} />
-        {exam.time && <MetaItem icon="🕐" text={`${exam.time}${t('common.timeSuffix')}`} />}
-        {exam.room && <MetaItem icon="📍" text={exam.room} />}
-      </div>
-
-      {exam.notes && <p style={styles.examNotes}>{exam.notes}</p>}
-
-      {!past && (
-        <div style={{ marginTop: 14 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <span style={styles.progressLabel}>{t('exams.progressLabel')}</span>
-            <span style={{ ...styles.progressLabel, color: countdownColor }}>{progress}%</span>
-          </div>
-          <div className="progress-bar">
-            <div className="progress-fill" style={{ width: `${progress}%`, background: countdownColor }} />
-          </div>
+        <div className="form-group">
+          <label className="form-label">{t('todoDetail.due')}</label>
+          <input
+            type="date"
+            className="form-input"
+            value={dueDate}
+            onChange={e => setDueDate(e.target.value)}
+          />
         </div>
-      )}
-
-      <div style={styles.examActions}>
-        <button className="btn btn-ghost btn-sm" onClick={onOpenLog} title={t('exams.studyLogTitle')}>
-          <LogIcon /> {t('exams.studyLog')}
-        </button>
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={past && exam.grade != null ? onRemoveGrade : onOpenGrade}
-          title={exam.grade != null ? t('exams.gradeTitleChange') : t('exams.gradeTitleSet')}
-          style={exam.grade != null ? { color: gradeColor } : {}}
-        >
-          <GradeIcon /> {exam.grade != null ? `${exam.grade.toFixed(1)}` : t('exams.grade')}
-        </button>
-        <div style={{ flex: 1 }} />
-        <button className="btn btn-ghost btn-sm" onClick={() => onEdit(exam)}><EditIcon /> {t('exams.editShort')}</button>
-        <button className="btn btn-danger btn-sm" onClick={() => onDelete(exam.id)}><TrashIcon /></button>
+        <div className="modal-footer">
+          <button className="btn btn-secondary" onClick={onClose}>{t('exams.suggestTodoBtnNo')}</button>
+          <button className="btn btn-primary" disabled={!text.trim()} onClick={() => onConfirm(text.trim(), dueDate)}>
+            {t('exams.suggestTodoBtnYes')}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -457,41 +495,9 @@ function GradeModal({ exam, onSave, onClose, t }) {
   );
 }
 
-function MetaItem({ icon, text }) {
-  return <span style={styles.metaItem}>{icon} {text}</span>;
-}
-
-function EmptyState({ onAdd, t }) {
-  return (
-    <div className="empty-state">
-      <span style={{ fontSize: 48 }}>📋</span>
-      <p>{t('exams.emptyTitle')}</p>
-      <button className="btn btn-primary" onClick={onAdd}>{t('exams.emptyCta')}</button>
-    </div>
-  );
-}
-
-// Icons
-function PlusIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>; }
-function CloseIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>; }
-function EditIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>; }
-function TrashIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>; }
-function LogIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>; }
-function GradeIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="8" r="6" /><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11" /></svg>; }
-
 const styles = {
   pageHeader: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32 },
   examGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16, marginBottom: 16 },
-  examCard: { display: 'flex', flexDirection: 'column', gap: 0, transition: 'opacity var(--transition)' },
-  examCardHeader: { display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 12 },
-  examName: { fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: 0, lineHeight: 1.3 },
-  daysCount: { fontSize: 20, fontWeight: 700 },
-  gradeBadge: { fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, border: '1px solid' },
-  examMeta: { display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 8 },
-  metaItem: { fontSize: 12, color: 'var(--text-secondary)' },
-  examNotes: { fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, marginTop: 8, fontStyle: 'italic' },
-  progressLabel: { fontSize: 11, color: 'var(--text-muted)' },
-  examActions: { display: 'flex', gap: 6, marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border-subtle)', alignItems: 'center' },
   logStats: { display: 'flex', gap: 20, padding: '12px 0', marginBottom: 16 },
   logStat: { textAlign: 'center' },
   logStatValue: { fontSize: 20, fontWeight: 700, color: 'var(--accent-hover)' },

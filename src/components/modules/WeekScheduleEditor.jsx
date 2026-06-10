@@ -83,7 +83,7 @@ export default function WeekScheduleEditor({ slots = [], color = '#3B82F6', onCh
             <div
               style={{ ...styles.colBody, height: BODY_HEIGHT }}
               onClick={(e) => handleColumnClick(day, e)}
-              title={t('modules.gridClickHint') || 'Klicken zum Anlegen'}
+              title="Klicken zum Anlegen"
             >
               {hours.map((m, i) => (i === 0 ? null : (
                 <div key={m} style={{ ...styles.hourLine, top: `${((m - DISPLAY_START_MIN) / SPAN) * 100}%` }} />
@@ -107,7 +107,7 @@ export default function WeekScheduleEditor({ slots = [], color = '#3B82F6', onCh
                       boxShadow: selectedId === s.id ? '0 0 0 2px var(--bg-secondary), 0 0 0 4px #fff' : 'none',
                     }}
                   >
-                    <span style={styles.blockTime}>{s.allDay ? (t('lectures.allDay') || 'Ganztägig') : s.time}</span>
+                    <span style={styles.blockTime}>{s.allDay ? t('lectures.allDay') : s.time}</span>
                     {s.room && <span style={styles.blockRoom}>{s.room}</span>}
                   </button>
                 );
@@ -117,13 +117,13 @@ export default function WeekScheduleEditor({ slots = [], color = '#3B82F6', onCh
         ))}
       </div>
 
-      <p style={styles.hint}>{t('modules.gridHint') || 'Klicke ins Raster, um einen Termin anzulegen. Klicke auf einen Termin, um ihn zu bearbeiten.'}</p>
+      <p style={styles.hint}>Klicke ins Raster, um einen Termin anzulegen. Klicke auf einen Termin, um ihn zu bearbeiten.</p>
 
       {/* Inline editor for selected slot */}
       {selected && (
         <div style={styles.editPanel}>
           <div style={styles.editHead}>
-            <span style={styles.editTitle}>{t('modules.editSlot') || 'Termin bearbeiten'}</span>
+            <span style={styles.editTitle}>Termin bearbeiten</span>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSelectedId(null)}>✕</button>
           </div>
           <div className="form-row">

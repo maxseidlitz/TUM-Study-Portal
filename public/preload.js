@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   studyLogs: {
     getByExam: (examId) => ipcRenderer.invoke('studylogs:getByExam', examId),
+    getByTodo: (todoId) => ipcRenderer.invoke('studylogs:getByTodo', todoId),
     create: (log) => ipcRenderer.invoke('studylogs:create', log),
     delete: (id) => ipcRenderer.invoke('studylogs:delete', id),
   },
@@ -54,6 +55,9 @@ contextBridge.exposeInMainWorld('api', {
     save: (session) => ipcRenderer.invoke('chats:save', session),
     delete: (id) => ipcRenderer.invoke('chats:delete', id),
   },
+  mensa: {
+    fetch: (canteenId) => ipcRenderer.invoke('mensa:fetch', canteenId),
+  },
   ollama: {
     getSetupState: () => ipcRenderer.invoke('ollama:getSetupState'),
     retrySetup: () => ipcRenderer.invoke('ollama:retrySetup'),
@@ -65,4 +69,8 @@ contextBridge.exposeInMainWorld('api', {
     },
   },
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
+  backup: {
+    export: () => ipcRenderer.invoke('backup:export'),
+    import: (json) => ipcRenderer.invoke('backup:import', json),
+  },
 });

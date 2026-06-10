@@ -217,6 +217,30 @@ function migrateLegacyToModulesIfNeeded() {
   saveStore();
 }
 
+function autoBackup() {
+  try {
+    const userDataPath = app.getPath('userData');
+    const backupDir = path.join(userDataPath, 'backups');
+    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+
+    const today = new Date().toISOString().split('T')[0];
+    const backupPath = path.join(backupDir, `backup-${today}.json`);
+    if (!fs.existsSync(backupPath)) {
+      fs.writeFileSync(backupPath, JSON.stringify(store, null, 2), 'utf8');
+    }
+
+    // Keep only the 7 newest backup files
+    const files = fs.readdirSync(backupDir)
+      .filter(f => f.startsWith('backup-') && f.endsWith('.json'))
+      .sort();
+    while (files.length > 7) {
+      fs.unlinkSync(path.join(backupDir, files.shift()));
+    }
+  } catch (e) {
+    console.error('Auto-backup failed:', e);
+  }
+}
+
 function initStore() {
   const userDataPath = app.getPath('userData');
   dbPath = path.join(userDataPath, 'tum-study-portal.json');
@@ -224,6 +248,7 @@ function initStore() {
   normalizeStoreAfterLoad();
   migrateLegacyToModulesIfNeeded();
   normalizeStoreAfterLoad();
+  autoBackup();
 }
 
 module.exports = {
@@ -234,4 +259,5 @@ module.exports = {
   parseCompositeLectureId,
   expandModulesToLectures,
   setSlotOverride,
+  autoBackup,
 };

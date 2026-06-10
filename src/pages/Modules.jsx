@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { useLocale } from '../context/LocaleContext';
 import { generateId, openExternal } from '../utils/helpers';
-import EmptyState from './ui/EmptyState';
-import { PlusIcon, CloseIcon, SyncIcon, ExternalIcon } from './icons/Icons';
-import ModuleCard from './modules/ModuleCard';
-import WeekScheduleEditor from './modules/WeekScheduleEditor';
+import EmptyState from '../components/ui/EmptyState';
+import { PlusIcon, CloseIcon, ExternalIcon } from '../components/icons/Icons';
+import ModuleCard from '../components/modules/ModuleCard';
+import WeekScheduleEditor from '../components/modules/WeekScheduleEditor';
 
 const COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4', '#F97316', '#6366F1', '#EF4444', '#14B8A6'];
 const EMPTY_SLOT = { id: '', day: 'Mo', time: '', end_time: '', room: '', lecturer: '', allDay: false };
@@ -15,9 +15,7 @@ export default function Modules() {
   const { t } = useLocale();
   const { modules, addModule, updateModule, deleteModule, loading } = useData();
   const [showModal, setShowModal] = useState(false);
-  const [showMoodleModal, setShowMoodleModal] = useState(false);
-  const [moodleEmail, setMoodleEmail] = useState('');
-  const [moodleSubmitted, setMoodleSubmitted] = useState(false);
+  const [showMoodleInfo, setShowMoodleInfo] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -82,8 +80,8 @@ export default function Modules() {
           <p>{modules.length === 1 ? t('modules.countOne') : t('modules.countMany', { count: modules.length })}</p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn btn-secondary" onClick={() => setShowMoodleModal(true)}>
-            <SyncIcon /> {t('modules.moodleSync')}
+          <button className="btn btn-secondary" onClick={() => setShowMoodleInfo(true)}>
+            {t('modules.moodleSync')}
           </button>
           <button className="btn btn-secondary" onClick={() => openExternal('https://www.moodle.tum.de')}>
             <ExternalIcon /> {t('modules.openMoodle')}
@@ -198,60 +196,55 @@ export default function Modules() {
         </div>
       )}
 
-      {deleteConfirm && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setDeleteConfirm(null)}>
-          <div className="modal" style={{ maxWidth: 380 }}>
-            <div className="modal-header">
-              <h2>{t('modules.deleteTitle')}</h2>
-              <button type="button" className="btn btn-ghost btn-icon" onClick={() => setDeleteConfirm(null)}><CloseIcon /></button>
-            </div>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-              {t('modules.deleteBody', { name: modules.find((m) => m.id === deleteConfirm)?.name || '' })}
-            </p>
-            <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" onClick={() => setDeleteConfirm(null)}>{t('common.cancel')}</button>
-              <button type="button" className="btn btn-danger" onClick={() => handleDelete(deleteConfirm)}>{t('common.delete')}</button>
+      {deleteConfirm && (() => {
+        const mod = modules.find((m) => m.id === deleteConfirm);
+        const slotCount = mod?.slots?.length || 0;
+        return (
+          <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setDeleteConfirm(null)}>
+            <div className="modal" style={{ maxWidth: 380 }}>
+              <div className="modal-header">
+                <h2>{slotCount > 0 ? t('modules.deleteWithLecturesTitle') : t('modules.deleteTitle')}</h2>
+                <button type="button" className="btn btn-ghost btn-icon" onClick={() => setDeleteConfirm(null)}><CloseIcon /></button>
+              </div>
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+                {slotCount > 0
+                  ? t('modules.deleteWithLecturesBody', { name: mod?.name || '', count: slotCount })
+                  : t('modules.deleteBody', { name: mod?.name || '' })}
+              </p>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setDeleteConfirm(null)}>{t('common.cancel')}</button>
+                <button type="button" className="btn btn-danger" onClick={() => handleDelete(deleteConfirm)}>{t('common.delete')}</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
-      {showMoodleModal && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowMoodleModal(false)}>
+      {showMoodleInfo && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowMoodleInfo(false)}>
           <div className="modal" style={{ maxWidth: 440 }}>
             <div className="modal-header">
-              <h2>{t('modules.moodleSyncModalTitle')}</h2>
-              <button type="button" className="btn btn-ghost btn-icon" onClick={() => setShowMoodleModal(false)}><CloseIcon /></button>
+              <h2>{t('modules.moodleInfoTitle')}</h2>
+              <button type="button" className="btn btn-ghost btn-icon" onClick={() => setShowMoodleInfo(false)}><CloseIcon /></button>
             </div>
-            {moodleSubmitted ? (
-              <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                <div style={{ fontSize: 40, marginBottom: 16 }}>🎉</div>
-                <p style={{ fontWeight: 600, color: 'var(--success)' }}>{t('modules.moodleSyncSuccess')}</p>
-                <button type="button" className="btn btn-secondary" style={{ marginTop: 24 }} onClick={() => setShowMoodleModal(false)}>
-                  {t('common.close')}
+            <div style={{ textAlign: 'center', padding: '8px 0 16px' }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: 20 }}>
+                {t('modules.moodleInfoBody')}
+              </p>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => { openExternal('https://www.moodle.tum.de'); setShowMoodleInfo(false); }}
+                >
+                  <ExternalIcon /> {t('modules.openMoodle')}
+                </button>
+                <button type="button" className="btn btn-primary" onClick={() => { setShowMoodleInfo(false); openAdd(); }}>
+                  <PlusIcon /> {t('modules.addModule')}
                 </button>
               </div>
-            ) : (
-              <form onSubmit={(e) => { e.preventDefault(); setMoodleSubmitted(true); }}>
-                <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
-                  {t('modules.moodleSyncModalBody')}
-                </p>
-                <div className="form-group">
-                  <input
-                    className="form-input"
-                    type="email"
-                    required
-                    placeholder={t('modules.moodleSyncEmailPlaceholder')}
-                    value={moodleEmail}
-                    onChange={(e) => setMoodleEmail(e.target.value)}
-                  />
-                </div>
-                <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowMoodleModal(false)}>{t('common.cancel')}</button>
-                  <button type="submit" className="btn btn-primary">{t('modules.moodleSyncSubmit')}</button>
-                </div>
-              </form>
-            )}
+            </div>
           </div>
         </div>
       )}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useLocale } from '../context/LocaleContext';
+import { useLocale } from '../../context/LocaleContext';
 
 /**
  * KI-Anbieter-Einstellungen (Ollama / Google Gemini) — aus Settings.jsx

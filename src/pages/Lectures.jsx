@@ -12,11 +12,11 @@ import {
   dayCodeFromISODate,
 } from '../utils/helpers';
 import { timeToMinutes } from '../utils/weekGridLayout';
-import ICalImport from './ICalImport';
-import WeekTimeGridView from './WeekTimeGridView';
-import EmptyState from './ui/EmptyState';
-import { PlusIcon, CloseIcon, CalIcon } from './icons/Icons';
-import LectureCard from './lectures/LectureList';
+import ICalImport from '../components/lectures/ICalImport';
+import WeekTimeGridView from '../components/lectures/WeekTimeGridView';
+import EmptyState from '../components/ui/EmptyState';
+import { PlusIcon, CloseIcon, CalIcon } from '../components/icons/Icons';
+import LectureCard from '../components/lectures/LectureList';
 
 const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 const COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4', '#F97316', '#6366F1'];
@@ -57,6 +57,7 @@ export default function Lectures() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [editScope, setEditScope] = useState('series'); // 'series' | 'single' (nur Modul-Slots)
   const [overrideDate, setOverrideDate] = useState('');
+  const [timeError, setTimeError] = useState('');
 
   const today = getTodayDayCode();
   const todayIso = formatISODateLocal(new Date());
@@ -107,6 +108,11 @@ export default function Lectures() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (form.time && form.end_time && form.time >= form.end_time) {
+      setTimeError(t('lectures.timeError'));
+      return;
+    }
+    setTimeError('');
     let payload = { ...form };
     if (payload.eventDate) {
       payload.day = dayCodeFromISODate(payload.eventDate);
@@ -282,7 +288,7 @@ export default function Lectures() {
             <form onSubmit={handleSubmit}>
               {isModuleBase && (
                 <div className="form-group" style={styles.scopeBox}>
-                  <label className="form-label" style={{ marginBottom: 6 }}>Bearbeiten</label>
+                  <label className="form-label" style={{ marginBottom: 6 }}>{t('lectures.scopeLabel')}</label>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button
                       type="button"
@@ -290,7 +296,7 @@ export default function Lectures() {
                       style={editScope === 'series' ? { ...styles.scopeBtn, ...styles.scopeBtnActive } : styles.scopeBtn}
                       onClick={() => setEditScope('series')}
                     >
-                      Ganze Reihe
+                      {t('lectures.scopeAll')}
                     </button>
                     <button
                       type="button"
@@ -298,7 +304,7 @@ export default function Lectures() {
                       style={editScope === 'single' ? { ...styles.scopeBtn, ...styles.scopeBtnActive } : styles.scopeBtn}
                       onClick={() => setEditScope('single')}
                     >
-                      Einzelner Termin
+                      {t('lectures.scopeSingle')}
                     </button>
                   </div>
                   {editScope === 'single' && (
@@ -309,17 +315,14 @@ export default function Lectures() {
                         value={overrideDate}
                         onChange={e => setOverrideDate(e.target.value)}
                       />
-                      <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
-                        Änderungen gelten nur für dieses Datum – die wöchentliche Reihe bleibt unverändert.
-                      </p>
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"
-                        style={{ color: 'var(--danger)', marginTop: 2 }}
+                        style={{ color: 'var(--danger)', marginTop: 8 }}
                         disabled={!overrideDate}
                         onClick={handleCancelOccurrence}
                       >
-                        Diesen Termin absagen
+                        {t('lectures.cancelOccurrence')}
                       </button>
                     </div>
                   )}
@@ -393,20 +396,21 @@ export default function Lectures() {
                     type="time"
                     disabled={Boolean(form.allDay)}
                     value={form.time}
-                    onChange={e => setForm(f => ({ ...f, time: e.target.value }))}
+                    onChange={e => { setForm(f => ({ ...f, time: e.target.value })); setTimeError(''); }}
                   />
                 </div>
                 <div className="form-group">
                   <label className="form-label">{t('lectures.fieldTo')}</label>
                   <input
-                    className="form-input"
+                    className={`form-input${timeError ? ' form-input-error' : ''}`}
                     type="time"
                     disabled={Boolean(form.allDay)}
                     value={form.end_time}
-                    onChange={e => setForm(f => ({ ...f, end_time: e.target.value }))}
+                    onChange={e => { setForm(f => ({ ...f, end_time: e.target.value })); setTimeError(''); }}
                   />
                 </div>
               </div>
+              {timeError && <span style={{ fontSize: 11, color: 'var(--danger)', marginTop: -8, marginBottom: 8, display: 'block' }}>{timeError}</span>}
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">{t('lectures.fieldRoom')}</label>

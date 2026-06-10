@@ -2,7 +2,7 @@ import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { useLocale } from '../context/LocaleContext';
 import { formatDate, getDaysUntil, resolveTodoCourseLabel } from '../utils/helpers';
-import TodoDetail from './TodoDetail';
+import TodoDetail from '../components/todos/TodoDetail';
 
 const SECTION_KEYS = ['high', 'medium', 'low'];
 const SECTION_COLORS = { high: 'var(--danger)', medium: 'var(--warning)', low: 'var(--success)' };
