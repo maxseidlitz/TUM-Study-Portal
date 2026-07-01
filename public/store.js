@@ -49,6 +49,9 @@ function normalizeStoreAfterLoad() {
   if (store.settings.targetEcts === undefined) store.settings.targetEcts = 180;
   if (store.settings.targetGpa === undefined) store.settings.targetGpa = 1.0;
   if (store.settings.preferredMensaId === undefined) store.settings.preferredMensaId = '422'; // Garching
+  if (store.settings.onboardingCompleted === undefined) store.settings.onboardingCompleted = false;
+  if (store.settings.onboardingStep === undefined) store.settings.onboardingStep = 0;
+  if (store.settings.ollamaSetupDismissed === undefined) store.settings.ollamaSetupDismissed = false;
 }
 
 /** Vorlesungszeile aus Modul-Slot (id = moduleId::slotId). */

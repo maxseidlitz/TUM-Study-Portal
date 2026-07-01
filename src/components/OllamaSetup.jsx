@@ -1,31 +1,35 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocale } from '../context/LocaleContext';
+import { useOllamaSetup } from '../hooks/useOllamaSetup';
 
-export default function OllamaSetup() {
+export default function OllamaSetup({ suppressOverlay = false }) {
   const { t } = useLocale();
-  const [state, setState] = useState(null);
+  const state = useOllamaSetup();
   const [dismissed, setDismissed] = useState(false);
   const [retrying, setRetrying] = useState(false);
 
   useEffect(() => {
-    if (!window.api?.ollama) return undefined;
-    window.api.ollama.getSetupState().then(setState).catch(() => {});
-    const unsubscribe = window.api.ollama.onSetupProgress(setState);
-    return unsubscribe;
+    window.api?.settings?.get().then((s) => {
+      if (s?.ollamaSetupDismissed) setDismissed(true);
+    });
+  }, []);
+
+  const handleDismiss = useCallback(async () => {
+    setDismissed(true);
+    await window.api?.settings?.save({ ollamaSetupDismissed: true });
   }, []);
 
   const handleRetry = useCallback(async () => {
     if (!window.api?.ollama) return;
     setRetrying(true);
     try {
-      const next = await window.api.ollama.retrySetup();
-      setState(next);
+      await window.api.ollama.retrySetup();
     } finally {
       setRetrying(false);
     }
   }, []);
 
-  if (!state) return null;
+  if (!state || suppressOverlay) return null;
   const { phase, percent = 0, message, model } = state;
 
   const shouldShow = ['starting', 'downloading', 'error'].includes(phase);
@@ -79,7 +83,7 @@ export default function OllamaSetup() {
               {retrying ? t('ollama.setupRetrying') : t('ollama.setupRetry')}
             </button>
           )}
-          <button className="btn btn-secondary" onClick={() => setDismissed(true)}>
+          <button className="btn btn-secondary" onClick={handleDismiss}>
             {isError ? t('ollama.setupDismissError') : t('ollama.setupDismissDownload')}
           </button>
         </div>

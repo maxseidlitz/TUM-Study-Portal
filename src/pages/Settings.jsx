@@ -103,9 +103,9 @@ export default function Settings() {
     e.target.value = '';
   };
 
-  const handleRestartTour = () => {
-    localStorage.removeItem('tourCompleted');
-    window.location.reload();
+  const handleRestartTour = async () => {
+    await window.api.settings.save({ onboardingCompleted: false, onboardingStep: 0 });
+    window.dispatchEvent(new CustomEvent('restart-setup-wizard'));
   };
 
   if (loading) return <div className="loading">{t('settings.loading')}</div>;

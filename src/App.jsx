@@ -10,7 +10,7 @@ import Todos from './pages/Todos';
 import Links from './pages/Links';
 import Settings from './pages/Settings';
 import ChatContinuity from './components/ChatContinuity';
-import OnboardingTour from './components/OnboardingTour';
+import SetupWizard from './components/SetupWizard';
 import PomodoroWidget from './components/PomodoroWidget';
 import OllamaSetup from './components/OllamaSetup';
 
@@ -37,6 +37,7 @@ function PageFallback() {
 
 export default function App() {
   const [activePage, setActivePage] = useState('dashboard');
+  const [wizardActive, setWizardActive] = useState(false);
   const PageComponent = PAGES[activePage] || Dashboard;
   const isLazy = ['chat', 'exams', 'lectures', 'modules'].includes(activePage);
 
@@ -45,21 +46,25 @@ export default function App() {
       <ThemeProvider>
         <ToastProvider>
         <DataProvider>
-          <OnboardingTour />
+          <SetupWizard
+            onNavigate={setActivePage}
+            onVisibilityChange={setWizardActive}
+          />
           <PomodoroWidget />
           <div className="app">
-            <Sidebar activePage={activePage} onNavigate={setActivePage} />            <main className="main-content">
+            <Sidebar activePage={activePage} onNavigate={setActivePage} />
+            <main className="main-content">
               {isLazy ? (
                 <Suspense fallback={<PageFallback />}>
-                  <PageComponent />
+                  <PageComponent onNavigate={setActivePage} />
                 </Suspense>
               ) : (
-                <PageComponent />
+                <PageComponent onNavigate={setActivePage} />
               )}
             </main>
           </div>
           <ChatContinuity activePage={activePage} />
-          <OllamaSetup />
+          <OllamaSetup suppressOverlay={wizardActive} />
         </DataProvider>
         </ToastProvider>
       </ThemeProvider>

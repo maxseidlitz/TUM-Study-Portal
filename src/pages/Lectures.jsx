@@ -190,7 +190,7 @@ export default function Lectures() {
       </div>
 
       {lectures.length === 0 ? (
-        <EmptyState icon="📚" title={t('lectures.emptyTitle')} actionLabel={t('lectures.emptyCta')} onAction={openAdd} />
+        <EmptyState icon="📚" title={t('lectures.emptyTitle')} actionLabel={t('lectures.emptyCta')} onAction={() => setShowIcal(true)} />
       ) : viewMode === 'list' ? (
         <div style={styles.schedule}>
           {DAYS.map(day => (
