@@ -1,0 +1,216 @@
+// ---- Browser-Datenspeicher (localStorage) ----
+// Ersetzt den Electron-Dateispeicher (public/store.js) für den Web-/PWA-Build.
+// Hält dieselbe Store-Form und Geschäftslogik (Modul-Expansion, Einzel-Overrides,
+// Legacy-Migration, Settings-Normalisierung) wie der Desktop-Build, damit beide
+// Builds dieselben Daten interpretieren.
+
+const STORAGE_KEY = 'tum-study-portal';
+
+const EMPTY_STORE = () => ({
+  exams: [], lectures: [], todos: [], moodle_courses: [],
+  modules: [],
+  study_logs: [], settings: {}, chat_sessions: [],
+});
+
+// Gemeinsam genutzte Referenz – wird in-place mutiert (wie im Desktop-Build).
+export const store = EMPTY_STORE();
+
+export function loadStore() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const loaded = { ...EMPTY_STORE(), ...JSON.parse(raw) };
+      Object.keys(store).forEach((k) => { delete store[k]; });
+      Object.assign(store, loaded);
+    }
+  } catch (e) {
+    console.error('Failed to load store:', e);
+  }
+}
+
+export function saveStore() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  } catch (e) {
+    console.error('Failed to save store:', e);
+  }
+}
+
+function normalizeStoreAfterLoad() {
+  if (!Array.isArray(store.modules)) store.modules = [];
+  if (!Array.isArray(store.lectures)) store.lectures = [];
+  if (!Array.isArray(store.moodle_courses)) store.moodle_courses = [];
+  if (!Array.isArray(store.todos)) store.todos = [];
+  if (!Array.isArray(store.exams)) store.exams = [];
+  if (!Array.isArray(store.study_logs)) store.study_logs = [];
+  if (!Array.isArray(store.chat_sessions)) store.chat_sessions = [];
+  if (!store.settings) store.settings = {};
+  if (store.settings.targetEcts === undefined) store.settings.targetEcts = 180;
+  if (store.settings.targetGpa === undefined) store.settings.targetGpa = 1.0;
+  if (store.settings.preferredMensaId === undefined) store.settings.preferredMensaId = '422';
+  // Ollama läuft nicht im Browser/am Handy – Online-KI (Gemini) ist der sinnvolle Default.
+  if (store.settings.aiProvider === undefined) store.settings.aiProvider = 'gemini';
+}
+
+const STORE_DAY_CODES = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+function dayCodeForIso(iso) {
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return 'Mo';
+  return STORE_DAY_CODES[new Date(+m[1], +m[2] - 1, +m[3]).getDay()];
+}
+
+export function parseCompositeLectureId(id) {
+  if (typeof id !== 'string' || !id.includes('::')) return null;
+  const parts = id.split('::');
+  if (parts.length >= 3) {
+    return { moduleId: parts[0], slotId: parts[1], overrideDate: parts.slice(2).join('::') };
+  }
+  return { moduleId: parts[0], slotId: parts[1] };
+}
+
+export function expandModulesToLectures(modules) {
+  const out = [];
+  if (!Array.isArray(modules)) return out;
+  for (const mod of modules) {
+    const slots = Array.isArray(mod.slots) ? mod.slots : [];
+    for (const slot of slots) {
+      if (!slot || typeof slot.id !== 'string' || !slot.id) continue;
+      const overrides = (slot.overrides && typeof slot.overrides === 'object') ? slot.overrides : {};
+      out.push({
+        id: `${mod.id}::${slot.id}`,
+        moduleId: mod.id,
+        slotId: slot.id,
+        name: mod.name || '',
+        day: slot.day,
+        time: slot.time || '',
+        end_time: slot.end_time || '',
+        room: slot.room || '',
+        lecturer: slot.lecturer || '',
+        color: mod.color || '#3B82F6',
+        eventDate: '',
+        allDay: Boolean(slot.allDay),
+        overrides,
+      });
+      for (const [iso, ov] of Object.entries(overrides)) {
+        if (!ov || ov.canceled) continue;
+        out.push({
+          id: `${mod.id}::${slot.id}::${iso}`,
+          moduleId: mod.id,
+          slotId: slot.id,
+          overrideDate: iso,
+          isOverride: true,
+          name: mod.name || '',
+          day: dayCodeForIso(iso),
+          time: ov.time != null ? ov.time : (slot.time || ''),
+          end_time: ov.end_time != null ? ov.end_time : (slot.end_time || ''),
+          room: ov.room != null ? ov.room : (slot.room || ''),
+          lecturer: slot.lecturer || '',
+          color: mod.color || '#3B82F6',
+          eventDate: iso,
+          allDay: Boolean(slot.allDay),
+        });
+      }
+    }
+  }
+  return out;
+}
+
+export function setSlotOverride(moduleId, slotId, iso, patch) {
+  const mod = (store.modules || []).find((m) => m.id === moduleId);
+  if (!mod) return { success: false, error: 'Modul nicht gefunden.' };
+  const slots = [...(mod.slots || [])];
+  const si = slots.findIndex((s) => s.id === slotId);
+  if (si < 0) return { success: false, error: 'Termin nicht gefunden.' };
+  const overrides = { ...(slots[si].overrides || {}) };
+  overrides[iso] = { ...(overrides[iso] || {}), ...patch };
+  slots[si] = { ...slots[si], overrides };
+  store.modules = (store.modules || []).map((m) => (m.id === moduleId ? { ...mod, slots } : m));
+  saveStore();
+  return { success: true };
+}
+
+export function getMergedLecturesForClient() {
+  const fromModules = expandModulesToLectures(store.modules || []);
+  const raw = Array.isArray(store.lectures) ? store.lectures : [];
+  return [...fromModules, ...raw];
+}
+
+function migrateLegacyToModulesIfNeeded() {
+  if (store.modules_migration_v1) return;
+  normalizeStoreAfterLoad();
+  if (Array.isArray(store.modules) && store.modules.length > 0) {
+    store.modules_migration_v1 = true;
+    saveStore();
+    return;
+  }
+  const hasLegacy =
+    (store.moodle_courses && store.moodle_courses.length > 0) ||
+    (store.lectures || []).some((l) => !l.eventDate);
+  if (!hasLegacy) {
+    store.modules = [];
+    store.modules_migration_v1 = true;
+    saveStore();
+    return;
+  }
+  const modules = [];
+  const usedLectureIds = new Set();
+  const norm = (s) => String(s || '').trim().toLowerCase();
+
+  for (const mc of store.moodle_courses || []) {
+    modules.push({
+      id: mc.id,
+      name: mc.name || 'Modul',
+      code: mc.code || '',
+      semester: mc.semester || '',
+      moodleUrl: mc.url || '',
+      color: mc.color || '#3B82F6',
+      slots: [],
+    });
+  }
+
+  for (const lec of store.lectures || []) {
+    if (lec.eventDate) continue;
+    const matched = modules.find((m) => norm(m.name) === norm(lec.name));
+    const slot = {
+      id: lec.id,
+      day: lec.day,
+      time: lec.time || '',
+      end_time: lec.end_time || '',
+      room: lec.room || '',
+      lecturer: lec.lecturer || '',
+      allDay: Boolean(lec.allDay),
+    };
+    if (matched) {
+      matched.slots.push(slot);
+      usedLectureIds.add(lec.id);
+    } else {
+      modules.push({
+        id: lec.id,
+        name: lec.name || 'Modul',
+        code: '',
+        semester: '',
+        moodleUrl: '',
+        color: lec.color || '#3B82F6',
+        slots: [slot],
+      });
+      usedLectureIds.add(lec.id);
+    }
+  }
+
+  const remaining = (store.lectures || []).filter((l) => !usedLectureIds.has(l.id));
+  store.lectures = remaining;
+  store.modules = modules;
+  store.moodle_courses = [];
+  store.modules_migration_v1 = true;
+  saveStore();
+}
+
+let initialized = false;
+export function initStore() {
+  if (initialized) return;
+  loadStore();
+  normalizeStoreAfterLoad();
+  migrateLegacyToModulesIfNeeded();
+  normalizeStoreAfterLoad();
+  initialized = true;
+}

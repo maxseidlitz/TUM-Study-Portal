@@ -38,7 +38,8 @@
     "navSettings": "Settings",
     "daysToExam": "{days}d to exam",
     "openTodosOne": "1 to-do",
-    "openTodosMany": "{count} to-dos"
+    "openTodosMany": "{count} to-dos",
+    "navMore": "More"
   },
   "dashboard": {
     "greetingMorning": "Good morning",
@@ -314,7 +315,6 @@
     "deleteTitleBtn": "Delete",
     "deleteWithLecturesTitle": "Delete module?",
     "deleteWithLecturesBody": "\"{name}\" and all {count} associated lecture slots will be permanently deleted.",
-    "moodleSync": "Moodle Sync",
     "moodleInfoTitle": "Moodle sync not available",
     "moodleInfoBody": "Automatic Moodle synchronisation is not possible because TUM does not provide a public API. You can add modules manually and save the Moodle link for quick course access."
   },

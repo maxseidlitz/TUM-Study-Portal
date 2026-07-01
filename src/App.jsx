@@ -4,6 +4,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { DataProvider } from './context/DataContext';
 import { ToastProvider } from './context/ToastContext';
 import Sidebar from './components/Sidebar';
+import MobileNav from './components/MobileNav';
 import Dashboard from './pages/Dashboard';
 import Today from './pages/Today';
 import Todos from './pages/Todos';
@@ -35,6 +36,18 @@ function PageFallback() {
   return <div className="loading" style={{ padding: 24 }}>…</div>;
 }
 
+function MobileHeader() {
+  return (
+    <header className="mobile-header">
+      <div className="mobile-header-mark">TUM</div>
+      <div className="mobile-header-titles">
+        <span className="mobile-header-title">Study Portal</span>
+        <span className="mobile-header-sub">TU München</span>
+      </div>
+    </header>
+  );
+}
+
 export default function App() {
   const [activePage, setActivePage] = useState('dashboard');
   const PageComponent = PAGES[activePage] || Dashboard;
@@ -48,7 +61,9 @@ export default function App() {
           <OnboardingTour />
           <PomodoroWidget />
           <div className="app">
-            <Sidebar activePage={activePage} onNavigate={setActivePage} />            <main className="main-content">
+            <Sidebar activePage={activePage} onNavigate={setActivePage} />
+            <main className="main-content">
+              <MobileHeader />
               {isLazy ? (
                 <Suspense fallback={<PageFallback />}>
                   <PageComponent />
@@ -58,6 +73,7 @@ export default function App() {
               )}
             </main>
           </div>
+          <MobileNav activePage={activePage} onNavigate={setActivePage} />
           <ChatContinuity activePage={activePage} />
           <OllamaSetup />
         </DataProvider>

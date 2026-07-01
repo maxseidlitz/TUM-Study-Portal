@@ -89,6 +89,11 @@
   /* Sidebar */
   --sidebar-width: 240px;
 
+  /* Mobile bottom navigation */
+  --mobile-nav-height: 58px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
   /* Transitions */
   --transition: 150ms ease;
   --transition-slow: 300ms ease;
