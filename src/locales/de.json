@@ -38,7 +38,8 @@
     "navSettings": "Einstellungen",
     "daysToExam": "{days}d bis Prüfung",
     "openTodosOne": "1 To-Do",
-    "openTodosMany": "{count} To-Dos"
+    "openTodosMany": "{count} To-Dos",
+    "navMore": "Mehr"
   },
   "dashboard": {
     "greetingMorning": "Guten Morgen",

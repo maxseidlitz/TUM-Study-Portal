@@ -46,6 +46,39 @@ Gehe zum Tab **Stundenplan** und klicke auf **iCal Import**.
 
 ---
 
+## 📱 iOS WebApp (PWA) – alles auf dem Handy
+
+Das Portal läuft nun auch komplett im Browser als **installierbare Progressive Web App** –
+ohne Electron, ohne Installer. Ideal fürs iPhone: „Zum Home-Bildschirm hinzufügen" und
+die App startet im Vollbild wie eine native App.
+
+### Nutzung am Handy
+1. Die veröffentlichte URL (GitHub Pages, siehe `.github/workflows/deploy-web.yml`) in **Safari** öffnen.
+2. **Teilen → „Zum Home-Bildschirm"**.
+3. Fertig – die App öffnet im Standalone-Modus mit Bottom-Tab-Navigation.
+
+### Unterschiede zum Desktop-Build
+*   **Speicherung:** Daten liegen im Browser (`localStorage`) statt in einer JSON-Datei.
+    Export/Import (Einstellungen → Datensicherung) funktioniert identisch und ist mit dem
+    Desktop-Backup-Format kompatibel.
+*   **KI:** Da eine lokale Ollama-Runtime auf dem Handy nicht läuft, nutzt der Web-Build
+    **Google Gemini** (API-Key unter Einstellungen → KI hinterlegen). Der gesamte übrige
+    Funktionsumfang ist identisch.
+*   **iCal-Import:** Direkter URL-Abruf kann an CORS scheitern; in dem Fall die `.ics`-Datei
+    herunterladen und als Datei importieren.
+
+### Lokal als Web-App testen
+```bash
+npm install          # (ELECTRON_SKIP_BINARY_DOWNLOAD=1, falls kein Electron nötig)
+npm run build
+npx serve build      # oder ein beliebiger statischer Server
+```
+
+Derselbe Quellcode läuft in beiden Welten: `src/api/browserApi.js` stellt `window.api`
+im Browser bereit; unter Electron hat die native Preload-API weiterhin Vorrang.
+
+---
+
 ## 🛠️ Entwicklung & Technische Details
 
 ### Voraussetzungen

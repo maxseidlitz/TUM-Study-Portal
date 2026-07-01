@@ -44,7 +44,7 @@ export default function Sidebar({ activePage, onNavigate }) {
     : null;
 
   return (
-    <aside style={styles.sidebar}>
+    <aside className="desktop-sidebar" style={styles.sidebar}>
       {/* macOS traffic light spacing – also acts as drag region for window */}
       <div style={styles.trafficLightSpacer} />
 

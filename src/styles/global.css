@@ -485,13 +485,197 @@ body {
 
 .chat-markdown del { opacity: 0.85; }
 
-/* Responsive */
+/* ===================================================================== */
+/*  Mobile / iOS WebApp                                                   */
+/* ===================================================================== */
+
+/* Bottom-Tab-Bar, Mobile-Header und Sheet sind standardmäßig (Desktop)
+   ausgeblendet – die Media Query unten blendet sie am Handy ein und
+   ersetzt dafür die Desktop-Sidebar. */
+.mobile-nav,
+.mobile-header,
+.mnav-sheet-overlay { display: none; }
+
+/* Mobile-Header (nur < 768px sichtbar) */
+.mobile-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) var(--space-4);
+  padding: calc(var(--safe-top) + 10px) var(--space-4) 10px;
+  background: color-mix(in srgb, var(--bg-primary) 88%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
+  backdrop-filter: saturate(180%) blur(12px);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.mobile-header-mark {
+  width: 34px; height: 34px; border-radius: 9px;
+  background: var(--accent); color: #fff;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.04em;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.mobile-header-titles { display: flex; flex-direction: column; line-height: 1.15; }
+.mobile-header-title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.mobile-header-sub { font-size: 11px; color: var(--text-muted); }
+
+/* Bottom-Tab-Bar */
+.mobile-nav {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 950;
+  align-items: stretch;
+  justify-content: space-around;
+  height: calc(var(--mobile-nav-height) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
+  backdrop-filter: saturate(180%) blur(16px);
+  border-top: 1px solid var(--border-color);
+}
+.mnav-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 2px;
+  color: var(--text-muted);
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--transition);
+}
+.mnav-tab.active { color: var(--accent-hover); }
+.mnav-icon-wrap { position: relative; display: flex; }
+.mnav-label {
+  font-size: 10.5px;
+  font-weight: 500;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mnav-badge {
+  position: absolute;
+  top: -5px; right: -9px;
+  min-width: 16px; height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* "Mehr"-Sheet */
+.mnav-sheet-overlay {
+  position: fixed; inset: 0;
+  z-index: 940;
+  align-items: flex-end;
+  background: rgba(0, 0, 0, 0.45);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  animation: fadeIn 150ms ease;
+}
+.mnav-sheet {
+  width: 100%;
+  background: var(--bg-secondary);
+  border-top-left-radius: var(--radius-xl);
+  border-top-right-radius: var(--radius-xl);
+  border-top: 1px solid var(--border-color);
+  padding: 10px 16px calc(var(--mobile-nav-height) + var(--safe-bottom) + 16px);
+  box-shadow: var(--shadow-lg);
+  animation: slideUp 220ms ease;
+}
+.mnav-sheet-grabber {
+  width: 40px; height: 4px; border-radius: 999px;
+  background: var(--border-color);
+  margin: 4px auto 14px;
+}
+.mnav-sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.mnav-sheet-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.mnav-sheet-item.active {
+  border-color: var(--accent);
+  color: var(--accent-hover);
+  background: var(--accent-subtle);
+}
+
+/* Responsive grids (Desktop → Tablet) */
 @media (max-width: 1100px) {
   .grid-4 { grid-template-columns: repeat(2, 1fr); }
   .grid-3 { grid-template-columns: repeat(2, 1fr); }
 }
-@media (max-width: 800px) {
+
+/* ---- Handy-Breakpoint: Sidebar raus, Bottom-Nav rein ---- */
+@media (max-width: 768px) {
   .form-row, .form-row-3 { grid-template-columns: 1fr; }
   .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
-  .main-content { padding: var(--space-4); }
+
+  /* Native, elastische Scroll-Physik auf iOS */
+  html, body, #root { height: 100%; overflow: visible; }
+  body { overscroll-behavior-y: none; }
+
+  .app { height: auto; min-height: 100dvh; display: block; }
+  .desktop-sidebar { display: none !important; }
+
+  .main-content {
+    padding: var(--space-4);
+    /* Platz für Bottom-Nav lassen */
+    padding-bottom: calc(var(--mobile-nav-height) + var(--safe-bottom) + var(--space-6));
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-nav { display: flex; }
+  .mobile-header { display: flex; }
+  .mnav-sheet-overlay { display: flex; }
+
+  /* Größere Seitenüberschrift-Abstände am Handy reduzieren */
+  .page-header { margin-bottom: var(--space-5); }
+  .page-header h1 { font-size: var(--text-2xl); }
+
+  /* Modals als Bottom-Sheets, damit sie am Daumen erreichbar sind */
+  .modal-overlay { align-items: flex-end; padding: 0; }
+  .modal {
+    max-width: 100%;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    max-height: 92vh;
+    padding: var(--space-6);
+    padding-bottom: calc(var(--space-6) + var(--safe-bottom));
+    animation: slideUp 240ms ease;
+  }
+}
+
+/* iOS: 16px Mindest-Schriftgröße bei Inputs verhindert Auto-Zoom beim Fokus */
+@media (max-width: 768px) {
+  .form-input, .form-select, .form-textarea { font-size: 16px; }
 }

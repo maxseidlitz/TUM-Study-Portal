@@ -36,7 +36,8 @@
     "navSettings": "Ayarlar",
     "daysToExam": "Sınava {days}g",
     "openTodosOne": "1 görev",
-    "openTodosMany": "{count} görev"
+    "openTodosMany": "{count} görev",
+    "navMore": "Daha fazla"
   },
   "dashboard": {
     "greetingMorning": "Günaydın",
