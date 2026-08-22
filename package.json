@@ -71,6 +71,7 @@
     },
     "mac": {
       "category": "public.app-category.education",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
       "target": [
         "dmg"
       ]
