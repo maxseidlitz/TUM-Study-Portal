@@ -2,7 +2,12 @@
 // Reine API-Client-Logik + Prompt-Aufbau. Keine Electron-Fenster-Abhängigkeit.
 const http = require('http');
 const https = require('https');
-const { store, saveStore } = require('./store');
+const { store, saveStore, getMergedLecturesForClient } = require('./store');
+const {
+  canonicalToolCall,
+  executeReadOnlyTool,
+  validIsoDate,
+} = require('./aiRetrieval');
 
 function normalizeOllamaUrl(url) {
   return (url || 'http://localhost:11434').trim().replace(/\/+$/, '');
@@ -189,6 +194,8 @@ function callOllama(ollamaUrl, model, messages, settings) {
 }
 
 const CHAT_MAX_TOOL_TURNS = 5;
+const CHAT_MAX_TOOL_CALLS = 12;
+const CHAT_MAX_CALLS_PER_TURN = 6;
 
 function generateTodoId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -207,34 +214,46 @@ function executeCreateTodo(rawArgs) {
   if (!args || typeof args !== 'object') {
     return { success: false, error: 'Ungültige Tool-Parameter.' };
   }
+  const allowedKeys = ['title', 'priority', 'subject', 'moduleId', 'moodleCourseId', 'due', 'notes'];
+  const unknownKeys = Object.keys(args).filter((key) => !allowedKeys.includes(key));
+  if (unknownKeys.length) {
+    return { success: false, error: `Unbekannte Parameter: ${unknownKeys.join(', ')}.` };
+  }
+  for (const key of ['title', 'priority', 'subject', 'moduleId', 'moodleCourseId', 'due', 'notes']) {
+    if (args[key] != null && typeof args[key] !== 'string') {
+      return { success: false, error: `${key} muss eine Zeichenkette sein.` };
+    }
+  }
 
   const title = String(args.title ?? '').trim();
   if (!title) return { success: false, error: 'Titel (title) fehlt oder ist leer.' };
-  if (title.length > 500) return { success: false, error: 'Titel zu lang (max. 500 Zeichen).' };
+  if (title.length > 240) return { success: false, error: 'Titel zu lang (max. 240 Zeichen).' };
 
   let priority = String(args.priority ?? 'medium').toLowerCase();
-  if (!['high', 'medium', 'low'].includes(priority)) priority = 'medium';
+  if (!['high', 'medium', 'low'].includes(priority)) {
+    return { success: false, error: 'priority muss high, medium oder low sein.' };
+  }
 
   let due = String(args.due ?? '').trim();
-  if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due)) {
-    due = '';
-  }
-  if (due) {
-    const d = new Date(`${due}T12:00:00`);
-    if (Number.isNaN(d.getTime())) due = '';
+  if (due && !validIsoDate(due)) {
+    return { success: false, error: 'due muss ein gültiges Datum im Format YYYY-MM-DD sein.' };
   }
 
-  const subject = String(args.subject ?? '').trim().slice(0, 200);
-  const notes = String(args.notes ?? '').trim().slice(0, 5000);
+  const subject = String(args.subject ?? '').trim();
+  const notes = String(args.notes ?? '').trim();
+  if (subject.length > 120) return { success: false, error: 'subject ist zu lang (max. 120 Zeichen).' };
+  if (notes.length > 1000) return { success: false, error: 'notes ist zu lang (max. 1000 Zeichen).' };
 
   let moodleCourseId = String(args.moodleCourseId ?? '').trim();
+  if (moodleCourseId.length > 120) return { success: false, error: 'moodleCourseId ist zu lang.' };
   if (moodleCourseId && !(store.moodle_courses || []).some((c) => c.id === moodleCourseId)) {
-    moodleCourseId = '';
+    return { success: false, error: 'moodleCourseId wurde nicht gefunden.' };
   }
 
   let moduleId = String(args.moduleId ?? '').trim();
+  if (moduleId.length > 120) return { success: false, error: 'moduleId ist zu lang.' };
   if (moduleId && !(store.modules || []).some((m) => m.id === moduleId)) {
-    moduleId = '';
+    return { success: false, error: 'moduleId wurde nicht gefunden.' };
   }
 
   let resolvedSubject = subject;
@@ -258,6 +277,7 @@ function executeCreateTodo(rawArgs) {
     ...(moodleCourseId ? { moodleCourseId } : {}),
     ...(moduleId ? { moduleId } : {}),
   };
+  if (!Array.isArray(store.todos)) store.todos = [];
   store.todos.push(todo);
   saveStore();
   return {
@@ -299,7 +319,65 @@ const CREATE_TODO_OLLAMA_TOOL = {
   },
 };
 
-const GEMINI_CREATE_TODO_DECLARATION = {
+const RETRIEVAL_TOOL_DECLARATIONS = [
+  {
+    name: 'search_todos',
+    description: 'Sucht kompakt in den persönlichen Aufgaben. Vor Aussagen über Aufgaben immer zuerst verwenden.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Optionaler Suchtext, maximal 120 Zeichen' },
+        status: { type: 'string', enum: ['open', 'done', 'all'], description: 'Standard: open' },
+        priority: { type: 'string', enum: ['high', 'medium', 'low'] },
+        moduleId: { type: 'string' },
+        dueFrom: { type: 'string', description: 'YYYY-MM-DD' },
+        dueTo: { type: 'string', description: 'YYYY-MM-DD' },
+        limit: { type: 'integer', minimum: 1, maximum: 20 },
+      },
+    },
+  },
+  {
+    name: 'search_exams',
+    description: 'Sucht kompakt in den persönlichen Prüfungen. Vor Aussagen über Prüfungen immer zuerst verwenden.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Optionaler Suchtext, maximal 120 Zeichen' },
+        from: { type: 'string', description: 'YYYY-MM-DD' },
+        to: { type: 'string', description: 'YYYY-MM-DD' },
+        graded: { type: 'boolean' },
+        limit: { type: 'integer', minimum: 1, maximum: 20 },
+      },
+    },
+  },
+  {
+    name: 'get_schedule',
+    description: 'Liest persönliche Termine für einen Zeitraum von höchstens 31 Tagen.',
+    parameters: {
+      type: 'object',
+      properties: {
+        from: { type: 'string', description: 'YYYY-MM-DD; Standard: heute' },
+        to: { type: 'string', description: 'YYYY-MM-DD; Standard: from' },
+        query: { type: 'string', description: 'Optionaler Suchtext' },
+        moduleId: { type: 'string' },
+        limit: { type: 'integer', minimum: 1, maximum: 20 },
+      },
+    },
+  },
+  {
+    name: 'get_module',
+    description: 'Liest ein persönliches Modul anhand exakter ID oder eines Suchtexts.',
+    parameters: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        query: { type: 'string' },
+      },
+    },
+  },
+];
+
+const CREATE_TODO_DECLARATION = {
   name: 'create_todo',
   description:
     'Legt eine neue Aufgabe in der To-Do-Liste der App an. Nur nutzen, wenn der Nutzer ausdrücklich darum bittet.',
@@ -322,8 +400,13 @@ const GEMINI_CREATE_TODO_DECLARATION = {
   },
 };
 
+const RETRIEVAL_OLLAMA_TOOLS = RETRIEVAL_TOOL_DECLARATIONS.map((declaration) => ({
+  type: 'function',
+  function: declaration,
+}));
+
 function geminiToolsBody() {
-  return [{ functionDeclarations: [GEMINI_CREATE_TODO_DECLARATION] }];
+  return [{ functionDeclarations: [...RETRIEVAL_TOOL_DECLARATIONS, CREATE_TODO_DECLARATION] }];
 }
 
 function normalizeGeminiFunctionArgs(fc) {
@@ -341,17 +424,19 @@ function normalizeGeminiFunctionArgs(fc) {
 
 /** Ollama liefert `function.arguments` je nach Modell als JSON-String oder als Objekt (siehe Ollama-Doku). */
 function parseOllamaToolArguments(raw) {
-  if (raw == null || raw === '') return {};
-  if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  if (raw == null || raw === '') return { ok: true, value: {} };
+  if (typeof raw === 'object' && !Array.isArray(raw)) return { ok: true, value: raw };
   if (typeof raw === 'string') {
     try {
       const parsed = JSON.parse(raw);
-      return parsed && typeof parsed === 'object' ? parsed : {};
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? { ok: true, value: parsed }
+        : { ok: false, error: 'Tool-Parameter müssen ein JSON-Objekt sein.' };
     } catch (e) {
-      return {};
+      return { ok: false, error: 'Ungültige Tool-Parameter (kein gültiges JSON).' };
     }
   }
-  return {};
+  return { ok: false, error: 'Tool-Parameter müssen ein JSON-Objekt sein.' };
 }
 
 function extractGeminiFunctionCalls(json) {
@@ -364,6 +449,57 @@ function collectTodoToolResults(todoActionResults) {
   return (todoActionResults || [])
     .filter(r => r && r.success && r.id)
     .map(r => ({ id: r.id, title: r.title, priority: r.priority }));
+}
+
+function todayIsoLocal() {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+}
+
+function contextFromMainStore(context) {
+  return {
+    exams: Array.isArray(store.exams) ? store.exams : [],
+    todos: Array.isArray(store.todos) ? store.todos : [],
+    lectures: getMergedLecturesForClient(),
+    modules: Array.isArray(store.modules) ? store.modules : [],
+    locale: context?.locale,
+    today: context?.today || todayIsoLocal(),
+  };
+}
+
+function executeChatTool(name, rawArgs, todayIso, todoActionResults) {
+  if (name === 'create_todo') {
+    const parsed = parseOllamaToolArguments(rawArgs);
+    if (!parsed.ok) return { success: false, error: parsed.error };
+    const result = executeCreateTodo(parsed.value);
+    todoActionResults.push(result);
+    return result;
+  }
+  return executeReadOnlyTool(name, rawArgs, store, todayIso);
+}
+
+function minimalRetrievalSystemPrompt(context) {
+  const locale = context?.locale === 'en' || context?.locale === 'tr' ? context.locale : 'de';
+  return [
+    'Du bist der persönliche Studienassistent in der App "TUM Study Portal".',
+    chatReplyLanguageBlock(locale),
+    `Heutiges Datum (ISO): ${todayIsoLocal()}.`,
+    'Persönliche Aufgaben, Prüfungen, Termine und Module sind nicht im Prompt enthalten.',
+    'Rufe vor jeder Behauptung über persönliche Studiendaten das passende Read-only-Tool auf.',
+    'Erfinde keine persönlichen Fakten. Ein leeres oder not-found Tool-Ergebnis bedeutet, dass keine passenden Daten vorliegen.',
+    'Nutze create_todo ausschließlich auf ausdrücklichen Wunsch. Wiederhole niemals denselben Tool-Aufruf.',
+  ].join('\n');
+}
+
+function chatMetadata(model, fallbackUsed, fallbackReason) {
+  return {
+    model,
+    activeModel: model,
+    fallbackUsed,
+    fallbackReason: fallbackUsed ? fallbackReason : null,
+    retrievalMode: fallbackUsed ? 'full_context_fallback' : 'model_tools',
+  };
 }
 
 /** POST /api/chat — vollständige JSON-Antwort (inkl. tool_calls). `settings` steuert Top-Level `think: false`. */
@@ -433,7 +569,7 @@ function postOllamaChat(ollamaUrl, model, settings, payload, timeoutMs = 180000)
 /** Ollama lehnt manche Modelle (z. B. llama3:latest) mit diesem Fehler ab, wenn `tools` gesendet wird. */
 function isOllamaToolsUnsupportedError(err) {
   const msg = err && err.message ? String(err.message) : String(err);
-  return /does not support tools/i.test(msg);
+  return /(does not support (?:tools?|tool calling|function calling)|tools? (?:are |is )?not supported|unsupported (?:tool|function)|(?:tool|function) calling (?:is )?not supported)/i.test(msg);
 }
 
 // ---- Google Gemini (Generative Language API) ----
@@ -596,11 +732,12 @@ async function aiChatGemini(settings, messagesFromRenderer, context) {
     );
   }
 
-  const systemPrompt = buildChatSystemPrompt(context);
+  // Gemini bleibt beim bewährten Vollkontext, bezieht ihn aber direkt aus dem Main-Store.
+  const systemPrompt = buildChatSystemPrompt(contextFromMainStore(context));
   const modelId = resolveGeminiModelId(settings);
 
   const contents = [];
-  for (const msg of messagesFromRenderer || []) {
+  for (const msg of (messagesFromRenderer || []).slice(-16)) {
     if (!msg || typeof msg.role !== 'string' || typeof msg.content !== 'string') continue;
     if (msg.role === 'system') continue;
     if (msg.role === 'assistant') {
@@ -617,6 +754,8 @@ async function aiChatGemini(settings, messagesFromRenderer, context) {
   const tools = geminiToolsBody();
 
   const todoActionResults = [];
+  const seenToolCalls = new Set();
+  let toolCallCount = 0;
   let workingContents = contents;
 
   for (let turn = 0; turn < CHAT_MAX_TOOL_TURNS; turn++) {
@@ -632,6 +771,9 @@ async function aiChatGemini(settings, messagesFromRenderer, context) {
     const modelContent = json.candidates?.[0]?.content;
 
     if (calls.length) {
+      if (calls.length > CHAT_MAX_CALLS_PER_TURN) {
+        throw new Error('Zu viele Tool-Aufrufe in einer Modellantwort.');
+      }
       const contentBlock =
         modelContent && Array.isArray(modelContent.parts)
           ? modelContent
@@ -642,11 +784,19 @@ async function aiChatGemini(settings, messagesFromRenderer, context) {
         const name = fc.name || '';
         const args = normalizeGeminiFunctionArgs(fc);
         let result;
-        if (name === 'create_todo') {
-          result = executeCreateTodo(args);
-          todoActionResults.push(result);
+        toolCallCount += 1;
+        if (toolCallCount > CHAT_MAX_TOOL_CALLS) {
+          throw new Error('Zu viele Tool-Aufrufe – bitte Anfrage kürzen.');
+        }
+        const signature = canonicalToolCall(name, args);
+        if (seenToolCalls.has(signature)) {
+          result = {
+            success: false,
+            error: 'Identischer Tool-Aufruf blockiert. Nutze vorhandene Ergebnisse oder ändere die Abfrage.',
+          };
         } else {
-          result = { success: false, error: `Unbekannte Funktion: ${name}` };
+          seenToolCalls.add(signature);
+          result = executeChatTool(name, args, todayIsoLocal(), todoActionResults);
         }
         frParts.push({
           functionResponse: {
@@ -663,6 +813,10 @@ async function aiChatGemini(settings, messagesFromRenderer, context) {
       return {
         content: text,
         model: modelId,
+        activeModel: modelId,
+        fallbackUsed: false,
+        fallbackReason: null,
+        retrievalMode: 'full_context',
         todoActions: collectTodoToolResults(todoActionResults),
       };
     }
@@ -691,38 +845,59 @@ async function aiRecommendOllama(settings, context) {
 
 async function aiChatOllama(settings, messagesFromRenderer, context) {
   const ollamaUrl = settings.ollamaUrl || 'http://localhost:11434';
-  const systemPrompt = augmentOllamaSystemForNoReasoning(buildChatSystemPrompt(context), settings);
-
   const model = await resolveModelCached(ollamaUrl, settings.ollamaModel);
+  const originalMessages = (messagesFromRenderer || [])
+    .filter((msg) => msg
+      && (msg.role === 'user' || msg.role === 'assistant')
+      && typeof msg.content === 'string'
+      && msg.content.trim())
+    .slice(-16)
+    .map((msg) => ({ role: msg.role, content: msg.content.slice(0, 12000) }));
+  if (!originalMessages.length) throw new Error('Keine gültigen Chat-Nachrichten zum Senden.');
+
+  const systemPrompt = augmentOllamaSystemForNoReasoning(minimalRetrievalSystemPrompt(context), settings);
   const messages = [
     { role: 'system', content: systemPrompt },
-    ...(messagesFromRenderer || []),
+    ...originalMessages,
   ];
 
-  const tools = [CREATE_TODO_OLLAMA_TOOL];
+  const tools = [...RETRIEVAL_OLLAMA_TOOLS, CREATE_TODO_OLLAMA_TOOL];
   const todoActionResults = [];
-  let useTools = true;
+  const seenToolCalls = new Set();
+  let toolCallCount = 0;
 
   for (let turn = 0; turn < CHAT_MAX_TOOL_TURNS; turn++) {
     let json;
-    if (useTools) {
-      try {
-        json = await postOllamaChat(ollamaUrl, model, settings, { messages, tools });
-      } catch (e) {
-        if (isOllamaToolsUnsupportedError(e)) {
-          useTools = false;
-          json = await postOllamaChat(ollamaUrl, model, settings, { messages });
-        } else {
-          throw e;
+    try {
+      json = await postOllamaChat(ollamaUrl, model, settings, { messages, tools });
+    } catch (e) {
+      if (isOllamaToolsUnsupportedError(e)) {
+        const fallbackPrompt = augmentOllamaSystemForNoReasoning(
+          buildChatSystemPrompt(contextFromMainStore(context)),
+          settings
+        );
+        const fallbackJson = await postOllamaChat(ollamaUrl, model, settings, {
+          messages: [{ role: 'system', content: fallbackPrompt }, ...originalMessages],
+        });
+        const fallbackContent = fallbackJson.message?.content || fallbackJson.response || '';
+        if (!fallbackContent.trim()) {
+          throw new Error('Ollama lieferte auch mit Vollkontext eine leere Antwort.');
         }
+        return {
+          content: fallbackContent,
+          todoActions: collectTodoToolResults(todoActionResults),
+          ...chatMetadata(model, true, 'tools_unsupported'),
+        };
       }
-    } else {
-      json = await postOllamaChat(ollamaUrl, model, settings, { messages });
+      throw e;
     }
 
     const toolCalls = json.message?.tool_calls;
 
-    if (useTools && Array.isArray(toolCalls) && toolCalls.length > 0) {
+    if (Array.isArray(toolCalls) && toolCalls.length > 0) {
+      if (toolCalls.length > CHAT_MAX_CALLS_PER_TURN) {
+        throw new Error('Zu viele Tool-Aufrufe in einer Modellantwort.');
+      }
       messages.push({
         role: 'assistant',
         content: json.message?.content || '',
@@ -730,13 +905,20 @@ async function aiChatOllama(settings, messagesFromRenderer, context) {
       });
       for (const tc of toolCalls) {
         const name = tc.function?.name || '';
-        const args = parseOllamaToolArguments(tc.function?.arguments);
         let result;
-        if (name === 'create_todo') {
-          result = executeCreateTodo(args);
-          todoActionResults.push(result);
+        toolCallCount += 1;
+        if (toolCallCount > CHAT_MAX_TOOL_CALLS) {
+          throw new Error('Zu viele Tool-Aufrufe – bitte Anfrage kürzen.');
+        }
+        const signature = canonicalToolCall(name, tc.function?.arguments);
+        if (seenToolCalls.has(signature)) {
+          result = {
+            success: false,
+            error: 'Identischer Tool-Aufruf blockiert. Nutze vorhandene Ergebnisse oder ändere die Abfrage.',
+          };
         } else {
-          result = { success: false, error: `Unbekannte Funktion: ${name}` };
+          seenToolCalls.add(signature);
+          result = executeChatTool(name, tc.function?.arguments, todayIsoLocal(), todoActionResults);
         }
         // Ollama erwartet `tool_name` (nicht OpenAI-`name`); sonst wird das Tool-Ergebnis ignoriert.
         messages.push({
@@ -752,18 +934,28 @@ async function aiChatOllama(settings, messagesFromRenderer, context) {
     if (content.trim()) {
       return {
         content,
-        model,
         todoActions: collectTodoToolResults(todoActionResults),
+        ...chatMetadata(model, false),
       };
     }
 
-    // Manche Modelle (z. B. Gemma) werfen keinen Fehler bei `tools`, liefern aber weder Text noch tool_calls.
-    if (useTools) {
-      useTools = false;
-      continue;
+    // Manche Modelle melden fehlende Tool-Unterstützung nur durch eine leere Antwort.
+    const fallbackPrompt = augmentOllamaSystemForNoReasoning(
+      buildChatSystemPrompt(contextFromMainStore(context)),
+      settings
+    );
+    const fallbackJson = await postOllamaChat(ollamaUrl, model, settings, {
+      messages: [{ role: 'system', content: fallbackPrompt }, ...originalMessages],
+    });
+    const fallbackContent = fallbackJson.message?.content || fallbackJson.response || '';
+    if (fallbackContent.trim()) {
+      return {
+        content: fallbackContent,
+        todoActions: collectTodoToolResults(todoActionResults),
+        ...chatMetadata(model, true, 'empty_tool_response'),
+      };
     }
-
-    throw new Error('Ollama lieferte eine leere Antwort. Unterstützt das Modell Tools?');
+    throw new Error('Ollama lieferte auch mit Vollkontext eine leere Antwort.');
   }
 
   throw new Error('Zu viele Tool-Runden – bitte erneut versuchen.');
