@@ -50,6 +50,10 @@
       "build/**/*",
       "public/electron.js",
       "public/preload.js",
+      "public/ai.js",
+      "public/aiRetrieval.js",
+      "public/store.js",
+      "public/ical.js",
       "node_modules/**/*"
     ],
     "extraResources": [

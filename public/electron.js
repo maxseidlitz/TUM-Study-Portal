@@ -356,15 +356,13 @@ function registerIpcHandlers() {
     const provider = settings.aiProvider === 'gemini' ? 'gemini' : 'ollama';
 
     try {
-      let content;
-      let model;
-      let todoActions;
+      let result;
       if (provider === 'gemini') {
-        ({ content, model, todoActions } = await aiChatGemini(settings, messages, context));
+        result = await aiChatGemini(settings, messages, context);
       } else {
-        ({ content, model, todoActions } = await aiChatOllama(settings, messages, context));
+        result = await aiChatOllama(settings, messages, context);
       }
-      return { success: true, content, model, todoActions: todoActions || [] };
+      return { success: true, ...result, todoActions: result.todoActions || [] };
     } catch (e) {
       return { success: false, error: e.message };
     }

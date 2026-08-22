@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useData } from '../context/DataContext';
 import { useLocale } from '../context/LocaleContext';
 import {
@@ -7,9 +7,9 @@ import {
   getMondayOfWeek,
   addDays,
   formatISODateLocal,
-  dateToDayCode,
   sortCalendarImports,
   dayCodeFromISODate,
+  lecturesForCalendarDay,
 } from '../utils/helpers';
 import { timeToMinutes } from '../utils/weekGridLayout';
 import ICalImport from '../components/lectures/ICalImport';
@@ -38,7 +38,7 @@ function nextDateForDay(dayCode) {
   return '';
 }
 
-export default function Lectures() {
+export default function Lectures({ openImportRequest = 0 }) {
   const { t, intlLocale } = useLocale();
   const { lectures, addLecture, updateLecture, deleteLecture, loading } = useData();
   const dayNames = useMemo(() => {
@@ -62,24 +62,31 @@ export default function Lectures() {
   const today = getTodayDayCode();
   const todayIso = formatISODateLocal(new Date());
 
-  const manualLectures = useMemo(() => lectures.filter((l) => !l.eventDate), [lectures]);
   const calendarImports = useMemo(
     () => lectures.filter((l) => l.eventDate).sort(sortCalendarImports),
     [lectures],
   );
 
-  const sortedManual = useMemo(() => sortByDay(manualLectures), [manualLectures]);
+  const listMonday = useMemo(() => getMondayOfWeek(), []);
   const byDay = useMemo(
-    () => DAYS.reduce((acc, d) => {
-      acc[d] = sortedManual.filter((l) => l.day === d);
+    () => DAYS.reduce((acc, d, index) => {
+      const date = addDays(listMonday, index);
+      acc[d] = lecturesForCalendarDay(lectures, date).sort((a, b) => {
+        if (Boolean(a.allDay) !== Boolean(b.allDay)) return a.allDay ? -1 : 1;
+        return (a.time || '').localeCompare(b.time || '');
+      });
       return acc;
     }, {}),
-    [sortedManual],
+    [lectures, listMonday],
   );
-
-  const untimedLectures = useMemo(
-    () => manualLectures.filter((l) => timeToMinutes(l.time) == null),
-    [manualLectures],
+  const calendarImportsOutsideListWeek = useMemo(
+    () => {
+      const visibleDates = new Set(
+        Array.from({ length: 7 }, (_, index) => formatISODateLocal(addDays(listMonday, index))),
+      );
+      return calendarImports.filter((lecture) => !visibleDates.has(lecture.eventDate));
+    },
+    [calendarImports, listMonday],
   );
 
   const weekMonday = useMemo(() => addDays(getMondayOfWeek(), weekOffset * 7), [weekOffset]);
@@ -87,17 +94,24 @@ export default function Lectures() {
   const lecturesByWeekColumn = useMemo(
     () => Array.from({ length: 7 }, (_, i) => {
       const date = addDays(weekMonday, i);
-      const iso = formatISODateLocal(date);
-      const code = dateToDayCode(date);
-      const manual = sortedManual.filter((l) => l.day === code);
-      const cal = calendarImports.filter((l) => l.eventDate === iso);
-      return [...cal, ...manual].sort((a, b) => {
+      return lecturesForCalendarDay(lectures, date).sort((a, b) => {
         if (Boolean(a.allDay) !== Boolean(b.allDay)) return a.allDay ? -1 : 1;
         return (a.time || '').localeCompare(b.time || '');
       });
     }),
-    [weekMonday, sortedManual, calendarImports],
+    [weekMonday, lectures],
   );
+
+  const untimedLectures = useMemo(
+    () => lecturesByWeekColumn
+      .flat()
+      .filter((lecture) => !lecture.allDay && timeToMinutes(lecture.time) == null),
+    [lecturesByWeekColumn],
+  );
+
+  useEffect(() => {
+    if (openImportRequest > 0) setShowIcal(true);
+  }, [openImportRequest]);
 
   const openAdd = () => { setForm(EMPTY_FORM); setEditing(null); setEditScope('series'); setOverrideDate(''); setShowModal(true); };
   const openEdit = (l) => { setForm({ ...l }); setEditing(l.id); setEditScope('series'); setOverrideDate(nextDateForDay(l.day)); setShowModal(true); };
@@ -190,17 +204,27 @@ export default function Lectures() {
       </div>
 
       {lectures.length === 0 ? (
-        <EmptyState icon="📚" title={t('lectures.emptyTitle')} actionLabel={t('lectures.emptyCta')} onAction={() => setShowIcal(true)} />
+        <EmptyState
+          icon="📚"
+          title={t('lectures.emptyTitle')}
+          description={t('lectures.emptyDescription')}
+          actionLabel={t('lectures.icalImport')}
+          onAction={() => setShowIcal(true)}
+          secondaryActionLabel={t('lectures.emptyCta')}
+          onSecondaryAction={openAdd}
+        />
       ) : viewMode === 'list' ? (
         <div style={styles.schedule}>
-          {DAYS.map(day => (
+          {DAYS.map((day, index) => {
+            const dateIso = formatISODateLocal(addDays(listMonday, index));
+            return (
             <div key={day} style={styles.dayBlock}>
               <div style={styles.dayHeader}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={styles.dayName}>{dayNames[day]}</span>
                   <span style={styles.dayCode}>{day}</span>
                 </div>
-                {day === today && <span className="badge badge-accent">{t('lectures.today')}</span>}
+                {dateIso === todayIso && <span className="badge badge-accent">{t('lectures.today')}</span>}
                 <span className="badge badge-muted">{byDay[day].length}</span>
               </div>
               <div style={styles.lectureList}>
@@ -211,7 +235,7 @@ export default function Lectures() {
                     <LectureCard
                       key={lecture.id}
                       lecture={lecture}
-                      isToday={lecture.day === today}
+                      isToday={dateIso === todayIso}
                       onEdit={openEdit}
                       onDelete={setDeleteConfirm}
                       intlLocale={intlLocale}
@@ -221,13 +245,14 @@ export default function Lectures() {
                 )}
               </div>
             </div>
-          ))}
-          {calendarImports.length > 0 && (
+            );
+          })}
+          {calendarImportsOutsideListWeek.length > 0 && (
             <div style={styles.calendarSection}>
               <h3 style={styles.calendarSectionTitle}>{t('lectures.importedCalendarTitle')}</h3>
               <p style={styles.calendarSectionHint}>{t('lectures.importedCalendarHint')}</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                {calendarImports.map((lecture) => (
+                {calendarImportsOutsideListWeek.map((lecture) => (
                   <LectureCard
                     key={lecture.id}
                     lecture={lecture}

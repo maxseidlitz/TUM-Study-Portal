@@ -134,14 +134,23 @@ export function DataProvider({ children }) {
 
       const todoActions = Array.isArray(result.todoActions) ? result.todoActions : [];
       const replyText = typeof result.content === 'string' ? result.content.trim() : '';
+      const aiMetadata = {
+        model: typeof result.model === 'string' ? result.model : '',
+        activeModel: typeof result.activeModel === 'string'
+          ? result.activeModel
+          : (typeof result.model === 'string' ? result.model : ''),
+        fallbackUsed: result.fallbackUsed === true,
+        fallbackReason: typeof result.fallbackReason === 'string' ? result.fallbackReason : null,
+        retrievalMode: typeof result.retrievalMode === 'string' ? result.retrievalMode : '',
+      };
 
       const nextMessages = [...newHistory];
       if (result.success) {
         if (replyText) {
-          nextMessages.push({ role: 'assistant', content: replyText });
+          nextMessages.push({ role: 'assistant', content: replyText, ...aiMetadata });
         }
         if (todoActions.length > 0) {
-          nextMessages.push({ role: 'assistant', variant: 'todo_saved', todoActions });
+          nextMessages.push({ role: 'assistant', variant: 'todo_saved', todoActions, ...aiMetadata });
         }
         if (!replyText && todoActions.length === 0) {
           nextMessages.push({ role: 'assistant', content: '...' });

@@ -2,7 +2,7 @@
  * Chat-Hilfsfunktionen: API-Nachrichtenfilter, Session-Labels, KI-Kontext.
  */
 
-export const CHAT_API_HISTORY_MAX = 48;
+export const CHAT_API_HISTORY_MAX = 16;
 
 /** Nachrichten für die KI-API (nur user/assistant mit Inhalt, begrenzte Historie). */
 export function messagesForApi(msgs) {
@@ -37,14 +37,11 @@ export function sessionListLabel(s, t, intlLocale) {
   return t('chat.sessionUntitled');
 }
 
-/** Kontext-Objekt für window.api.ai.chat (Dashboard-Daten + heutiges Datum). */
-export function buildAiContext({ exams, lectures, todos, modules, locale, intlLocale }) {
+/** Schlanker Chat-Kontext; persönliche Daten liest der Main-Prozess direkt aus seinem Store. */
+export function buildAiContext({ locale, intlLocale }) {
   return {
-    exams,
-    lectures,
-    todos,
-    modules,
     locale,
+    todayIso: new Date().toISOString().slice(0, 10),
     today: new Date().toLocaleDateString(intlLocale, {
       weekday: 'long',
       day: 'numeric',

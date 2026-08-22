@@ -10,6 +10,7 @@ import {
   sortByDay,
   getStudyProgress,
   lectureMatchesCalendarDay,
+  lecturesForCalendarDay,
 } from './helpers';
 
 describe('generateId', () => {
@@ -143,5 +144,48 @@ describe('lectureMatchesCalendarDay (Einzel-Instanz-Overrides)', () => {
     const ov = { eventDate: '2026-05-18', isOverride: true };
     expect(lectureMatchesCalendarDay(ov, monday)).toBe(true);
     expect(lectureMatchesCalendarDay(ov, nextMonday)).toBe(false);
+  });
+
+  test('liefert bei einer verschobenen Instanz nur den Override, nicht die Basis', () => {
+    const base = {
+      id: 'module::slot',
+      day: 'Mo',
+      eventDate: '',
+      overrides: { '2026-05-18': { time: '14:00' } },
+    };
+    const override = {
+      id: 'module::slot::2026-05-18',
+      day: 'Mo',
+      eventDate: '2026-05-18',
+      isOverride: true,
+      time: '14:00',
+    };
+
+    expect(lecturesForCalendarDay([base, override], monday)).toEqual([override]);
+  });
+
+  test('blendet eine abgesagte Basisinstanz aus, ohne andere Wochen zu beeinflussen', () => {
+    const base = {
+      id: 'module::slot',
+      day: 'Mo',
+      eventDate: '',
+      overrides: { '2026-05-18': { canceled: true } },
+    };
+
+    expect(lecturesForCalendarDay([base], monday)).toEqual([]);
+    expect(lecturesForCalendarDay([base], nextMonday)).toEqual([base]);
+  });
+
+  test('behält das konkrete eventDate von iCal-Terminen bei der Tagesauswahl bei', () => {
+    const imported = { id: 'ical-1', day: 'Di', eventDate: '2026-05-18', imported: true };
+
+    expect(lecturesForCalendarDay([imported], monday)).toEqual([imported]);
+    expect(lecturesForCalendarDay([imported], tuesday)).toEqual([]);
+  });
+
+  test('ist bei unvollständigen Eingaben robust', () => {
+    expect(lectureMatchesCalendarDay(null, monday)).toBe(false);
+    expect(lectureMatchesCalendarDay({ day: 'Mo' }, null)).toBe(false);
+    expect(lecturesForCalendarDay(null, monday)).toEqual([]);
   });
 });
