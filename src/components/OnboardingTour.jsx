@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Joyride, STATUS } from 'react-joyride';
+import { EVENTS, Joyride, STATUS } from 'react-joyride';
 import { useLocale } from '../context/LocaleContext';
 
 export default function OnboardingTour({ onStartImport }) {
@@ -42,13 +42,12 @@ export default function OnboardingTour({ onStartImport }) {
     },
   ];
 
-  const handleJoyrideCallback = (data) => {
-    const { status } = data;
-    if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
-      localStorage.setItem('tourCompleted', 'true');
-      setRun(false);
-      if (status === STATUS.FINISHED) onStartImport?.();
-    }
+  const handleJoyrideEvent = ({ status, type }) => {
+    if (type !== EVENTS.TOUR_END) return;
+    if (![STATUS.FINISHED, STATUS.SKIPPED].includes(status)) return;
+    localStorage.setItem('tourCompleted', 'true');
+    setRun(false);
+    if (status === STATUS.FINISHED) onStartImport?.();
   };
 
   return (
@@ -58,7 +57,7 @@ export default function OnboardingTour({ onStartImport }) {
       continuous
       showProgress
       showSkipButton
-      callback={handleJoyrideCallback}
+      onEvent={handleJoyrideEvent}
       locale={{
         back: t('onboarding.back'),
         close: t('onboarding.close'),
