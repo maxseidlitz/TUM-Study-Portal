@@ -66,6 +66,7 @@ export function getTodayISODate() {
 
 /** Termin gehört zum angegebenen Kalendertag (manuell: Wochentag; Import/Override: eventDate). */
 export function lectureMatchesCalendarDay(lecture, date = new Date()) {
+  if (!lecture || !date) return false;
   const iso = formatISODateLocal(date);
   if (lecture.eventDate) return lecture.eventDate === iso;
   // Wöchentliche Basis-Instanz: an Tagen mit Override (verschoben/abgesagt) NICHT
@@ -73,6 +74,12 @@ export function lectureMatchesCalendarDay(lecture, date = new Date()) {
   if (lecture.overrides && lecture.overrides[iso]) return false;
   const code = dateToDayCode(date);
   return lecture.day === code;
+}
+
+/** Alle (bereits expandierten) Vorlesungsinstanzen für einen konkreten Kalendertag. */
+export function lecturesForCalendarDay(lectures, date = new Date()) {
+  if (!Array.isArray(lectures)) return [];
+  return lectures.filter((lecture) => lectureMatchesCalendarDay(lecture, date));
 }
 
 /** Sortierung importierter Kalendertermine nach Datum und Uhrzeit. */

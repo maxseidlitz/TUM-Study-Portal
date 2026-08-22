@@ -37,24 +37,34 @@ function PageFallback() {
 
 export default function App() {
   const [activePage, setActivePage] = useState('dashboard');
+  const [lectureImportRequest, setLectureImportRequest] = useState(0);
   const PageComponent = PAGES[activePage] || Dashboard;
   const isLazy = ['chat', 'exams', 'lectures', 'modules'].includes(activePage);
+  const pageProps = activePage === 'lectures'
+    ? { openImportRequest: lectureImportRequest }
+    : {};
+
+  const startLectureImport = () => {
+    setActivePage('lectures');
+    setLectureImportRequest((request) => request + 1);
+  };
 
   return (
     <LocaleProvider>
       <ThemeProvider>
         <ToastProvider>
         <DataProvider>
-          <OnboardingTour />
+          <OnboardingTour onStartImport={startLectureImport} />
           <PomodoroWidget />
           <div className="app">
-            <Sidebar activePage={activePage} onNavigate={setActivePage} />            <main className="main-content">
+            <Sidebar activePage={activePage} onNavigate={setActivePage} />
+            <main className="main-content">
               {isLazy ? (
                 <Suspense fallback={<PageFallback />}>
-                  <PageComponent />
+                  <PageComponent {...pageProps} />
                 </Suspense>
               ) : (
-                <PageComponent />
+                <PageComponent {...pageProps} />
               )}
             </main>
           </div>

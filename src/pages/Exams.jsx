@@ -153,7 +153,15 @@ export default function Exams() {
       )}
 
       {exams.length === 0 ? (
-        <EmptyState icon="📋" title={t('exams.emptyTitle')} actionLabel={t('exams.emptyCta')} onAction={openAdd} />
+        <EmptyState
+          icon="📋"
+          title={t('exams.emptyTitle')}
+          description={t('exams.emptyDescription')}
+          actionLabel={t('exams.icalImportBtn')}
+          onAction={() => setShowIcalImport(true)}
+          secondaryActionLabel={t('exams.emptyCta')}
+          onSecondaryAction={openAdd}
+        />
       ) : (
         <>
           {upcomingExams.length > 0 && (

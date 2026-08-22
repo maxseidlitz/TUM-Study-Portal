@@ -1,20 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Joyride, STATUS } from 'react-joyride';
 import { useLocale } from '../context/LocaleContext';
 
-export default function OnboardingTour() {
+export default function OnboardingTour({ onStartImport }) {
   const { t } = useLocale();
-  const [run, setRun] = useState(false);
-
-  useEffect(() => {
-    // Prüfen ob die Tour bereits gemacht wurde
-    const hasSeenTour = localStorage.getItem('tourCompleted');
-    if (!hasSeenTour) {
-      // Kleiner Delay damit die App fertig geladen ist
-      const timer = setTimeout(() => setRun(true), 1500);
-      return () => clearTimeout(timer);
-    }
-  }, []);
+  const [run, setRun] = useState(() => !localStorage.getItem('tourCompleted'));
 
   const steps = [
     {
@@ -57,6 +47,7 @@ export default function OnboardingTour() {
     if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
       localStorage.setItem('tourCompleted', 'true');
       setRun(false);
+      if (status === STATUS.FINISHED) onStartImport?.();
     }
   };
 
@@ -71,7 +62,7 @@ export default function OnboardingTour() {
       locale={{
         back: t('onboarding.back'),
         close: t('onboarding.close'),
-        last: t('onboarding.last'),
+        last: t('onboarding.importCta'),
         next: t('onboarding.next'),
         skip: t('onboarding.skip'),
       }}

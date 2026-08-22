@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocale } from '../../context/LocaleContext';
+import { OLLAMA_TOOL_MODEL_RECOMMENDATIONS } from '../../utils/ollamaModels';
 
 /**
  * KI-Anbieter-Einstellungen (Ollama / Google Gemini) — aus Settings.jsx
@@ -227,7 +228,7 @@ export default function AiSettings({ settings, setSettings }) {
               {modelsStatus === 'ok' && models.length === 0 && (
                 <div style={{ ...styles.banner, ...styles.bannerWarn }}>
                   {t('settings.noModels')}{' '}
-                  <code style={styles.code}>ollama pull llama3.2</code>
+                  <code style={styles.code}>ollama pull qwen3:8b</code>
                 </div>
               )}
 
@@ -271,6 +272,18 @@ export default function AiSettings({ settings, setSettings }) {
                   )}
                 </>
               )}
+            </div>
+            <div style={{ ...styles.banner, ...styles.bannerNeutral }}>
+              <strong>{t('settings.toolModelsTitle')}</strong>
+              <div style={{ marginTop: 4 }}>{t('settings.toolModelsHint')}</div>
+              <div style={styles.recommendedModels}>
+                {OLLAMA_TOOL_MODEL_RECOMMENDATIONS.map(({ id, size, tier }) => (
+                  <div key={id} style={styles.recommendedModel}>
+                    <code style={styles.code}>ollama pull {id}</code>
+                    <span>{t(`settings.toolModelTier.${tier}`)} · {size}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </>
         )}
@@ -452,4 +465,9 @@ const styles = {
     fontSize: 11, fontWeight: 700, flexShrink: 0,
   },
   stepText: { fontSize: 12, color: 'var(--text-secondary)', fontFamily: 'monospace' },
+  recommendedModels: { display: 'flex', flexDirection: 'column', gap: 7, marginTop: 9 },
+  recommendedModel: {
+    display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between',
+    gap: 8, alignItems: 'center', color: 'var(--text-secondary)',
+  },
 };
