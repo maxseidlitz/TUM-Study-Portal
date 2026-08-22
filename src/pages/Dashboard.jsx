@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { useLocale } from '../context/LocaleContext';
 import {
@@ -13,10 +13,20 @@ import {
 import AiRecommendation from '../components/AiRecommendation';
 import MensaWidget from '../components/dashboard/MensaWidget';
 
-export default function Dashboard() {
+export default function Dashboard({ onNavigate }) {
   const { t, intlLocale } = useLocale();
   const { exams, lectures, todos, modules, moodleCourses, loading } = useData();
+  const [onboardingDone, setOnboardingDone] = useState(false);
+
+  useEffect(() => {
+    window.api?.settings?.get().then((s) => {
+      setOnboardingDone(Boolean(s?.onboardingCompleted));
+    });
+  }, []);
+
   if (loading) return <div className="loading">{t('common.loading')}</div>;
+
+  const showSetupBanner = onboardingDone && lectures.length === 0;
 
   const today = getTodayDayCode();
   const h = new Date().getHours();
@@ -61,8 +71,20 @@ export default function Dashboard() {
         <div style={styles.tumBadge}>{t('dashboard.tumBadge')}</div>
       </div>
 
+      {showSetupBanner && (
+        <div style={styles.setupBanner}>
+          <div>
+            <div style={styles.setupBannerTitle}>{t('setupWizard.bannerTitle')}</div>
+            <div style={styles.setupBannerBody}>{t('setupWizard.bannerBody')}</div>
+          </div>
+          <button type="button" className="btn btn-primary" onClick={() => onNavigate?.('lectures')}>
+            {t('setupWizard.bannerCta')}
+          </button>
+        </div>
+      )}
+
       {/* Stat cards */}
-      <div className="grid-4" style={{ marginBottom: 32 }} data-tour-id="dashboard-stats">
+      <div className="grid-4" style={{ marginBottom: 32 }}>
         <StatCard
           label={t('dashboard.statExams')}
           value={exams.length}
@@ -139,7 +161,7 @@ export default function Dashboard() {
         {/* Right column */}
         <div style={styles.rightCol}>
           {/* AI tip */}
-          <div style={{ marginBottom: 20 }} data-tour-id="ai-recommendation">
+          <div style={{ marginBottom: 20 }}>
             <AiRecommendation />
           </div>
 
@@ -149,7 +171,7 @@ export default function Dashboard() {
           </div>
 
           {/* Week overview */}
-          <div className="card" data-tour-id="week-overview">
+          <div className="card">
             <div style={styles.cardTitle}>{t('dashboard.weekOverview')}</div>
             <div style={styles.weekGrid}>
               {lecturesByDay.map(({ day, hasLecture, hasExam }) => (
@@ -268,6 +290,13 @@ const styles = {
     letterSpacing: '0.05em',
     flexShrink: 0,
   },
+  setupBanner: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+    padding: '16px 20px', marginBottom: 24, background: 'var(--accent-subtle)',
+    border: '1px solid var(--accent-light)', borderRadius: 'var(--radius-lg)',
+  },
+  setupBannerTitle: { fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 },
+  setupBannerBody: { fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 },
   mainGrid: { display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 },
   leftCol: {},
   rightCol: {},

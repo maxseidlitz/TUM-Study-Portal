@@ -458,7 +458,7 @@
     "importConfirm": "Existing data will be overwritten. Continue?",
     "importSuccess": "Data imported. App will reload…",
     "importError": "Import failed: {error}",
-    "restartTour": "Restart introduction tour"
+    "restartTour": "Restart setup wizard"
   },
   "chat": {
     "loading": "Loading data…",
@@ -517,26 +517,6 @@
     "logSave": "Save",
     "logSkip": "Skip"
   },
-  "onboarding": {
-    "back": "Back",
-    "close": "Close",
-    "last": "Done",
-    "importCta": "Import timetable",
-    "next": "Next",
-    "skip": "Skip tour",
-    "step1Title": "Welcome to the TUM Study Portal!",
-    "step1Body": "This dashboard helps you organize your studies at TUM. Let’s take a quick look at the key areas.",
-    "step2Title": "Everything at a glance",
-    "step2Body": "See your next exams, to-dos, and AI model status in one place.",
-    "step3Title": "Your AI assistant",
-    "step3Body": "Ask questions about your studies, create study plans, or summarize tasks — fully local and private.",
-    "step4Title": "Timetable & iCal",
-    "step4Body": "Import your personal iCal link from TUMonline to see your lectures automatically.",
-    "step5Title": "Modules & Moodle",
-    "step5Body": "Connect your courses to Moodle links and keep track of weekly sessions.",
-    "step6Title": "Import your timetable",
-    "step6Body": "Get started with your personal iCal link from TUMonline. The import opens only after you click “Import timetable”."
-  },
   "ai": {
     "labelKi": "🤖 AI recommendation",
     "labelLocal": "💡 Recommendation",
@@ -556,5 +536,38 @@
     "lectureOne": "1 lecture today — do not forget to review notes!",
     "lectureMany": "{count} lectures today — do not forget to review notes!",
     "relaxed": "All relaxed today! Use the time for proactive exam prep."
+  },
+  "setupWizard": {
+    "stepWelcome": "Welcome",
+    "stepSchedule": "Schedule",
+    "stepExams": "Exams",
+    "stepDone": "Done",
+    "welcomeTitle": "Welcome to TUM Study Portal!",
+    "welcomeBody": "In a few steps you'll import your schedule and be ready to go.",
+    "featureSchedule": "Import your schedule automatically from TUMonline",
+    "featureExams": "Optionally add exam dates via iCal",
+    "featureAi": "Local AI assistant loads in the background",
+    "scheduleTitle": "Import schedule",
+    "scheduleBody": "Copy your personal iCal link from TUMonline and paste it here.",
+    "examsTitle": "Import exams (optional)",
+    "examsBody": "You can import exam dates via iCal as well, or skip this step.",
+    "doneTitle": "You're all set!",
+    "doneBody": "Your dashboard is ready. Good luck with your studies!",
+    "summaryModules": "{count} module(s) created",
+    "summaryLectures": "{count} lecture event(s) imported",
+    "summaryExams": "{count} exam(s) imported",
+    "summaryEmpty": "You can import data anytime from the Schedule and Exams pages.",
+    "start": "Get started",
+    "next": "Next",
+    "back": "Back",
+    "skipSchedule": "Later",
+    "skipExams": "Skip",
+    "finish": "Go to dashboard",
+    "ollamaStarting": "Preparing AI in the background…",
+    "ollamaDownloading": "Downloading AI model ({model}) — {percent}%",
+    "ollamaError": "AI setup failed — you can retry later in Settings.",
+    "bannerTitle": "Schedule not imported yet",
+    "bannerBody": "Import your iCal link from TUMonline to fill your dashboard.",
+    "bannerCta": "Import now"
   }
 }

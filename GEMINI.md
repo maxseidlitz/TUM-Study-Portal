@@ -37,5 +37,5 @@ Das **TUM Student Dashboard** ist eine persönliche Desktop-Anwendung für Studi
 - **IPC Sicherheit:** Kommunikation zwischen Main und Renderer erfolgt ausschließlich über die `window.api` Bridge (`public/preload.js`).
 
 ## 🚀 Onboarding & Dokumentation
-- Ein interaktives Onboarding (`src/components/OnboardingTour.jsx`) führt neue Nutzer durch die App.
+- Ein geführter Setup-Assistent (`src/components/SetupWizard.jsx`) leitet neue Nutzer in wenigen Schritten durch den iCal-Import (Stundenplan + optional Prüfungen). Der Onboarding-Status wird in den Settings persistiert (`onboardingCompleted`).
 - Die `README.md` enthält detaillierte Anleitungen zum iCal-Import und zum macOS-Gatekeeper-Workaround.

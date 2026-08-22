@@ -10,7 +10,7 @@ import Todos from './pages/Todos';
 import Links from './pages/Links';
 import Settings from './pages/Settings';
 import ChatContinuity from './components/ChatContinuity';
-import OnboardingTour from './components/OnboardingTour';
+import SetupWizard from './components/SetupWizard';
 import PomodoroWidget from './components/PomodoroWidget';
 import OllamaSetup from './components/OllamaSetup';
 
@@ -37,39 +37,34 @@ function PageFallback() {
 
 export default function App() {
   const [activePage, setActivePage] = useState('dashboard');
-  const [lectureImportRequest, setLectureImportRequest] = useState(0);
+  const [wizardActive, setWizardActive] = useState(false);
   const PageComponent = PAGES[activePage] || Dashboard;
   const isLazy = ['chat', 'exams', 'lectures', 'modules'].includes(activePage);
-  const pageProps = activePage === 'lectures'
-    ? { openImportRequest: lectureImportRequest }
-    : {};
-
-  const startLectureImport = () => {
-    setActivePage('lectures');
-    setLectureImportRequest((request) => request + 1);
-  };
 
   return (
     <LocaleProvider>
       <ThemeProvider>
         <ToastProvider>
         <DataProvider>
-          <OnboardingTour onStartImport={startLectureImport} />
+          <SetupWizard
+            onNavigate={setActivePage}
+            onVisibilityChange={setWizardActive}
+          />
           <PomodoroWidget />
           <div className="app">
             <Sidebar activePage={activePage} onNavigate={setActivePage} />
             <main className="main-content">
               {isLazy ? (
                 <Suspense fallback={<PageFallback />}>
-                  <PageComponent {...pageProps} />
+                  <PageComponent onNavigate={setActivePage} />
                 </Suspense>
               ) : (
-                <PageComponent {...pageProps} />
+                <PageComponent onNavigate={setActivePage} />
               )}
             </main>
           </div>
           <ChatContinuity activePage={activePage} />
-          <OllamaSetup />
+          <OllamaSetup suppressOverlay={wizardActive} />
         </DataProvider>
         </ToastProvider>
       </ThemeProvider>

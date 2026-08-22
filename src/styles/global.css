@@ -198,6 +198,13 @@ body {
   border-top: 1px solid var(--border-color);
 }
 
+.wizard-footer {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  margin-top: var(--space-4);
+}
+
 /* Badges */
 .badge {
   display: inline-flex;

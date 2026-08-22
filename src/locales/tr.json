@@ -422,7 +422,8 @@
     "qs2": "Araç destekli model çekin, örn. ollama pull qwen3:8b",
     "qs3": "Yukarıdan “Modelleri yükle” ve bir model seç",
     "qs4": "“Bağlantıyı test et” — sonra öneriler ve sohbet",
-    "testOkMsg": "Bağlantı tamam (model: {model}). Yanıt: “{snippet}…”"
+    "testOkMsg": "Bağlantı tamam (model: {model}). Yanıt: “{snippet}…”",
+    "restartTour": "Kurulum sihirbazını yeniden başlat"
   },
   "chat": {
     "loading": "Veriler yükleniyor…",
@@ -451,26 +452,6 @@
     "sug4": "Açık görevleri mantıklı sıralamama yardım et.",
     "placeholder": "Çalışmaların hakkında sor…"
   },
-  "onboarding": {
-    "back": "Geri",
-    "close": "Kapat",
-    "last": "Bitti",
-    "importCta": "Ders programını içe aktar",
-    "next": "İleri",
-    "skip": "Turu atla",
-    "step1Title": "TUM Study Portal’a hoş geldiniz!",
-    "step1Body": "Bu panel TUM’daki eğitiminizi düzenlemenize yardımcı olur. Önemli alanlara kısaca göz atalım.",
-    "step2Title": "Her şey bir bakışta",
-    "step2Body": "Yaklaşan sınavları, görevleri ve YZ modelinin durumunu tek yerde görün.",
-    "step3Title": "YZ asistanınız",
-    "step3Body": "Eğitiminiz hakkında sorular sorun, çalışma planları oluşturun veya görevleri özetleyin — tamamen yerel ve gizli.",
-    "step4Title": "Ders programı ve iCal",
-    "step4Body": "Derslerinizi otomatik görmek için kişisel TUMonline iCal bağlantınızı içe aktarın.",
-    "step5Title": "Modüller ve Moodle",
-    "step5Body": "Derslerinizi Moodle bağlantılarıyla ilişkilendirin ve haftalık oturumları takip edin.",
-    "step6Title": "Ders programınızı içe aktarın",
-    "step6Body": "TUMonline’daki kişisel iCal bağlantınızla başlayın. İçe aktarma yalnızca “Ders programını içe aktar” düğmesine tıkladığınızda açılır."
-  },
   "ai": {
     "labelKi": "🤖 YZ önerisi",
     "labelLocal": "💡 Öneri",
@@ -490,5 +471,38 @@
     "lectureOne": "Bugün 1 ders — notları gözden geçirmeyi unutma!",
     "lectureMany": "Bugün {count} ders — notları gözden geçirmeyi unutma!",
     "relaxed": "Bugün her şey rahat! Zamanı proaktif sınav hazırlığı için kullan."
+  },
+  "setupWizard": {
+    "stepWelcome": "Hoş geldiniz",
+    "stepSchedule": "Program",
+    "stepExams": "Sınavlar",
+    "stepDone": "Bitti",
+    "welcomeTitle": "TUM Study Portal'a hoş geldiniz!",
+    "welcomeBody": "Birkaç adımda ders programınızı içe aktarın ve hazırsınız.",
+    "featureSchedule": "Ders programını TUMonline'dan otomatik içe aktar",
+    "featureExams": "İsteğe bağlı olarak sınav tarihlerini iCal ile ekle",
+    "featureAi": "Yerel YZ asistanı arka planda yüklenir",
+    "scheduleTitle": "Ders programını içe aktar",
+    "scheduleBody": "TUMonline'dan kişisel iCal bağlantınızı kopyalayıp buraya yapıştırın.",
+    "examsTitle": "Sınavları içe aktar (isteğe bağlı)",
+    "examsBody": "Sınav tarihlerini iCal ile içe aktarabilir veya bu adımı atlayabilirsiniz.",
+    "doneTitle": "Hazırsınız!",
+    "doneBody": "Panonuz hazır. Çalışmalarınızda başarılar!",
+    "summaryModules": "{count} modül oluşturuldu",
+    "summaryLectures": "{count} ders etkinliği içe aktarıldı",
+    "summaryExams": "{count} sınav içe aktarıldı",
+    "summaryEmpty": "Verileri istediğiniz zaman Program ve Sınavlar sayfalarından içe aktarabilirsiniz.",
+    "start": "Başla",
+    "next": "İleri",
+    "back": "Geri",
+    "skipSchedule": "Sonra",
+    "skipExams": "Atla",
+    "finish": "Panele git",
+    "ollamaStarting": "YZ arka planda hazırlanıyor…",
+    "ollamaDownloading": "YZ modeli indiriliyor ({model}) — %{percent}",
+    "ollamaError": "YZ kurulumu başarısız — Ayarlar'dan daha sonra tekrar deneyebilirsiniz.",
+    "bannerTitle": "Ders programı henüz içe aktarılmadı",
+    "bannerBody": "Panonuzu doldurmak için TUMonline iCal bağlantınızı içe aktarın.",
+    "bannerCta": "Şimdi içe aktar"
   }
 }
