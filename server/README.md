@@ -151,12 +151,15 @@ Todo tool calls including validation, duplicate/action limits, and fallback.
   models.
 - AI chat sends a bounded, server-generated full-context snapshot and exactly
   one write tool, `create_todo`, to Ollama or Gemini. Tool arguments are strict,
-  IDs are generated on the server, module references are checked, writes use
-  the Todo domain validation and a SQLite transaction, and only confirmed
-  writes appear in `todoActions`. Duplicate calls, unknown tools, invalid
-  arguments, excessive iterations, and excessive actions fail closed. Models
-  without tool support retain the read-only full-context fallback; free-form
-  text or JSON is never interpreted as a write.
+  IDs are generated on the server, module and Moodle references are checked,
+  and linked subjects are derived from server data. Writes additionally require
+  an explicit create/save/reminder instruction in the latest user message,
+  recognized by a conservative German/English/Turkish allowlist. They use the
+  Todo domain validation and a SQLite transaction, and only confirmed writes
+  appear in `todoActions`. Duplicate calls, unknown tools, invalid arguments,
+  missing intent, excessive iterations, and excessive actions fail closed.
+  Models without tool support retain the read-only full-context fallback;
+  free-form text or JSON is never interpreted as a write.
 - Electron iCal replacement remains sequential and fail-fast because the
   desktop JSON store has no transaction primitive. Browser replacement is
   atomic.

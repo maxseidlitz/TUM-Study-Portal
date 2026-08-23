@@ -202,11 +202,16 @@ class DomainService {
   createAiTodo(raw) {
     const input = schemas.aiCreateTodo.parse(raw);
     return this.db.transaction(() => {
-      let subject = '';
+      let subject = input.subject;
       if (input.moduleId) {
         const mod = this.db.getModule(input.moduleId);
         if (!mod) throw new HttpError(422, 'Unknown moduleId', 'VALIDATION_FAILED');
         subject = mod.name;
+      }
+      if (input.moodleCourseId) {
+        const course = this.db.getEntity('moodle_courses', input.moodleCourseId);
+        if (!course) throw new HttpError(422, 'Unknown moodleCourseId', 'VALIDATION_FAILED');
+        if (!input.moduleId) subject = course.name;
       }
       const todo = schemas.todo.parse({
         id: crypto.randomUUID(),
@@ -217,7 +222,7 @@ class DomainService {
         notes: input.notes,
         done: false,
         moduleId: input.moduleId,
-        moodleCourseId: '',
+        moodleCourseId: input.moodleCourseId,
       });
       this.db.saveEntity('todos', todo, 'insert');
       return todo;

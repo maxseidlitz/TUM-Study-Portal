@@ -68,9 +68,10 @@ function compactContext(store, maxBytes = 64 * 1024) {
     todos: store.todos.slice(0, 60),
     lectures: store.lectures.slice(0, 80),
     modules: store.modules.slice(0, 40),
+    moodleCourses: (store.moodleCourses || store.moodle_courses || []).slice(0, 40),
   };
   while (Buffer.byteLength(JSON.stringify(payload), 'utf8') > maxBytes) {
-    const largest = ['lectures', 'todos', 'modules', 'exams']
+    const largest = ['lectures', 'todos', 'modules', 'moodleCourses', 'exams']
       .sort((a, b) => payload[b].length - payload[a].length)[0];
     if (!payload[largest].length) break;
     payload[largest].pop();
@@ -101,11 +102,22 @@ const CREATE_TODO_DECLARATION = {
         description: 'Empty or a calendar date in YYYY-MM-DD format.',
       },
       notes: { type: 'string', maxLength: 10000 },
+      subject: {
+        type: 'string',
+        maxLength: 240,
+        description: 'Free-text subject only when neither moduleId nor moodleCourseId is used.',
+      },
       moduleId: {
         type: 'string',
         minLength: 1,
         maxLength: 240,
         description: 'Only an exact module ID from the server-provided snapshot.',
+      },
+      moodleCourseId: {
+        type: 'string',
+        minLength: 1,
+        maxLength: 240,
+        description: 'Only an exact Moodle course ID from the server-provided snapshot.',
       },
     },
     required: ['title'],
@@ -134,6 +146,46 @@ function canonicalCall(name, args) {
     return result;
   }, {});
   return `${name}:${JSON.stringify(sorted)}`;
+}
+
+function allowsTodoWriteIntent(rawText) {
+  const text = String(rawText || '').trim().toLocaleLowerCase('de-DE');
+  if (!text || text.length > 12000) return false;
+
+  // Information requests are not write instructions, even if they mention creation verbs.
+  if (/^(?:wie|warum|was|wo|wann|welche|erklär|how|why|what|where|when|explain|nasıl|neden|niçin|ne|nerede|açıkla)\b/u.test(text)) {
+    return false;
+  }
+  if (/\b(?:wie|how|nasıl)\b/u.test(text)
+    || /^(?:(?:kann|könnte|soll|darf)\s+ich|(?:can|could|should|may)\s+i)\b/u.test(text)
+    || /\b(?:nicht|keine?|don't|do not|never|oluşturma|ekleme|kaydetme)\b/u.test(text)
+    || /\b(?:ignore|ignoriere|anweisungen|instructions?|system[\s-]?prompt|tool|function|provider|model|talimatları|kuralları)\b/u.test(text)) {
+    return false;
+  }
+
+  const germanTodo = /\b(?:todos?|to-dos?|aufgaben?|erinnerungen?)\b/u;
+  const germanAction = /\b(?:erstell(?:e|en)?|anleg(?:e|en)?|leg(?:e|en)?|speicher(?:e|n)?|merk(?:e|en)?)\b/u;
+  const germanExplicit = (
+    (germanTodo.test(text) && germanAction.test(text))
+    || /\berinner(?:e|n)\s+(?:mich|uns)\b/u.test(text)
+  );
+
+  const englishTodo = /\b(?:todos?|to-dos?|tasks?|reminders?)\b/u;
+  const englishAction = /\b(?:create|add|save|store|remember|remind)\b/u;
+  const englishExplicit = (
+    (englishTodo.test(text) && englishAction.test(text))
+    || /\bremind\s+(?:me|us)\b/u.test(text)
+    || /\bremember\s+to\b/u.test(text)
+  );
+
+  const turkishTodo = /\b(?:görev(?:ler)?|ödev(?:ler)?|hatırlatıcı(?:lar)?|yapılacak(?:lar)?)\b/u;
+  const turkishAction = /\b(?:oluştur(?:un)?|ekle(?:yin)?|kaydet(?:in)?|hatırlat(?:ın)?)\b/u;
+  const turkishExplicit = (
+    (turkishTodo.test(text) && turkishAction.test(text))
+    || /\b(?:bana|bize)\b.*\bhatırlat(?:ın)?\b/u.test(text)
+  );
+
+  return germanExplicit || englishExplicit || turkishExplicit;
 }
 
 function finalTextAfterWrites(actions, language) {
@@ -171,6 +223,7 @@ class AiService {
       todos: this.domain.db.listEntities('todos'),
       lectures: this.domain.lectures(),
       modules: this.domain.modules(),
+      moodleCourses: this.domain.db.listEntities('moodle_courses', 'name COLLATE NOCASE'),
     };
   }
 
@@ -261,10 +314,12 @@ class AiService {
       role: message.role,
       content: message.content,
     }));
+    const lastUserMessage = [...messages].reverse().find(message => message.role === 'user');
+    const writeIntentAllowed = allowsTodoWriteIntent(lastUserMessage?.content);
     try {
       return provider === 'gemini'
-        ? await this.chatGemini(messages, system, language)
-        : await this.chatOllama(messages, system, language);
+        ? await this.chatGemini(messages, system, language, writeIntentAllowed)
+        : await this.chatOllama(messages, system, language, writeIntentAllowed);
     } catch (error) {
       if (error.code !== 'AI_TOOLS_UNSUPPORTED') throw error;
       const result = await this.generate(provider, messages, system);
@@ -300,6 +355,13 @@ class AiService {
       return { success: false, error: 'Duplicate tool call blocked within this chat.' };
     }
     state.seen.add(signature);
+    if (!state.writeIntentAllowed) {
+      state.failures += 1;
+      return {
+        success: false,
+        error: 'Todo write rejected: the latest user message contains no explicit create, save, or reminder instruction.',
+      };
+    }
     if (state.actions.length >= MAX_TODO_ACTIONS) {
       state.failures += 1;
       return { success: false, error: 'Todo action limit exceeded.' };
@@ -335,11 +397,13 @@ class AiService {
     };
   }
 
-  async chatOllama(originalMessages, system, language) {
+  async chatOllama(originalMessages, system, language, writeIntentAllowed) {
     const model = this.model('ollama');
     const settings = this.settings();
     const messages = [{ role: 'system', content: system }, ...originalMessages];
-    const state = { actions: [], callCount: 0, failures: 0, seen: new Set() };
+    const state = {
+      actions: [], callCount: 0, failures: 0, seen: new Set(), writeIntentAllowed,
+    };
     for (let turn = 0; turn < MAX_TOOL_TURNS; turn += 1) {
       let response;
       try {
@@ -384,7 +448,7 @@ class AiService {
     throw safeExternalError('AI tool iteration limit exceeded', 'AI_TOOL_LIMIT');
   }
 
-  async chatGemini(originalMessages, system, language) {
+  async chatGemini(originalMessages, system, language, writeIntentAllowed) {
     const model = this.model('gemini');
     const apiKey = this.domain.geminiKey();
     if (!apiKey) throw safeExternalError('Gemini API key is not configured', 'GEMINI_NOT_CONFIGURED');
@@ -392,7 +456,9 @@ class AiService {
       role: message.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: message.content }],
     }));
-    const state = { actions: [], callCount: 0, failures: 0, seen: new Set() };
+    const state = {
+      actions: [], callCount: 0, failures: 0, seen: new Set(), writeIntentAllowed,
+    };
     for (let turn = 0; turn < MAX_TOOL_TURNS; turn += 1) {
       let response;
       try {
@@ -475,5 +541,5 @@ class OllamaSetupService extends EventEmitter {
 }
 
 module.exports = {
-  AiService, GEMINI_MODELS, OllamaSetupService, compactContext, requestJson,
+  AiService, GEMINI_MODELS, OllamaSetupService, allowsTodoWriteIntent, compactContext, requestJson,
 };

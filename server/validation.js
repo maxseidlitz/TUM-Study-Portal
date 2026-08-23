@@ -54,9 +54,11 @@ const todo = z.object({
 const aiCreateTodo = z.object({
   title: z.string().trim().min(1).max(240),
   priority: z.enum(['high', 'medium', 'low']).optional().default('medium'),
+  subject: z.string().max(240).optional().default(''),
   due: date.optional().default(''),
   notes: z.string().max(10000).optional().default(''),
   moduleId: id.or(z.literal('')).optional().default(''),
+  moodleCourseId: id.or(z.literal('')).optional().default(''),
 }).strict();
 
 const moodle = z.object({
