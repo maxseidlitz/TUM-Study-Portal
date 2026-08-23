@@ -32,7 +32,7 @@ The method surface matches `public/preload.js`. Return semantics are explicit:
 ## HTTP mapping
 
 The browser adapter uses same-origin `/api/v1` by default, configurable through
-`REACT_APP_API_BASE_URL`. Entity resources use REST conventions (`GET`/`POST`
+`VITE_API_BASE_URL`. Entity resources use REST conventions (`GET`/`POST`
 on the collection and `PUT`/`DELETE` on `/:id`). Settings updates use `PATCH`.
 Action endpoints are grouped by area, for example `/ai/chat`, `/ical/fetch`,
 `/ical/replace`, `/auth/logout`, `/backup/export`, and `/ollama/setup/retry`.

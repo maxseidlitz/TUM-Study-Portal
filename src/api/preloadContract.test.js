@@ -10,12 +10,12 @@ function valueAtPath(object, methodPath) {
 function loadRealPreload() {
   let exposed;
   const ipcRenderer = {
-    invoke: jest.fn().mockResolvedValue(true),
-    on: jest.fn(),
-    removeListener: jest.fn(),
+    invoke: vi.fn().mockResolvedValue(true),
+    on: vi.fn(),
+    removeListener: vi.fn(),
   };
   const contextBridge = {
-    exposeInMainWorld: jest.fn((_name, api) => { exposed = api; }),
+    exposeInMainWorld: vi.fn((_name, api) => { exposed = api; }),
   };
   const source = fs.readFileSync(path.resolve(process.cwd(), 'public/preload.js'), 'utf8');
 
@@ -55,7 +55,7 @@ describe('real preload bridge contract', () => {
 
   test('registers and removes the exact Ollama progress listener', () => {
     const { api, ipcRenderer } = loadRealPreload();
-    const callback = jest.fn();
+    const callback = vi.fn();
     const unsubscribe = api.ollama.onSetupProgress(callback);
     const listener = ipcRenderer.on.mock.calls[0][1];
 

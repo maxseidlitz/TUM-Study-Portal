@@ -82,7 +82,7 @@ remove `APP_PASSWORD`. Alternatively, use the documented Node command in
 | `IMPORT_MAX_CHATS` | `5000` | Import quota for chats. |
 | `TLS_CERT_PATH` / `TLS_KEY_PATH` | both empty | Optional direct TLS pair. Prefer proxy TLS; configure both or neither. |
 | `LOG_LEVEL` | `info` | Pino log level such as `debug`, `info`, `warn`, or `error`. |
-| `REACT_APP_API_BASE_URL` | build default `/api/v1` | Optional frontend build-time API base. Do not put secrets in any `REACT_APP_*` value. |
+| `VITE_API_BASE_URL` | build default `/api/v1` | Optional frontend build-time API base. Do not put secrets in any `VITE_*` value. |
 
 ## Start and update
 

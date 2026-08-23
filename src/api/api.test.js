@@ -18,7 +18,7 @@ function createBridge() {
       current[part] ||= {};
       return current[part];
     }, bridge);
-    owner[method] = jest.fn();
+    owner[method] = vi.fn();
   });
   return bridge;
 }
@@ -65,7 +65,7 @@ describe('shared API contract', () => {
 
 describe('HTTP API adapter', () => {
   test('maps CRUD and partial settings updates to authenticated REST requests', async () => {
-    const fetchImpl = jest.fn()
+    const fetchImpl = vi.fn()
       .mockResolvedValueOnce(jsonResponse([{ id: '1' }]))
       .mockResolvedValueOnce(jsonResponse({ id: 'a/b', name: 'Changed' }))
       .mockResolvedValueOnce(jsonResponse({ locale: 'en' }));
@@ -91,8 +91,8 @@ describe('HTTP API adapter', () => {
   });
 
   test('turns HTTP and network failures into actionable ApiError instances', async () => {
-    const rejectedFetch = jest.fn().mockRejectedValue(new TypeError('offline'));
-    const failedFetch = jest.fn().mockResolvedValue(jsonResponse(
+    const rejectedFetch = vi.fn().mockRejectedValue(new TypeError('offline'));
+    const failedFetch = vi.fn().mockResolvedValue(jsonResponse(
       { error: 'Session expired' },
       { ok: false, status: 401, statusText: 'Unauthorized' },
     ));
@@ -110,7 +110,7 @@ describe('HTTP API adapter', () => {
   });
 
   test('keeps result-envelope HTTP failures non-rejecting but command failures rejecting', async () => {
-    const failedFetch = jest.fn().mockResolvedValue(jsonResponse(
+    const failedFetch = vi.fn().mockResolvedValue(jsonResponse(
       { error: 'No session' },
       { ok: false, status: 403, statusText: 'Forbidden' },
     ));
@@ -140,7 +140,7 @@ describe('HTTP API adapter', () => {
   ])('rejects 2xx {success:false} for %s like Electron', async (_label, invoke) => {
     const failure = { success: false, error: 'domain write failed' };
     const httpApi = createHttpApi({
-      fetchImpl: jest.fn().mockResolvedValue(jsonResponse(failure)),
+      fetchImpl: vi.fn().mockResolvedValue(jsonResponse(failure)),
       csrfToken: 'csrf',
     });
 
@@ -155,7 +155,7 @@ describe('HTTP API adapter', () => {
   test('preserves 2xx result envelopes for callers that inspect success', async () => {
     const failure = { success: false, error: 'calendar rejected' };
     const httpApi = createHttpApi({
-      fetchImpl: jest.fn().mockResolvedValue(jsonResponse(failure)),
+      fetchImpl: vi.fn().mockResolvedValue(jsonResponse(failure)),
       csrfToken: 'csrf',
     });
 
@@ -165,7 +165,7 @@ describe('HTTP API adapter', () => {
 
   test('requires CSRF only for mutating requests and supports the browser meta default', async () => {
     document.head.innerHTML = '<meta name="csrf-token" content=" meta-token ">';
-    const fetchImpl = jest.fn().mockResolvedValue(jsonResponse(null, { status: 204 }));
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse(null, { status: 204 }));
     const request = createHttpRequest({ fetchImpl });
 
     await request('/read');
@@ -179,7 +179,7 @@ describe('HTTP API adapter', () => {
   });
 
   test('fails mutating requests cleanly while offline without queueing or fetching', async () => {
-    const fetchImpl = jest.fn();
+    const fetchImpl = vi.fn();
     const request = createHttpRequest({
       fetchImpl,
       csrfToken: 'csrf',
@@ -198,17 +198,17 @@ describe('HTTP API adapter', () => {
   test('handles 204 responses without parsing a body and reports malformed JSON', async () => {
     const noContent = {
       ...jsonResponse(null, { status: 204 }),
-      json: jest.fn(() => { throw new Error('must not parse'); }),
+      json: vi.fn(() => { throw new Error('must not parse'); }),
     };
     const malformed = {
       ...jsonResponse(null),
-      json: jest.fn().mockRejectedValue(new SyntaxError('bad json')),
+      json: vi.fn().mockRejectedValue(new SyntaxError('bad json')),
     };
 
-    await expect(createHttpRequest({ fetchImpl: jest.fn().mockResolvedValue(noContent) })('/x'))
+    await expect(createHttpRequest({ fetchImpl: vi.fn().mockResolvedValue(noContent) })('/x'))
       .resolves.toBeNull();
     expect(noContent.json).not.toHaveBeenCalled();
-    await expect(createHttpRequest({ fetchImpl: jest.fn().mockResolvedValue(malformed) })('/x'))
+    await expect(createHttpRequest({ fetchImpl: vi.fn().mockResolvedValue(malformed) })('/x'))
       .rejects.toMatchObject({ name: 'ApiError', status: 200 });
   });
 
@@ -223,7 +223,7 @@ describe('HTTP API adapter', () => {
     expect(browserSettingsWriteDto({ locale: 'de', ollamaServerManaged: true }))
       .toEqual({ locale: 'de' });
 
-    const fetchImpl = jest.fn()
+    const fetchImpl = vi.fn()
       .mockResolvedValueOnce(jsonResponse({ geminiApiKey: 'must-not-escape', geminiApiKeyConfigured: true }))
       .mockResolvedValueOnce(jsonResponse({ geminiApiKey: 'must-not-escape', geminiApiKeyConfigured: true }));
     const httpApi = createHttpApi({ fetchImpl, csrfToken: 'csrf' });
@@ -235,7 +235,7 @@ describe('HTTP API adapter', () => {
   });
 
   test('maps central action routes and payloads', async () => {
-    const fetchImpl = jest.fn().mockResolvedValue(jsonResponse({ success: true }));
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({ success: true }));
     const httpApi = createHttpApi({ baseUrl: '/api/v1', fetchImpl, csrfToken: 'csrf' });
 
     await httpApi.ical.fetch('https://example.test/calendar.ics');
@@ -262,8 +262,8 @@ describe('HTTP API adapter', () => {
 
   test('opens only http(s) URLs without an opener', () => {
     const opened = { opener: {} };
-    const openWindow = jest.fn(() => opened);
-    const httpApi = createHttpApi({ fetchImpl: jest.fn(), openWindow });
+    const openWindow = vi.fn(() => opened);
+    const httpApi = createHttpApi({ fetchImpl: vi.fn(), openWindow });
 
     expect(httpApi.openExternal('javascript:alert(1)')).toBe(false);
     expect(httpApi.openExternal('file:///tmp/private')).toBe(false);
@@ -278,11 +278,14 @@ describe('HTTP API adapter', () => {
   });
 
   test('uses EventSource for setup progress and closes subscriptions', () => {
-    const close = jest.fn();
-    const EventSourceImpl = jest.fn(() => ({ close, onmessage: null }));
-    const callback = jest.fn();
+    const close = vi.fn();
+    const EventSourceImpl = vi.fn(function EventSource() {
+      this.close = close;
+      this.onmessage = null;
+    });
+    const callback = vi.fn();
     const httpApi = createHttpApi({
-      fetchImpl: jest.fn(),
+      fetchImpl: vi.fn(),
       EventSourceImpl,
       baseUrl: '/api/v1/',
     });

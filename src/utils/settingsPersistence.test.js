@@ -10,7 +10,7 @@ test('rolls an optimistic setting back when an offline save fails', async () => 
     previous,
     next,
     apply: value => applied.push(value),
-    persist: jest.fn().mockRejectedValue(offline),
+    persist: vi.fn().mockRejectedValue(offline),
   })).rejects.toBe(offline);
 
   expect(applied).toEqual([next, previous]);
@@ -25,7 +25,7 @@ test('keeps an optimistic setting only after persistence succeeds', async () => 
     previous,
     next,
     apply: value => applied.push(value),
-    persist: jest.fn().mockResolvedValue({ targetEcts: 180 }),
+    persist: vi.fn().mockResolvedValue({ targetEcts: 180 }),
   })).resolves.toBe(next);
 
   expect(applied).toEqual([next]);

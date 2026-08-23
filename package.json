@@ -10,12 +10,14 @@
   },
   "packageManager": "npm@10.9.7",
   "scripts": {
-    "start": "concurrently \"BROWSER=none react-scripts start\" \"wait-on http://localhost:3000 && electron .\"",
-    "dev": "concurrently \"BROWSER=none react-scripts start\" \"wait-on http://localhost:3000 && electron .\"",
-    "test": "react-scripts test --watchAll=false",
+    "start": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:3000 && electron .\"",
+    "dev": "vite --host 127.0.0.1",
+    "test": "vitest run",
     "test:server": "node --test server/test/*.test.js",
     "test:all": "npm test && npm run test:server",
-    "build": "react-scripts build && node scripts/generate-service-worker.js",
+    "test:e2e": "playwright test",
+    "test:electron": "node scripts/electron-smoke.js",
+    "build": "vite build && node scripts/finalize-vite-build.js",
     "server": "node server/server.js",
     "server:restore": "node server/restore.js",
     "electron": "electron .",
@@ -41,17 +43,16 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2",
-    "electron": "^29.3.0",
-    "electron-builder": "^24.13.3",
-    "react-scripts": "5.0.1",
+    "@playwright/test": "^1.62.1",
+    "@vitejs/plugin-react": "^6.1.0",
+    "concurrently": "^10.0.5",
+    "electron": "^43.4.1",
+    "electron-builder": "^26.15.3",
+    "jsdom": "^29.1.1",
     "supertest": "^7.2.2",
-    "wait-on": "^7.2.0"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app"
-    ]
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11",
+    "wait-on": "^9.1.0"
   },
   "browserslist": {
     "production": [

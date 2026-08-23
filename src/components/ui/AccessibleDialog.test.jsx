@@ -9,7 +9,7 @@ describe('AccessibleDialog', () => {
 
   beforeEach(() => {
     global.IS_REACT_ACT_ENVIRONMENT = true;
-    animationFrameSpy = jest.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+    animationFrameSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
       callback();
       return 1;
     });
@@ -36,7 +36,7 @@ describe('AccessibleDialog', () => {
     const trigger = document.createElement('button');
     document.body.insertBefore(trigger, host);
     trigger.focus();
-    const onClose = jest.fn();
+    const onClose = vi.fn();
 
     act(() => {
       root.render(

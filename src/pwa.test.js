@@ -37,7 +37,7 @@ test('shows and persistently dismisses the Safari iPhone install hint', () => {
 });
 
 test('does not register a service worker for Electron file URLs', async () => {
-  const register = jest.fn();
+  const register = vi.fn();
   await expect(registerServiceWorker({
     navigatorObject: { serviceWorker: { register } },
     locationObject: { protocol: 'file:' },
@@ -46,16 +46,16 @@ test('does not register a service worker for Electron file URLs', async () => {
 });
 
 test('reports waiting workers and activates only on explicit request', async () => {
-  const waiting = { postMessage: jest.fn() };
+  const waiting = { postMessage: vi.fn() };
   const registration = {
     waiting,
-    addEventListener: jest.fn(),
+    addEventListener: vi.fn(),
   };
-  const onUpdate = jest.fn();
+  const onUpdate = vi.fn();
   const result = await registerServiceWorker({
     navigatorObject: {
       serviceWorker: {
-        register: jest.fn().mockResolvedValue(registration),
+        register: vi.fn().mockResolvedValue(registration),
       },
     },
     locationObject: { protocol: 'https:' },

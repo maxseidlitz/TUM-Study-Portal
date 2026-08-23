@@ -17,7 +17,8 @@ const {
   aiRecommendOllama, aiChatOllama, aiRecommendGemini, aiChatGemini,
 } = require('./ai');
 
-const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+const isSmokeTest = process.env.ELECTRON_SMOKE_TEST === '1';
+const isDev = !isSmokeTest && (process.env.NODE_ENV === 'development' || !app.isPackaged);
 
 let mainWindow;
 
@@ -88,7 +89,7 @@ function createWindow() {
   });
 
   mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
+    if (!isSmokeTest) mainWindow.show();
   });
 
   mainWindow.on('closed', () => { mainWindow = null; });
@@ -625,8 +626,39 @@ app.whenReady().then(() => {
   registerOllamaIpc();
   createWindow();
 
-  // Kick off Ollama setup once the renderer can receive progress events.
-  if (mainWindow) {
+  if (isSmokeTest && mainWindow) {
+    const timeout = setTimeout(() => {
+      console.error('ELECTRON_SMOKE_FAILED renderer timeout');
+      app.exit(1);
+    }, 15000);
+    mainWindow.webContents.once('did-fail-load', (_event, code, description) => {
+      clearTimeout(timeout);
+      console.error(`ELECTRON_SMOKE_FAILED ${code} ${description}`);
+      app.exit(1);
+    });
+    mainWindow.webContents.once('did-finish-load', async () => {
+      try {
+        const result = await mainWindow.webContents.executeJavaScript(
+          `({
+            protocol: location.protocol,
+            hasRoot: Boolean(document.querySelector('#root > *')),
+            title: document.title
+          })`,
+        );
+        if (result.protocol !== 'file:' || !result.hasRoot || result.title !== 'TUM Study Portal') {
+          throw new Error(`unexpected renderer state: ${JSON.stringify(result)}`);
+        }
+        clearTimeout(timeout);
+        console.log('ELECTRON_SMOKE_OK');
+        app.exit(0);
+      } catch (error) {
+        clearTimeout(timeout);
+        console.error(`ELECTRON_SMOKE_FAILED ${error.message}`);
+        app.exit(1);
+      }
+    });
+  } else if (mainWindow) {
+    // Kick off Ollama setup once the renderer can receive progress events.
     mainWindow.webContents.once('did-finish-load', () => { runOllamaSetup(); });
   }
 

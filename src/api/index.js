@@ -20,6 +20,6 @@ export function createApiClient({
  */
 export const api = createApiClient({
   httpOptions: {
-    baseUrl: process.env.REACT_APP_API_BASE_URL || '/api/v1',
+    baseUrl: import.meta.env.VITE_API_BASE_URL || '/api/v1',
   },
 });

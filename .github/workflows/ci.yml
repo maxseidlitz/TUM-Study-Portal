@@ -26,15 +26,29 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
       - name: Test client
-        run: npm test -- --runInBand
+        run: npm test
       - name: Test server
         run: npm run test:server
       - name: Build web application
         run: npm run build
         env:
           CI: true
-      - name: Audit production dependencies
-        run: npm audit --omit=dev
+      - name: Install Playwright Chromium
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Browser end-to-end acceptance
+        run: npm run test:e2e
+      - name: Upload Playwright failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: playwright-failure-artifacts
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Audit all dependencies
+        run: npm audit
 
   docker-build:
     runs-on: ubuntu-latest

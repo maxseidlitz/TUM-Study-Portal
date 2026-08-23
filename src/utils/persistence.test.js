@@ -12,10 +12,10 @@ import {
 describe('iCal persistence workflows', () => {
   test('replacement stops at the first failed delete', async () => {
     const actions = {
-      deleteLecture: jest.fn().mockResolvedValue(false),
-      deleteModule: jest.fn().mockResolvedValue(true),
-      addModule: jest.fn(),
-      addLectures: jest.fn(),
+      deleteLecture: vi.fn().mockResolvedValue(false),
+      deleteModule: vi.fn().mockResolvedValue(true),
+      addModule: vi.fn(),
+      addLectures: vi.fn(),
     };
 
     await expect(replaceIcalItems({
@@ -40,8 +40,8 @@ describe('iCal persistence workflows', () => {
       { name: 'Analysis', day: 'Mo', time: '10:00', eventDate: '2026-01-08' },
       { name: 'One-off', day: 'Di', time: '12:00', eventDate: '2026-01-02' },
     ];
-    const addModule = jest.fn().mockResolvedValue(null);
-    const addLectures = jest.fn();
+    const addModule = vi.fn().mockResolvedValue(null);
+    const addLectures = vi.fn();
 
     await expect(persistIcalItems(recurring, { addModule, addLectures }))
       .rejects.toBeInstanceOf(ICalPersistenceError);
@@ -57,22 +57,22 @@ describe('iCal persistence workflows', () => {
     ];
 
     await expect(persistIcalItems(oneOffs, {
-      addModule: jest.fn(),
-      addLectures: jest.fn().mockResolvedValue([oneOffs[0]]),
+      addModule: vi.fn(),
+      addLectures: vi.fn().mockResolvedValue([oneOffs[0]]),
     })).rejects.toMatchObject({ stage: 'create-lectures' });
   });
 
   test('delegates browser replacement to one atomic server command', async () => {
-    const atomicReplace = jest.fn().mockResolvedValue({
+    const atomicReplace = vi.fn().mockResolvedValue({
       success: true,
       moduleCount: 1,
       lectureCount: 2,
     });
     const sequential = {
-      deleteLecture: jest.fn(),
-      deleteModule: jest.fn(),
-      addModule: jest.fn(),
-      addLectures: jest.fn(),
+      deleteLecture: vi.fn(),
+      deleteModule: vi.fn(),
+      addModule: vi.fn(),
+      addLectures: vi.fn(),
     };
     await expect(replaceIcalItems({
       importedLectures: [{ id: 'old-l' }],
@@ -90,7 +90,7 @@ describe('iCal persistence workflows', () => {
       importedLectures: [],
       importedModules: [],
       nextItems: [],
-      atomicReplace: jest.fn().mockResolvedValue({ success: false, error: 'rolled back' }),
+      atomicReplace: vi.fn().mockResolvedValue({ success: false, error: 'rolled back' }),
     })).rejects.toMatchObject({ stage: 'atomic-replace', message: 'rolled back' });
   });
 });
@@ -98,26 +98,26 @@ describe('iCal persistence workflows', () => {
 describe('study-log persistence workflows', () => {
   test('loads only valid lists and propagates load failures', async () => {
     await expect(loadExamStudyLogs({
-      getByExam: jest.fn().mockResolvedValue([{ id: '1' }]),
+      getByExam: vi.fn().mockResolvedValue([{ id: '1' }]),
     }, 'exam-1')).resolves.toEqual([{ id: '1' }]);
     await expect(loadExamStudyLogs({
-      getByExam: jest.fn().mockResolvedValue({ success: false }),
+      getByExam: vi.fn().mockResolvedValue({ success: false }),
     }, 'exam-1')).rejects.toThrow('Invalid study-log response');
     await expect(loadExamStudyLogs({
-      getByExam: jest.fn().mockRejectedValue(new Error('offline')),
+      getByExam: vi.fn().mockRejectedValue(new Error('offline')),
     }, 'exam-1')).rejects.toThrow('offline');
   });
 
   test('does not apply create/delete UI callbacks after command failures', async () => {
-    const created = jest.fn();
-    const deleted = jest.fn();
+    const created = vi.fn();
+    const deleted = vi.fn();
     const failure = new Error('write failed');
 
     await expect(createStudyLog({
-      create: jest.fn().mockRejectedValue(failure),
+      create: vi.fn().mockRejectedValue(failure),
     }, { id: 'log-1' }, created)).rejects.toThrow('write failed');
     await expect(deleteStudyLog({
-      delete: jest.fn().mockRejectedValue(failure),
+      delete: vi.fn().mockRejectedValue(failure),
     }, 'log-1', deleted)).rejects.toThrow('write failed');
 
     expect(created).not.toHaveBeenCalled();
@@ -125,11 +125,11 @@ describe('study-log persistence workflows', () => {
   });
 
   test('applies study-log callbacks only after confirmed commands', async () => {
-    const created = jest.fn();
-    const deleted = jest.fn();
+    const created = vi.fn();
+    const deleted = vi.fn();
     const studyLogsApi = {
-      create: jest.fn().mockResolvedValue({ success: true }),
-      delete: jest.fn().mockResolvedValue({ success: true }),
+      create: vi.fn().mockResolvedValue({ success: true }),
+      delete: vi.fn().mockResolvedValue({ success: true }),
     };
 
     await createStudyLog(studyLogsApi, { id: 'log-1' }, created);

@@ -4,6 +4,8 @@ node_modules/
 # Build output
 build/
 dist/
+playwright-report/
+test-results/
 
 # Bundled Ollama runtime — heruntergeladen vom CI, nicht einchecken
 resources/ollama/*

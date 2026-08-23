@@ -45,7 +45,7 @@ test('service worker cache policy excludes dynamic HTML, auth, APIs and writes',
 });
 
 test('PWA document assets are relative and do not load external fonts', () => {
-  const source = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
+  const source = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   assert.match(source, /rel="manifest" href="\.\/manifest\.json"/);
   assert.match(source, /rel="apple-touch-icon"[^>]+href="\.\/icons\/apple-touch-icon\.png"/);
   assert.doesNotMatch(source, /fonts\.googleapis\.com|fonts\.gstatic\.com/);
