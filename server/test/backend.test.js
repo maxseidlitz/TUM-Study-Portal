@@ -1085,11 +1085,70 @@ test('versioned migrations repair existing JSON/FK drift and remain idempotent',
   assert.equal(migrated.getEntity('todos', 'drifted').moduleId, '');
   assert.equal(JSON.parse(migrated.db.prepare('SELECT data_json FROM todos').get().data_json).moduleId, '');
   assert.deepEqual(migrated.db.prepare('SELECT version FROM schema_migrations ORDER BY version').all(), [
-    { version: 1 }, { version: 2 },
+    { version: 1 }, { version: 2 }, { version: 3 },
   ]);
   migrated.close();
   const reopened = new StudyDatabase(filename);
   assert.equal(reopened.getEntity('todos', 'drifted').moodleCourseId, '');
+  reopened.close();
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('startup remaps reserved composite IDs already stored in SQLite', async () => {
+  const { DomainService } = require('../services/domain');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'study-reserved-id-'));
+  const filename = path.join(root, 'db.sqlite');
+  const legacy = new BetterSqlite3(filename);
+  legacy.exec(fs.readFileSync(path.resolve('server/db/migrations/001-initial.sql'), 'utf8'));
+  legacy.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(1,?,?)')
+    .run('001-initial.sql', new Date().toISOString());
+  legacy.prepare('INSERT INTO lectures(id,module_id,event_date,data_json) VALUES(?,?,?,?)')
+    .run('legacy::standalone', null, '', JSON.stringify({
+      id: 'legacy::standalone', name: 'Standalone', day: 'Mo', time: '10:00', end_time: '11:00',
+      room: 'A', lecturer: '',
+    }));
+  legacy.prepare('INSERT INTO modules(id,name,data_json) VALUES(?,?,?)')
+    .run('mod::ule', 'Legacy Module', JSON.stringify({ id: 'mod::ule', name: 'Legacy Module' }));
+  legacy.prepare('INSERT INTO module_slots(module_id,id,data_json) VALUES(?,?,?)')
+    .run('mod::ule', 'sl::ot', JSON.stringify({
+      id: 'sl::ot', day: 'Di', time: '08:00', end_time: '09:00', room: 'B', lecturer: '',
+    }));
+  legacy.prepare('INSERT INTO module_slot_overrides(module_id,slot_id,event_date,data_json) VALUES(?,?,?,?)')
+    .run('mod::ule', 'sl::ot', '2026-08-25', JSON.stringify({ time: '09:00', end_time: '10:00', room: 'C' }));
+  legacy.prepare('INSERT INTO todos(id,module_id,moodle_course_id,due,done,data_json) VALUES(?,?,?,?,?,?)')
+    .run('todo-legacy', 'mod::ule', null, '', 0, JSON.stringify({
+      id: 'todo-legacy', title: 'Keep', moduleId: 'mod::ule',
+    }));
+  legacy.close();
+
+  const migrated = new StudyDatabase(filename);
+  const domain = new DomainService(migrated, {}, { ollamaUrl: '', ollamaModel: '' });
+  const lectures = domain.lectures();
+  const standalone = lectures.find(row => row.name === 'Standalone');
+  const series = lectures.find(row => row.name === 'Legacy Module' && !row.isOverride);
+  const override = lectures.find(row => row.isOverride);
+  assert.ok(standalone);
+  assert.doesNotMatch(standalone.id, /::/);
+  assert.equal(migrated.getEntity('lectures', 'legacy::standalone'), null);
+  assert.ok(series);
+  assert.match(series.id, /^.+::.+$/);
+  assert.doesNotMatch(series.moduleId, /::/);
+  assert.doesNotMatch(series.slotId, /::/);
+  assert.equal(override.room, 'C');
+  assert.equal(migrated.getEntity('todos', 'todo-legacy').moduleId, series.moduleId);
+
+  domain.updateLecture({ ...standalone, room: 'MW 0001' });
+  assert.equal(domain.lectures().find(row => row.id === standalone.id).room, 'MW 0001');
+  domain.deleteLecture(standalone.id);
+  assert.equal(domain.lectures().some(row => row.id === standalone.id), false);
+
+  migrated.close();
+  const reopened = new StudyDatabase(filename);
+  assert.equal(reopened.getEntity('lectures', standalone.id), null);
+  assert.equal(reopened.listModules()[0].id, series.moduleId);
+  assert.deepEqual(reopened.db.prepare('SELECT version FROM schema_migrations ORDER BY version').all(), [
+    { version: 1 }, { version: 2 }, { version: 3 },
+  ]);
   reopened.close();
   fs.rmSync(root, { recursive: true, force: true });
 });

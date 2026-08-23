@@ -46,12 +46,13 @@ class StudyDatabase {
     this.db.exec('CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)');
     const dir = path.join(__dirname, 'migrations');
     const applied = new Set(this.db.prepare('SELECT version FROM schema_migrations').all().map((row) => row.version));
-    for (const name of fs.readdirSync(dir).filter((file) => /^\d+.*\.sql$/.test(file)).sort()) {
+    for (const name of fs.readdirSync(dir).filter((file) => /^\d+.*\.(sql|js)$/.test(file)).sort()) {
       const version = Number(name.match(/^(\d+)/)[1]);
       if (applied.has(version)) continue;
-      const sql = fs.readFileSync(path.join(dir, name), 'utf8');
+      const filename = path.join(dir, name);
       this.db.transaction(() => {
-        this.db.exec(sql);
+        if (name.endsWith('.sql')) this.db.exec(fs.readFileSync(filename, 'utf8'));
+        else require(filename)(this);
         this.db.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(?,?,?)')
           .run(version, name, new Date().toISOString());
       })();

@@ -654,4 +654,6 @@ class BackupService {
   }
 }
 
-module.exports = { BackupService, DomainService, HttpError, composite, expandModules };
+module.exports = {
+  BackupService, DomainService, HttpError, composite, expandModules, remapReservedCompositeIds,
+};
