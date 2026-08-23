@@ -234,10 +234,30 @@ test('reviewed mobile controls expose 44px touch targets and a named chat input'
   for (const header of await page.locator('.todo-section-toggle').all()) {
     await expectMinTouchTarget(header);
   }
+  await page.getByRole('button', { name: 'Aufgabe hinzufügen' }).first().click();
+  await expectMinTouchTarget(page.getByRole('textbox', { name: 'Aufgabe hinzufügen' }));
 
   await page.goto('/chat');
   const chatInput = page.getByRole('textbox', { name: 'Nachricht an den KI-Assistenten' });
   await expectMinTouchTarget(chatInput);
+  await page.route('**/api/v1/ai/chat', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        content: 'Floating follow-up',
+        todoActions: [],
+      }),
+    });
+  });
+  await chatInput.fill('Bitte merken.');
+  await page.getByRole('button', { name: 'Nachricht senden' }).click();
+  await expect(page.getByText('Floating follow-up').last()).toBeVisible();
+  await page.goto('/dashboard');
+  await page.getByRole('button', { name: 'Chat öffnen' }).click();
+  await expectMinTouchTarget(page.getByRole('textbox', { name: 'Nachricht an den KI-Assistenten' }));
+  await expectMinTouchTarget(page.locator('.chat-continuity-input-bar').getByRole('button', { name: 'Nachricht senden' }));
 
   await page.goto('/settings');
   await expectMinTouchTarget(page.getByRole('button', { name: 'Ollama installieren →', exact: true }));

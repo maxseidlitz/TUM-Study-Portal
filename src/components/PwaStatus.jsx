@@ -57,12 +57,7 @@ export default function PwaStatus() {
 
   return (
     <div className="pwa-status-stack">
-      {online ? (
-        <div className="pwa-connectivity pwa-connectivity-online" role="status">
-          <span aria-hidden="true" />
-          {t('pwa.online')}
-        </div>
-      ) : (
+      {!online && (
         <div className="pwa-banner pwa-banner-offline" role="status" aria-live="polite">
           <strong>{t('pwa.offlineTitle')}</strong>
           <span>{t('pwa.offlineBody')}</span>
