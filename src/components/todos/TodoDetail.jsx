@@ -48,11 +48,12 @@ export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose
             onClick={() => onToggle(draft.id)}
             title={draft.done ? t('todoDetail.markOpen') : t('todoDetail.complete')}
             aria-label={draft.done ? t('todoDetail.markOpen') : t('todoDetail.complete')}
-            style={{ width: 24, height: 24 }}
+            style={{ width: 44, height: 44 }}
           >
             <CheckIcon />
           </button>
           <textarea
+            aria-label={t('todoDetail.placeholderTitle')}
             style={{ ...styles.titleInput, textDecoration: draft.done ? 'line-through' : 'none' }}
             value={draft.title}
             onChange={e => setDraft(d => ({ ...d, title: e.target.value }))}
@@ -68,8 +69,8 @@ export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose
 
         {/* Priority */}
         <div style={styles.field}>
-          <label style={styles.label}>{t('todoDetail.priority')}</label>
-          <div style={styles.segmented}>
+          <span id="todo-priority-label" style={styles.label}>{t('todoDetail.priority')}</span>
+          <div style={styles.segmented} role="group" aria-labelledby="todo-priority-label">
             {priorities.map(p => (
               <button
                 key={p.key}
@@ -90,8 +91,9 @@ export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose
 
         {/* Modul (Kurs) */}
         <div style={styles.field}>
-          <label style={styles.label}>{t('todoDetail.module')}</label>
+          <label htmlFor="todo-module" style={styles.label}>{t('todoDetail.module')}</label>
           <select
+            id="todo-module"
             className="form-input"
             value={draft.moduleId || ''}
             onChange={(e) => {
@@ -119,8 +121,9 @@ export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose
 
         {moodleCourses.length > 0 && (
           <div style={styles.field}>
-            <label style={styles.label}>{t('todoDetail.moodleCourse')}</label>
+            <label htmlFor="todo-moodle-course" style={styles.label}>{t('todoDetail.moodleCourse')}</label>
             <select
+              id="todo-moodle-course"
               className="form-input"
               value={draft.moodleCourseId || ''}
               onChange={(e) => {
@@ -146,8 +149,9 @@ export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose
 
         {/* Subject */}
         <div style={styles.field}>
-          <label style={styles.label}>{t('todoDetail.subject')}</label>
+          <label htmlFor="todo-subject" style={styles.label}>{t('todoDetail.subject')}</label>
           <input
+            id="todo-subject"
             className="form-input"
             placeholder={t('todoDetail.placeholderSubject')}
             value={draft.subject || ''}
@@ -158,8 +162,9 @@ export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose
 
         {/* Due date */}
         <div style={styles.field}>
-          <label style={styles.label}>{t('todoDetail.due')}</label>
+          <label htmlFor="todo-due" style={styles.label}>{t('todoDetail.due')}</label>
           <input
+            id="todo-due"
             className="form-input"
             type="date"
             value={draft.due || ''}
@@ -179,8 +184,9 @@ export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose
 
         {/* Notes */}
         <div style={styles.field}>
-          <label style={styles.label}>{t('todoDetail.notes')}</label>
+          <label htmlFor="todo-notes" style={styles.label}>{t('todoDetail.notes')}</label>
           <textarea
+            id="todo-notes"
             className="form-textarea"
             placeholder={t('todoDetail.placeholderNotes')}
             value={draft.notes || ''}

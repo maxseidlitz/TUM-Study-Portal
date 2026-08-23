@@ -118,3 +118,44 @@ test('desktop sidebar exposes every primary route', async ({ page }, testInfo) =
   }
   await expect(page.locator('.mobile-tab-bar')).toBeHidden();
 });
+
+test('exam form labels are associated with their controls', async ({ page }) => {
+  await page.goto('/exams');
+  await page.getByRole('button', { name: 'Prüfung hinzufügen', exact: true }).click();
+  for (const label of ['Fachname *', 'Datum *', 'Uhrzeit', 'Raum', 'ECTS', 'Notizen']) {
+    const control = page.getByLabel(label, { exact: true });
+    await expect(control).toHaveCount(1);
+    await expect(control).toHaveAttribute('id', /.+/);
+  }
+});
+
+test('icon actions have non-empty unique names and interactive controls are not nested', async ({ page }) => {
+  for (const route of routes) {
+    await page.goto(`/${route}`);
+    await expect(page.locator('button button, [role="button"] button')).toHaveCount(0);
+    const names = await page.locator('button.btn-icon:visible').evaluateAll(buttons => (
+      buttons.map(button => button.getAttribute('aria-label') || '').filter(Boolean)
+    ));
+    expect(names).toHaveLength(new Set(names).size);
+    await expect(page.locator('button.btn-icon:visible:not([aria-label])')).toHaveCount(0);
+  }
+});
+
+test('theme follows the system until the user makes an explicit choice', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop');
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.evaluate(() => localStorage.removeItem('theme'));
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+  await page.emulateMedia({ colorScheme: 'light' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+
+  await page.goto('/settings');
+  await page.getByRole('button', { name: 'Dunkel', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('theme'))).toBe('dark');
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('html')).not.toHaveAttribute('data-theme', '');
+});

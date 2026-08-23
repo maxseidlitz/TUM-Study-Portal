@@ -118,8 +118,9 @@ export default function Modules() {
             </div>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label className="form-label">{t('modules.fieldName')}</label>
+                <label className="form-label" htmlFor="module-name">{t('modules.fieldName')}</label>
                 <input
+                  id="module-name"
                   className="form-input"
                   required
                   placeholder={t('modules.placeholderName')}
@@ -129,8 +130,9 @@ export default function Modules() {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">{t('modules.fieldCode')}</label>
+                  <label className="form-label" htmlFor="module-code">{t('modules.fieldCode')}</label>
                   <input
+                    id="module-code"
                     className="form-input"
                     placeholder={t('modules.placeholderCode')}
                     value={form.code}
@@ -138,8 +140,9 @@ export default function Modules() {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">{t('modules.fieldSemester')}</label>
+                  <label className="form-label" htmlFor="module-semester">{t('modules.fieldSemester')}</label>
                   <input
+                    id="module-semester"
                     className="form-input"
                     placeholder={t('modules.placeholderSemester')}
                     value={form.semester}
@@ -148,8 +151,9 @@ export default function Modules() {
                 </div>
               </div>
               <div className="form-group">
-                <label className="form-label">{t('modules.fieldMoodleUrl')}</label>
+                <label className="form-label" htmlFor="module-moodle-url">{t('modules.fieldMoodleUrl')}</label>
                 <input
+                  id="module-moodle-url"
                   className="form-input"
                   type="url"
                   placeholder={t('modules.placeholderUrl')}
@@ -158,8 +162,8 @@ export default function Modules() {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">{t('modules.fieldColor')}</label>
-                <div className="color-picker" style={styles.colorPicker}>
+                <span id="module-color-label" className="form-label">{t('modules.fieldColor')}</span>
+                <div className="color-picker" style={styles.colorPicker} role="group" aria-labelledby="module-color-label">
                   {COLORS.map((c) => (
                     <button
                       key={c}
@@ -180,7 +184,7 @@ export default function Modules() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">{t('modules.slotsTitle')}</label>
+                <span className="form-label">{t('modules.slotsTitle')}</span>
                 <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 0, marginBottom: 10 }}>
                   {t('modules.slotsHint')}
                 </p>

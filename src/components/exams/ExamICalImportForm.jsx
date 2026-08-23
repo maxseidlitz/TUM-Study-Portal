@@ -73,9 +73,10 @@ export default function ExamICalImportForm({
   return (
     <div>
       <div className="form-group">
-        <label className="form-label">{t('exams.icalUrlLabel')}</label>
+        <label className="form-label" htmlFor="exam-ical-url">{t('exams.icalUrlLabel')}</label>
         <div className="ical-input-row" style={{ display: 'flex', gap: 10 }}>
           <input
+            id="exam-ical-url"
             className="form-input"
             placeholder="https://campus.tum.de/tumonline/...ics"
             value={url}
@@ -144,9 +145,11 @@ function ImportPreview({ items, onImport, onCancel, t, intlLocale, embedded }) {
 
       <div style={styles.previewList}>
         {selected.map((item, idx) => (
-          <div
+          <button
+            type="button"
             key={`${item.date}-${item.name}-${idx}`}
             onClick={() => toggle(idx)}
+            aria-pressed={item._selected}
             style={{
               ...styles.previewItem,
               opacity: item._selected ? 1 : 0.4,
@@ -168,7 +171,7 @@ function ImportPreview({ items, onImport, onCancel, t, intlLocale, embedded }) {
                 {item.room && <span>📍 {item.room}</span>}
               </div>
             </div>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -198,6 +201,7 @@ const styles = {
   previewList: { display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 300, overflowY: 'auto', marginBottom: 8 },
   previewItem: {
     display: 'flex', alignItems: 'flex-start', gap: 10,
+    width: '100%', textAlign: 'left', color: 'inherit', border: 'none',
     padding: '10px 12px', borderRadius: 8, background: 'var(--bg-tertiary)',
     cursor: 'pointer', transition: 'opacity var(--transition)',
     borderLeft: '4px solid var(--accent)',

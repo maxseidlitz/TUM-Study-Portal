@@ -408,7 +408,8 @@
     "importOne": "1 etkinliği içe aktar",
     "importMany": "{count} etkinliği içe aktar",
     "importFailed": "Takvim içe aktarma durduruldu: {error}",
-    "replaceFailed": "Takvim yenileme ilk hatada durduruldu. Onaylanmış değişiklikler korunur: {error}"
+    "replaceFailed": "Takvim yenileme ilk hatada durduruldu. Onaylanmış değişiklikler korunur: {error}",
+    "groupSummary": "{modules} modül · {lectures} tek etkinlik oluşturulur"
   },
   "settings": {
     "pageTitle": "Ayarlar",
@@ -527,7 +528,10 @@
     "sug3": "Sonraki sınava kadar ne kadar sürem var?",
     "sug4": "Açık görevleri mantıklı sıralamama yardım et.",
     "placeholder": "Çalışmaların hakkında sor…",
-    "send": "Mesaj gönder"
+    "send": "Mesaj gönder",
+    "openFloating": "Sohbeti aç",
+    "minimizeFloating": "Sohbeti küçült",
+    "closeFloating": "Sohbet penceresini kapat"
   },
   "ai": {
     "labelKi": "🤖 YZ önerisi",
@@ -579,7 +583,10 @@
     "logSave": "Kaydet",
     "logSkip": "Atla",
     "logSaveError": "Çalışma oturumu kaydedilemedi. Lütfen tekrar deneyin.",
-    "toggle": "Pomodoro zamanlayıcısını aç veya kapat"
+    "toggle": "Pomodoro zamanlayıcısını aç veya kapat",
+    "start": "Başlat",
+    "pause": "Duraklat",
+    "reset": "Sıfırla"
   },
   "gradeAnalytics": {
     "completed": "Tamamlanan",

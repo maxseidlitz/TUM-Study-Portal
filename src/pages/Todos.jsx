@@ -258,18 +258,6 @@ function TodoRow({ todo, modules, moodleCourses, selected, done, completing, onS
   return (
     <div
       className={`todo-row ${selected ? 'selected' : ''}`}
-      onClick={onSelect}
-      onKeyDown={(event) => {
-        if (event.target !== event.currentTarget) return;
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onSelect();
-        }
-      }}
-      role="button"
-      tabIndex={0}
-      aria-pressed={selected}
-      aria-label={todo.title}
       style={{ opacity: isDone ? 0.55 : 1 }}
     >
       <button
@@ -282,22 +270,30 @@ function TodoRow({ todo, modules, moodleCourses, selected, done, completing, onS
         <CheckIcon />
       </button>
 
-      <span style={{ ...styles.rowTitle, textDecoration: isDone ? 'line-through' : 'none' }}>
-        {todo.title}
-      </span>
+      <button
+        type="button"
+        className="todo-row-select"
+        onClick={onSelect}
+        aria-pressed={selected}
+        aria-label={todo.title}
+      >
+        <span style={{ ...styles.rowTitle, textDecoration: isDone ? 'line-through' : 'none' }}>
+          {todo.title}
+        </span>
 
-      <div style={styles.rowMeta}>
-        {courseLabel && <span style={styles.subjectTag}>{courseLabel}</span>}
-        {days !== null && !done && (
-          <span style={{
-            ...styles.dueTag,
-            color: overdue ? 'var(--danger)' : days === 0 ? 'var(--warning)' : 'var(--text-muted)',
-          }}>
-            {overdue ? t('todos.overdue', { days: Math.abs(days) }) : days === 0 ? t('todos.todayDue') : formatDate(todo.due, intlLocale)}
-          </span>
-        )}
-        <span style={{ ...styles.priorityDot, background: priorityColor(todo.priority) }} />
-      </div>
+        <span style={styles.rowMeta}>
+          {courseLabel && <span style={styles.subjectTag}>{courseLabel}</span>}
+          {days !== null && !done && (
+            <span style={{
+              ...styles.dueTag,
+              color: overdue ? 'var(--danger)' : days === 0 ? 'var(--warning)' : 'var(--text-muted)',
+            }}>
+              {overdue ? t('todos.overdue', { days: Math.abs(days) }) : days === 0 ? t('todos.todayDue') : formatDate(todo.due, intlLocale)}
+            </span>
+          )}
+          <span style={{ ...styles.priorityDot, background: priorityColor(todo.priority) }} />
+        </span>
+      </button>
     </div>
   );
 }
@@ -340,6 +336,7 @@ function InlineAdd({ onAdd, t }) {
       <span className="todo-check" style={{ pointerEvents: 'none', opacity: 0.4 }} />
       <input
         ref={inputRef}
+        aria-label={t('todos.addTask')}
         style={styles.addInput}
         placeholder={t('todos.addPlaceholder')}
         value={text}

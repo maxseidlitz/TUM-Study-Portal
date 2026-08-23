@@ -56,7 +56,7 @@ export default function MensaWidget() {
           <span style={{ fontSize: 18 }}>🍕</span>
           <span style={styles.title}>{canteenNames[canteenId] || 'Mensa'}</span>
         </div>
-        <button className="btn btn-ghost btn-icon btn-sm" onClick={fetchMeals} title={t('common.refresh') || 'Aktualisieren'}>
+        <button className="btn btn-ghost btn-icon btn-sm" onClick={fetchMeals} title={t('common.refresh')} aria-label={t('common.refresh')}>
           <RefreshIcon size={14} />
         </button>
       </div>

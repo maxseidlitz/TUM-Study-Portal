@@ -202,7 +202,17 @@ body {
 
 .btn-sm { padding: var(--space-1) var(--space-3); font-size: var(--text-xs); }
 .btn-lg { padding: var(--space-3) var(--space-6); font-size: var(--text-base); }
-.btn-icon { padding: var(--space-2); }
+.btn-icon {
+  min-width: 44px;
+  min-height: 44px;
+  padding: var(--space-2);
+  justify-content: center;
+}
+.touch-icon-button,
+.color-swatch {
+  min-width: 44px;
+  min-height: 44px;
+}
 
 :where(button, a, input, select, textarea, [tabindex]):focus-visible {
   outline: 3px solid var(--accent);
@@ -415,9 +425,26 @@ body {
 .todo-row:hover { background: var(--bg-hover); }
 .todo-row.selected { background: var(--accent-subtle); }
 
+.todo-row-select {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  gap: var(--space-3);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .todo-check {
-  width: 20px;
-  height: 20px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
   border-radius: 50%;
   border: 1.5px solid var(--text-muted);
   background: transparent;

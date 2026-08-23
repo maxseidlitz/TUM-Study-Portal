@@ -134,8 +134,8 @@ export default function AiSettings({ settings, setSettings }) {
         <div className="divider" />
 
         <div className="form-group">
-          <label className="form-label">{t('settings.serviceLabel')}</label>
-          <div style={styles.segmentRow}>
+          <span id="ai-service-label" className="form-label">{t('settings.serviceLabel')}</span>
+          <div style={styles.segmentRow} role="group" aria-labelledby="ai-service-label">
             <button
               type="button"
               className="btn btn-secondary"
@@ -177,12 +177,13 @@ export default function AiSettings({ settings, setSettings }) {
             <div className="divider" />
 
             <div className="form-group">
-              <label className="form-label">{t('settings.ollamaUrl')}</label>
+              <label className="form-label" htmlFor="settings-ollama-url">{t('settings.ollamaUrl')}</label>
               {isSelfHosted && (
                 <p style={styles.modelsHint}>{t('settings.ollamaServerManaged')}</p>
               )}
               <div style={{ display: 'flex', gap: 10 }}>
                 <input
+                  id="settings-ollama-url"
                   className="form-input"
                   value={settings.ollamaUrl}
                   onChange={e => setSettings(s => ({ ...s, ollamaUrl: e.target.value }))}
@@ -226,12 +227,12 @@ export default function AiSettings({ settings, setSettings }) {
             </div>
 
             <div className="form-group">
-              <label className="form-label">
+              <span className="form-label">
                 {t('settings.modelLabel')}
                 {modelsStatus === 'ok' && (
                   <span style={styles.countTag}>{t('settings.modelsFound', { count: models.length })}</span>
                 )}
-              </label>
+              </span>
 
               {modelsStatus === 'loading' && (
                 <div style={styles.modelsHint}>{t('settings.modelsLoading')}</div>
@@ -328,8 +329,9 @@ export default function AiSettings({ settings, setSettings }) {
             <div className="divider" />
 
             <div className="form-group">
-              <label className="form-label">{t('settings.apiKey')}</label>
+              <label className="form-label" htmlFor="settings-api-key">{t('settings.apiKey')}</label>
               <input
+                id="settings-api-key"
                 className="form-input"
                 type="password"
                 autoComplete="off"
@@ -347,13 +349,14 @@ export default function AiSettings({ settings, setSettings }) {
             </div>
 
             <div className="form-group">
-              <label className="form-label">
+              <label className="form-label" htmlFor="settings-model-id">
                 {t('settings.modelId')}
                 {modelsStatus === 'ok' && models.length > 0 && (
                   <span style={styles.countTag}>{t('settings.modelsFound', { count: models.length })}</span>
                 )}
               </label>
               <input
+                id="settings-model-id"
                 className="form-input"
                 value={settings.geminiModel}
                 onChange={e => setSettings(s => ({ ...s, geminiModel: e.target.value }))}

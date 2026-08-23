@@ -91,34 +91,26 @@ export default function Chat() {
         {sessions.map(s => (
           <div
             key={s.id}
-            role="button"
-            tabIndex={0}
             aria-current={s.id === activeSessionId ? 'true' : undefined}
-            onClick={() => handleSelectSession(s.id)}
-            onKeyDown={(event) => {
-              if (event.target !== event.currentTarget) return;
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                handleSelectSession(s.id);
-              }
-            }}
             style={{
               ...styles.sessionItem,
               ...(s.id === activeSessionId ? styles.sessionItemActive : {}),
             }}
           >
-            <div style={styles.sessionItemTitle}>{sessionListLabel(s, t, intlLocale)}</div>
-            <div style={styles.sessionItemMeta}>
-              {s.updatedAt
-                ? new Date(s.updatedAt).toLocaleString(intlLocale, { dateStyle: 'short', timeStyle: 'short' })
-                : ''}
-            </div>
+            <button type="button" style={styles.sessionSelect} onClick={() => handleSelectSession(s.id)}>
+              <span style={styles.sessionItemTitle}>{sessionListLabel(s, t, intlLocale)}</span>
+              <span style={styles.sessionItemMeta}>
+                {s.updatedAt
+                  ? new Date(s.updatedAt).toLocaleString(intlLocale, { dateStyle: 'short', timeStyle: 'short' })
+                  : ''}
+              </span>
+            </button>
             <button
               type="button"
               className="btn btn-ghost btn-sm chat-session-delete"
               style={styles.sessionDelete}
               title={t('chat.deleteSession')}
-              aria-label={t('chat.deleteSession')}
+              aria-label={`${t('chat.deleteSession')}: ${sessionListLabel(s, t, intlLocale)}`}
               onClick={ev => deleteSession(ev, s.id, t)}
             >
               {t('chat.deleteSession')}
@@ -274,6 +266,16 @@ const styles = {
     borderColor: 'var(--accent)',
     background: 'var(--accent-subtle)',
   },
+  sessionSelect: {
+    display: 'flex',
+    width: '100%',
+    minHeight: 44,
+    flexDirection: 'column',
+    border: 0,
+    background: 'transparent',
+    textAlign: 'left',
+    cursor: 'pointer',
+  },
   sessionItemTitle: {
     fontSize: 12,
     fontWeight: 500,
@@ -324,7 +326,7 @@ const styles = {
     resize: 'none', maxHeight: 120, lineHeight: 1.5, padding: '6px 8px',
   },
   sendBtn: {
-    width: 36, height: 36, borderRadius: 9, border: 'none',
+    width: 44, height: 44, borderRadius: 9, border: 'none',
     background: 'var(--accent)', color: '#fff',
     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
     transition: 'opacity var(--transition)',

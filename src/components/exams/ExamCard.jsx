@@ -88,7 +88,7 @@ export default function ExamCard({
         </button>
         <div style={{ flex: 1 }} />
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => onEdit(exam)}><EditIcon /> {t('exams.editShort')}</button>
-        <button type="button" className="btn btn-danger btn-sm btn-icon" aria-label={t('common.delete')} onClick={() => onDelete(exam.id)}><TrashIcon /></button>
+        <button type="button" className="btn btn-danger btn-sm btn-icon" aria-label={`${t('common.delete')}: ${exam.name}`} onClick={() => onDelete(exam.id)}><TrashIcon /></button>
       </div>
     </div>
   );

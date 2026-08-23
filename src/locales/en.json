@@ -409,7 +409,8 @@
     "importOne": "Import 1 event",
     "importMany": "Import {count} events",
     "importFailed": "The calendar import was stopped: {error}",
-    "replaceFailed": "The calendar refresh stopped at the first error. Already confirmed changes remain applied: {error}"
+    "replaceFailed": "The calendar refresh stopped at the first error. Already confirmed changes remain applied: {error}",
+    "groupSummary": "Creates {modules} module(s) · {lectures} individual event(s)"
   },
   "settings": {
     "pageTitle": "Settings",
@@ -528,7 +529,10 @@
     "sug3": "How much time do I have until the next exam?",
     "sug4": "Help me sort my open tasks sensibly.",
     "placeholder": "Ask me about your studies…",
-    "send": "Send message"
+    "send": "Send message",
+    "openFloating": "Open chat",
+    "minimizeFloating": "Minimize chat",
+    "closeFloating": "Close chat window"
   },
   "ollama": {
     "setupFailed": "AI setup failed",
@@ -560,7 +564,10 @@
     "logSave": "Save",
     "logSkip": "Skip",
     "logSaveError": "The study session could not be saved. Please try again.",
-    "toggle": "Open or close Pomodoro timer"
+    "toggle": "Open or close Pomodoro timer",
+    "start": "Start",
+    "pause": "Pause",
+    "reset": "Reset"
   },
   "gradeAnalytics": {
     "completed": "Completed",

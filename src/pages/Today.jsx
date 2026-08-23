@@ -185,6 +185,7 @@ function TodoCard({ todo, modules, moodleCourses, onToggle, t, intlLocale }) {
         onClick={() => onToggle(todo.id)}
         style={{ ...styles.checkbox, borderColor: todo.priority === 'high' ? 'var(--danger)' : 'var(--border-color)' }}
         title={t('today.checkboxTitle')}
+        aria-label={`${t('today.checkboxTitle')}: ${todo.title}`}
       >
         {todo.done && '✓'}
       </button>

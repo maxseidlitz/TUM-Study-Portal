@@ -311,8 +311,8 @@ export default function Lectures({ openImportRequest = 0 }) {
             <form onSubmit={handleSubmit}>
               {isModuleBase && (
                 <div className="form-group" style={styles.scopeBox}>
-                  <label className="form-label" style={{ marginBottom: 6 }}>{t('lectures.scopeLabel')}</label>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <span id="lecture-scope-label" className="form-label" style={{ marginBottom: 6 }}>{t('lectures.scopeLabel')}</span>
+                  <div style={{ display: 'flex', gap: 8 }} role="group" aria-labelledby="lecture-scope-label">
                     <button
                       type="button"
                       className="btn btn-secondary"
@@ -333,6 +333,8 @@ export default function Lectures({ openImportRequest = 0 }) {
                   {editScope === 'single' && (
                     <div style={{ marginTop: 10 }}>
                       <input
+                        id="lecture-override-date"
+                        aria-label={t('lectures.fieldEventDate')}
                         className="form-input"
                         type="date"
                         value={overrideDate}
@@ -352,14 +354,15 @@ export default function Lectures({ openImportRequest = 0 }) {
                 </div>
               )}
               <div className="form-group">
-                <label className="form-label">{t('lectures.fieldName')}</label>
-                <input className="form-input" required placeholder={t('lectures.placeholderName')}
+                <label className="form-label" htmlFor="lecture-name">{t('lectures.fieldName')}</label>
+                <input id="lecture-name" className="form-input" required placeholder={t('lectures.placeholderName')}
                   value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">{t('lectures.fieldDay')}</label>
+                  <label className="form-label" htmlFor="lecture-day">{t('lectures.fieldDay')}</label>
                   <select
+                    id="lecture-day"
                     className="form-select"
                     value={form.day}
                     disabled={Boolean(form.eventDate)}
@@ -369,8 +372,8 @@ export default function Lectures({ openImportRequest = 0 }) {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">{t('lectures.fieldColor')}</label>
-                  <div className="color-picker" style={styles.colorPicker}>
+                  <span id="lecture-color-label" className="form-label">{t('lectures.fieldColor')}</span>
+                  <div className="color-picker" style={styles.colorPicker} role="group" aria-labelledby="lecture-color-label">
                     {COLORS.map(c => (
                       <button
                         key={c} type="button"
@@ -386,8 +389,9 @@ export default function Lectures({ openImportRequest = 0 }) {
               </div>
               {Boolean(form.eventDate) && (
                 <div className="form-group">
-                  <label className="form-label">{t('lectures.fieldEventDate')}</label>
+                  <label className="form-label" htmlFor="lecture-event-date">{t('lectures.fieldEventDate')}</label>
                   <input
+                    id="lecture-event-date"
                     className="form-input"
                     type="date"
                     value={form.eventDate || ''}
@@ -416,8 +420,9 @@ export default function Lectures({ openImportRequest = 0 }) {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">{t('lectures.fieldFrom')}</label>
+                  <label className="form-label" htmlFor="lecture-from">{t('lectures.fieldFrom')}</label>
                   <input
+                    id="lecture-from"
                     className="form-input"
                     type="time"
                     disabled={Boolean(form.allDay)}
@@ -426,8 +431,9 @@ export default function Lectures({ openImportRequest = 0 }) {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">{t('lectures.fieldTo')}</label>
+                  <label className="form-label" htmlFor="lecture-to">{t('lectures.fieldTo')}</label>
                   <input
+                    id="lecture-to"
                     className={`form-input${timeError ? ' form-input-error' : ''}`}
                     type="time"
                     disabled={Boolean(form.allDay)}
@@ -439,13 +445,13 @@ export default function Lectures({ openImportRequest = 0 }) {
               {timeError && <span style={{ fontSize: 11, color: 'var(--danger)', marginTop: -8, marginBottom: 8, display: 'block' }}>{timeError}</span>}
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">{t('lectures.fieldRoom')}</label>
-                  <input className="form-input" placeholder={t('lectures.placeholderRoom')}
+                  <label className="form-label" htmlFor="lecture-room">{t('lectures.fieldRoom')}</label>
+                  <input id="lecture-room" className="form-input" placeholder={t('lectures.placeholderRoom')}
                     value={form.room} onChange={e => setForm(f => ({ ...f, room: e.target.value }))} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">{t('lectures.fieldLecturer')}</label>
-                  <input className="form-input" placeholder={t('lectures.placeholderLecturer')}
+                  <label className="form-label" htmlFor="lecture-lecturer">{t('lectures.fieldLecturer')}</label>
+                  <input id="lecture-lecturer" className="form-input" placeholder={t('lectures.placeholderLecturer')}
                     value={form.lecturer} onChange={e => setForm(f => ({ ...f, lecturer: e.target.value }))} />
                 </div>
               </div>

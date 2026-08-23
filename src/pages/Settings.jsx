@@ -172,8 +172,9 @@ export default function Settings() {
         <div className="divider" />
         <div className="form-row">
           <div className="form-group">
-            <label className="form-label">{t('settings.targetEctsLabel')}</label>
+            <label className="form-label" htmlFor="settings-target-ects">{t('settings.targetEctsLabel')}</label>
             <input
+              id="settings-target-ects"
               type="number"
               className={`form-input${ectsError ? ' form-input-error' : ''}`}
               value={settings.targetEcts}
@@ -183,8 +184,9 @@ export default function Settings() {
             {ectsError && <span style={styles.fieldError}>{ectsError}</span>}
           </div>
           <div className="form-group">
-            <label className="form-label">{t('settings.targetGpaLabel')}</label>
+            <label className="form-label" htmlFor="settings-target-gpa">{t('settings.targetGpaLabel')}</label>
             <input
+              id="settings-target-gpa"
               type="number"
               step="0.1"
               min="1.0"
@@ -198,8 +200,9 @@ export default function Settings() {
           </div>
         </div>
         <div className="form-group">
-          <label className="form-label">{t('settings.preferredMensaLabel')}</label>
+          <label className="form-label" htmlFor="settings-mensa">{t('settings.preferredMensaLabel')}</label>
           <select
+            id="settings-mensa"
             className="form-input"
             value={settings.preferredMensaId}
             onChange={e => saveSettings({ ...settings, preferredMensaId: e.target.value })}
@@ -254,8 +257,8 @@ export default function Settings() {
         </div>
         <div className="divider" />
         <div className="form-group">
-          <label className="form-label">{t('settings.languageTitle')}</label>
-          <div style={styles.segmentRow}>
+          <span id="settings-language-label" className="form-label">{t('settings.languageTitle')}</span>
+          <div style={styles.segmentRow} role="group" aria-labelledby="settings-language-label">
             {[
               { code: 'de', label: t('settings.langDe') },
               { code: 'en', label: t('settings.langEn') },
@@ -288,8 +291,8 @@ export default function Settings() {
         </div>
         <div className="divider" />
         <div className="form-group">
-          <label className="form-label">{t('common.themeToggle')}</label>
-          <div style={styles.segmentRow}>
+          <span id="settings-theme-label" className="form-label">{t('common.themeToggle')}</span>
+          <div style={styles.segmentRow} role="group" aria-labelledby="settings-theme-label">
             {['light', 'dark'].map((th) => (
               <button
                 key={th}

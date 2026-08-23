@@ -149,9 +149,10 @@ export default function ICalImportForm({
       )}
 
       <div className="form-group">
-        <label className="form-label">{t('ical.urlLabel')}</label>
+        <label className="form-label" htmlFor="lecture-ical-url">{t('ical.urlLabel')}</label>
         <div className="ical-input-row" style={{ display: 'flex', gap: 10 }}>
           <input
+            id="lecture-ical-url"
             className="form-input"
             placeholder={t('ical.urlPlaceholder')}
             value={url}
@@ -229,9 +230,11 @@ function ImportPreview({ items, onImport, onCancel, t, intlLocale, embedded }) {
 
       <div style={styles.previewList}>
         {selected.map((item, idx) => (
-          <div
+          <button
+            type="button"
             key={item.icalUid || `${item.eventDate}-${item.time}-${idx}`}
             onClick={() => toggle(idx)}
+            aria-pressed={item._selected}
             style={{
               ...styles.previewItem,
               opacity: item._selected ? 1 : 0.45,
@@ -255,13 +258,13 @@ function ImportPreview({ items, onImport, onCancel, t, intlLocale, embedded }) {
                 {item.room && <span>📍 {item.room}</span>}
               </div>
             </div>
-          </div>
+          </button>
         ))}
       </div>
 
       {selectedCount > 0 && (
         <div style={styles.groupSummary}>
-          {`Wird angelegt als ${grouped.modules.length} Modul(e) · ${grouped.lectures.length} Einzeltermin(e)`}
+          {t('ical.groupSummary', { modules: grouped.modules.length, lectures: grouped.lectures.length })}
         </div>
       )}
 
@@ -297,6 +300,7 @@ const styles = {
   previewList: { display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 300, overflowY: 'auto', marginBottom: 8 },
   previewItem: {
     display: 'flex', alignItems: 'flex-start', gap: 10,
+    width: '100%', textAlign: 'left', color: 'inherit', border: 'none',
     padding: '10px 12px', borderRadius: 8, background: 'var(--bg-tertiary)',
     cursor: 'pointer', transition: 'opacity var(--transition)',
     borderLeft: '4px solid var(--accent)',

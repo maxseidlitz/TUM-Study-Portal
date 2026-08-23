@@ -79,6 +79,7 @@ export default function AiRecommendation() {
             onClick={runKi}
             disabled={status === 'loading'}
             title={t('ai.refreshTitle')}
+            aria-label={t('ai.refreshTitle')}
             style={{ opacity: 0.7 }}
           >
             <RefreshIcon spin={status === 'loading'} />

@@ -408,7 +408,8 @@
     "importOne": "1 Termin importieren",
     "importMany": "{count} Termine importieren",
     "importFailed": "Der Kalenderimport wurde abgebrochen: {error}",
-    "replaceFailed": "Die Kalenderaktualisierung wurde beim ersten Fehler abgebrochen. Bereits bestätigte Änderungen bleiben erhalten: {error}"
+    "replaceFailed": "Die Kalenderaktualisierung wurde beim ersten Fehler abgebrochen. Bereits bestätigte Änderungen bleiben erhalten: {error}",
+    "groupSummary": "Wird angelegt als {modules} Modul(e) · {lectures} Einzeltermin(e)"
   },
   "settings": {
     "pageTitle": "Einstellungen",
@@ -527,7 +528,10 @@
     "sug3": "Wie viel Zeit habe ich bis zur nächsten Prüfung?",
     "sug4": "Hilf mir, meine offenen Aufgaben sinnvoll zu sortieren.",
     "placeholder": "Frag mich etwas zu deinem Studium…"
-    ,"send": "Nachricht senden"
+    ,"send": "Nachricht senden",
+    "openFloating": "Chat öffnen",
+    "minimizeFloating": "Chat minimieren",
+    "closeFloating": "Chatfenster schließen"
   },
   "ai": {
     "labelKi": "🤖 KI-Empfehlung",
@@ -579,7 +583,10 @@
     "logSave": "Speichern",
     "logSkip": "Überspringen",
     "logSaveError": "Die Lernsitzung konnte nicht gespeichert werden. Bitte versuche es erneut."
-    ,"toggle": "Pomodoro-Timer öffnen oder schließen"
+    ,"toggle": "Pomodoro-Timer öffnen oder schließen",
+    "start": "Start",
+    "pause": "Pause",
+    "reset": "Zurücksetzen"
   },
   "gradeAnalytics": {
     "completed": "Abgeschlossen",

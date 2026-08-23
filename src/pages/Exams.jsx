@@ -311,16 +311,18 @@ function SuggestTodoModal({ exam, onConfirm, onClose, t }) {
           {t('exams.suggestTodoBody', { name: exam.name || '' })}
         </p>
         <div className="form-group">
-          <label className="form-label">{t('todoDetail.placeholderTitle')}</label>
+          <label className="form-label" htmlFor="suggest-todo-text">{t('todoDetail.placeholderTitle')}</label>
           <input
+            id="suggest-todo-text"
             className="form-input"
             value={text}
             onChange={e => setText(e.target.value)}
           />
         </div>
         <div className="form-group">
-          <label className="form-label">{t('todoDetail.due')}</label>
+          <label className="form-label" htmlFor="suggest-todo-due">{t('todoDetail.due')}</label>
           <input
+            id="suggest-todo-due"
             type="date"
             className="form-input"
             value={dueDate}
@@ -437,19 +439,19 @@ function StudyLogModal({ exam, onClose, intlLocale, t }) {
         <form onSubmit={handleAdd} style={styles.logForm}>
           <div className="form-row">
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">{t('exams.logFieldDate')}</label>
-              <input className="form-input" type="date" value={form.date}
+              <label className="form-label" htmlFor="study-log-date">{t('exams.logFieldDate')}</label>
+              <input id="study-log-date" className="form-input" type="date" value={form.date}
                 onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">{t('exams.logFieldDuration')}</label>
-              <input className="form-input" type="number" min="1" max="600" placeholder={t('exams.logPlaceholderDuration')} required
+              <label className="form-label" htmlFor="study-log-duration">{t('exams.logFieldDuration')}</label>
+              <input id="study-log-duration" className="form-input" type="number" min="1" max="600" placeholder={t('exams.logPlaceholderDuration')} required
                 value={form.duration_min} onChange={e => setForm(f => ({ ...f, duration_min: e.target.value }))} />
             </div>
           </div>
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">{t('exams.logFieldTopics')}</label>
-            <input className="form-input" placeholder={t('exams.logPlaceholderTopics')} required
+            <label className="form-label" htmlFor="study-log-topics">{t('exams.logFieldTopics')}</label>
+            <input id="study-log-topics" className="form-input" placeholder={t('exams.logPlaceholderTopics')} required
               value={form.topics} onChange={e => setForm(f => ({ ...f, topics: e.target.value }))} />
           </div>
           <button type="submit" className="btn btn-primary btn-sm" style={{ alignSelf: 'flex-end' }} disabled={saving}>
@@ -481,6 +483,7 @@ function StudyLogModal({ exam, onClose, intlLocale, t }) {
                 </div>
                 <button className="btn btn-ghost btn-icon btn-sm" onClick={() => handleDelete(log.id)}
                   disabled={deletingId === log.id}
+                  aria-label={t('common.delete')}
                   style={{ color: 'var(--danger)', flexShrink: 0 }}><TrashIcon /></button>
               </div>
             ))}
