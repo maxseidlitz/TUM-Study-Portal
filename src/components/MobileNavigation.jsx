@@ -7,6 +7,7 @@ import {
   mobileTabForPage,
 } from '../navigation';
 import { MoreIcon } from './icons/NavigationIcons';
+import AccessibleDialog from './ui/AccessibleDialog';
 
 export function MobileTopBar({ activePage }) {
   const { t } = useLocale();
@@ -33,18 +34,6 @@ export function MobileBottomNavigation({ activePage, onNavigate }) {
     setMoreOpen(false);
   }, [activePage]);
 
-  useEffect(() => {
-    if (!moreOpen) return undefined;
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        setMoreOpen(false);
-        moreButtonRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [moreOpen]);
-
   const navigate = (page) => {
     setMoreOpen(false);
     onNavigate(page);
@@ -53,14 +42,12 @@ export function MobileBottomNavigation({ activePage, onNavigate }) {
   return (
     <>
       {moreOpen && (
-        <div className="mobile-more-layer">
-          <button
-            type="button"
-            className="mobile-more-backdrop"
-            aria-label={t('mobileShell.closeMore')}
-            onClick={() => setMoreOpen(false)}
-          />
-          <section className="mobile-more-sheet" role="dialog" aria-modal="true" aria-label={t('mobileShell.more')}>
+        <AccessibleDialog
+          onClose={() => setMoreOpen(false)}
+          ariaLabel={t('mobileShell.more')}
+          overlayClassName="mobile-more-dialog"
+          className="mobile-more-sheet"
+        >
             <div className="mobile-more-heading">{t('mobileShell.more')}</div>
             <div className="mobile-more-grid">
               {MOBILE_MORE_ITEMS.map(item => {
@@ -80,8 +67,7 @@ export function MobileBottomNavigation({ activePage, onNavigate }) {
                 );
               })}
             </div>
-          </section>
-        </div>
+        </AccessibleDialog>
       )}
 
       <nav className="mobile-tab-bar" aria-label={t('mobileShell.primaryNavigation')}>
@@ -107,6 +93,7 @@ export function MobileBottomNavigation({ activePage, onNavigate }) {
           className={`mobile-tab${activeTab === 'more' || moreOpen ? ' active' : ''}`}
           aria-expanded={moreOpen}
           aria-haspopup="dialog"
+          aria-current={activeTab === 'more' ? 'page' : undefined}
           onClick={() => setMoreOpen(open => !open)}
         >
           <MoreIcon size={22} />

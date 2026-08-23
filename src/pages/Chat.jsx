@@ -6,6 +6,8 @@ import { useChatSessions } from '../hooks/useChatSessions';
 import ChatMessage from '../components/chat/ChatMessage';
 import ChatThinking from '../components/chat/ChatThinking';
 import { SendIcon } from '../components/icons/Icons';
+import AccessibleDialog from '../components/ui/AccessibleDialog';
+import { useIsMobile } from '../hooks/useMediaQuery';
 
 const SUGGESTION_KEYS = ['sug1', 'sug2', 'sug3', 'sug4'];
 const SUGGESTION_ICONS = ['🎯', '📅', '⏱️', '✅'];
@@ -18,6 +20,8 @@ export default function Chat() {
   } = useData();
 
   const [input, setInput] = useState('');
+  const [sessionsOpen, setSessionsOpen] = useState(false);
+  const isMobile = useIsMobile();
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -62,6 +66,7 @@ export default function Chat() {
 
   const handleSelectSession = async (id) => {
     await selectSession(id);
+    setSessionsOpen(false);
     setInput('');
     inputRef.current?.focus();
   };
@@ -76,55 +81,73 @@ export default function Chat() {
     openTodos: todos.filter(td => !td.done).length,
   });
 
-  return (
-    <div style={styles.root}>
-      <div style={styles.mainRow}>
-        {persistReady && (
-          <aside style={styles.sessionAside} aria-label={t('chat.sessionsTitle')}>
-            <div style={styles.sessionAsideHead}>{t('chat.sessionsTitle')}</div>
-            <button type="button" className="btn btn-secondary btn-sm" style={styles.newSessionBtn} onClick={handleStartNewChat}>
-              {t('chat.newChat')}
-            </button>
-            <div style={styles.sessionList}>
-              {sessions.map(s => (
-                <div
-                  key={s.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleSelectSession(s.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleSelectSession(s.id);
-                    }
-                  }}
-                  style={{
-                    ...styles.sessionItem,
-                    ...(s.id === activeSessionId ? styles.sessionItemActive : {}),
-                  }}
-                >
-                  <div style={styles.sessionItemTitle}>{sessionListLabel(s, t, intlLocale)}</div>
-                  <div style={styles.sessionItemMeta}>
-                    {s.updatedAt
-                      ? new Date(s.updatedAt).toLocaleString(intlLocale, { dateStyle: 'short', timeStyle: 'short' })
-                      : ''}
-                  </div>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    style={styles.sessionDelete}
-                    title={t('chat.deleteSession')}
-                    onClick={ev => deleteSession(ev, s.id, t)}
-                  >
-                    {t('chat.deleteSession')}
-                  </button>
-                </div>
-              ))}
+  const sessionPanel = (
+    <>
+      <div id="chat-sessions-title" style={styles.sessionAsideHead}>{t('chat.sessionsTitle')}</div>
+      <button type="button" className="btn btn-secondary btn-sm" style={styles.newSessionBtn} onClick={handleStartNewChat}>
+        {t('chat.newChat')}
+      </button>
+      <div style={styles.sessionList}>
+        {sessions.map(s => (
+          <div
+            key={s.id}
+            role="button"
+            tabIndex={0}
+            aria-current={s.id === activeSessionId ? 'true' : undefined}
+            onClick={() => handleSelectSession(s.id)}
+            onKeyDown={(event) => {
+              if (event.target !== event.currentTarget) return;
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                handleSelectSession(s.id);
+              }
+            }}
+            style={{
+              ...styles.sessionItem,
+              ...(s.id === activeSessionId ? styles.sessionItemActive : {}),
+            }}
+          >
+            <div style={styles.sessionItemTitle}>{sessionListLabel(s, t, intlLocale)}</div>
+            <div style={styles.sessionItemMeta}>
+              {s.updatedAt
+                ? new Date(s.updatedAt).toLocaleString(intlLocale, { dateStyle: 'short', timeStyle: 'short' })
+                : ''}
             </div>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm chat-session-delete"
+              style={styles.sessionDelete}
+              title={t('chat.deleteSession')}
+              aria-label={t('chat.deleteSession')}
+              onClick={ev => deleteSession(ev, s.id, t)}
+            >
+              {t('chat.deleteSession')}
+            </button>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+
+  return (
+    <div className="chat-page" style={styles.root}>
+      <div className="chat-main-row" style={styles.mainRow}>
+        {persistReady && !isMobile && (
+          <aside className="chat-session-aside" style={styles.sessionAside} aria-label={t('chat.sessionsTitle')}>
+            {sessionPanel}
           </aside>
         )}
+        {persistReady && isMobile && sessionsOpen && (
+          <AccessibleDialog
+            onClose={() => setSessionsOpen(false)}
+            labelledBy="chat-sessions-title"
+            className="chat-sessions-dialog"
+          >
+            {sessionPanel}
+          </AccessibleDialog>
+        )}
 
-        <div style={styles.chatColumn}>
+        <div className="chat-column" style={styles.chatColumn}>
           {ipcStaleHint && (
             <div
               className="card card-sm"
@@ -140,13 +163,18 @@ export default function Chat() {
               {t('chat.ipcStaleMain')}
             </div>
           )}
-          <div style={styles.header}>
+          <div className="chat-header" style={styles.header}>
             <div>
               <h1 style={styles.title}>{t('chat.title')}</h1>
               <p style={styles.subtitle}>
                 <span style={styles.contextDot} /> {t('chat.contextLabel')} {contextSummary}
               </p>
             </div>
+            {persistReady && isMobile && (
+              <button type="button" className="btn btn-secondary" onClick={() => setSessionsOpen(true)}>
+                {t('chat.sessionsTitle')}
+              </button>
+            )}
             {!persistReady && messages.length > 0 && (
               <button type="button" className="btn btn-secondary btn-sm" onClick={handleStartNewChat}>
                 {t('chat.newChat')}
@@ -154,13 +182,13 @@ export default function Chat() {
             )}
           </div>
 
-          <div style={styles.messageArea} ref={scrollRef}>
+          <div className="chat-message-area" style={styles.messageArea} ref={scrollRef}>
             {messages.length === 0 ? (
               <div style={styles.empty}>
                 <div style={styles.emptyIcon}>🤖</div>
                 <h2 style={styles.emptyTitle}>{t('chat.emptyTitle')}</h2>
                 <p style={styles.emptyText}>{t('chat.emptyText')}</p>
-                <div style={styles.suggestions}>
+                <div className="chat-suggestions" style={styles.suggestions}>
                   {SUGGESTION_KEYS.map((key, i) => (
                     <button key={key} type="button" style={styles.suggestion} onClick={() => send(t(`chat.${key}`))}>
                       <span style={{ fontSize: 18 }}>{SUGGESTION_ICONS[i]}</span>
@@ -179,7 +207,7 @@ export default function Chat() {
             )}
           </div>
 
-          <div style={styles.inputBar}>
+          <div className="chat-input-bar" style={styles.inputBar}>
             <textarea
               ref={inputRef}
               style={styles.input}
@@ -191,6 +219,8 @@ export default function Chat() {
             />
             <button
               type="button"
+              className="chat-send-button"
+              aria-label={t('chat.send')}
               style={{
                 ...styles.sendBtn,
                 opacity: input.trim() && !isThinking ? 1 : 0.4,

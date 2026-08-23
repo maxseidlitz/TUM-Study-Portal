@@ -62,9 +62,9 @@ export default function Dashboard({ onNavigate }) {
   });
 
   return (
-    <div>
+    <div className="dashboard-page">
       {/* Header */}
-      <div style={styles.header}>
+      <div className="dashboard-header" style={styles.header}>
         <div>
           <h1 style={styles.greeting}>{greeting} 👋</h1>
           <p style={styles.date}>{dateStr}</p>
@@ -73,7 +73,7 @@ export default function Dashboard({ onNavigate }) {
       </div>
 
       {showSetupBanner && (
-        <div style={styles.setupBanner}>
+        <div className="dashboard-setup-banner" style={styles.setupBanner}>
           <div>
             <div style={styles.setupBannerTitle}>{t('setupWizard.bannerTitle')}</div>
             <div style={styles.setupBannerBody}>{t('setupWizard.bannerBody')}</div>
@@ -85,7 +85,7 @@ export default function Dashboard({ onNavigate }) {
       )}
 
       {/* Stat cards */}
-      <div className="grid-4" style={{ marginBottom: 32 }}>
+      <div className="grid-4 dashboard-stats" style={{ marginBottom: 32 }}>
         <StatCard
           label={t('dashboard.statExams')}
           value={exams.length}
@@ -117,7 +117,7 @@ export default function Dashboard({ onNavigate }) {
       </div>
 
       {/* Main grid */}
-      <div style={styles.mainGrid}>
+      <div className="dashboard-main-grid" style={styles.mainGrid}>
         {/* Left column */}
         <div style={styles.leftCol}>
           {/* Upcoming exams */}

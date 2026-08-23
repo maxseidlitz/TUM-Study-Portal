@@ -12,6 +12,7 @@ import ExamFormModal from '../components/exams/ExamFormModal';
 import GradeAnalytics from '../components/exams/GradeAnalytics';
 import ExamICalImport from '../components/exams/ExamICalImport';
 import { api } from '../api';
+import AccessibleDialog from '../components/ui/AccessibleDialog';
 import {
   createStudyLog,
   deleteStudyLog,
@@ -129,8 +130,8 @@ export default function Exams() {
   };
 
   return (
-    <div>
-      <div style={styles.pageHeader}>
+    <div className="exams-page">
+      <div className="responsive-page-header" style={styles.pageHeader}>
         <div className="page-header" style={{ marginBottom: 0 }}>
           <h1>{t('exams.title')}</h1>
           <p>
@@ -139,7 +140,7 @@ export default function Exams() {
               : t('exams.summary', { upcoming: upcomingExams.length, past: pastExams.length })}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="responsive-toolbar" style={{ display: 'flex', gap: 8 }}>
           {exams.length > 0 && (
             <button className="btn btn-secondary" onClick={handleExportCsv}>
               {t('exams.exportCsvBtn')}
@@ -177,7 +178,7 @@ export default function Exams() {
           {upcomingExams.length > 0 && (
             <>
               <div className="section-title">{t('exams.upcoming')}</div>
-              <div style={styles.examGrid}>
+              <div className="exam-grid" style={styles.examGrid}>
                 {upcomingExams.map(exam => (
                   <ExamCard key={exam.id} exam={exam}
                     intlLocale={intlLocale}
@@ -194,7 +195,7 @@ export default function Exams() {
           {pastExams.length > 0 && (
             <>
               <div className="section-title" style={{ marginTop: 32 }}>{t('exams.past')}</div>
-              <div style={styles.examGrid}>
+              <div className="exam-grid" style={styles.examGrid}>
                 {pastExams.map(exam => (
                   <ExamCard key={exam.id} exam={exam} past
                     intlLocale={intlLocale}
@@ -244,11 +245,10 @@ export default function Exams() {
 
       {/* Delete Confirm */}
       {deleteConfirm && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setDeleteConfirm(null)}>
-          <div className="modal" style={{ maxWidth: 380 }}>
+        <AccessibleDialog onClose={() => setDeleteConfirm(null)} labelledBy="exam-delete-title" className="modal" style={{ maxWidth: 380 }}>
             <div className="modal-header">
-              <h2>{t('exams.deleteTitle')}</h2>
-              <button className="btn btn-ghost btn-icon" onClick={() => setDeleteConfirm(null)}><CloseIcon /></button>
+              <h2 id="exam-delete-title">{t('exams.deleteTitle')}</h2>
+              <button className="btn btn-ghost btn-icon" onClick={() => setDeleteConfirm(null)} aria-label={t('common.close')}><CloseIcon /></button>
             </div>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
               {t('exams.deleteBody', { name: exams.find(e => e.id === deleteConfirm)?.name || '' })}
@@ -257,8 +257,7 @@ export default function Exams() {
               <button className="btn btn-secondary" onClick={() => setDeleteConfirm(null)}>{t('common.cancel')}</button>
               <button className="btn btn-danger" onClick={() => handleDelete(deleteConfirm)}>{t('common.delete')}</button>
             </div>
-          </div>
-        </div>
+        </AccessibleDialog>
       )}
 
       {/* iCal Import */}
@@ -303,11 +302,10 @@ function SuggestTodoModal({ exam, onConfirm, onClose, t }) {
   const [dueDate, setDueDate] = useState(defaultDue);
 
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 420 }}>
+    <AccessibleDialog onClose={onClose} labelledBy="suggest-todo-title" className="modal" style={{ maxWidth: 420 }}>
         <div className="modal-header">
-          <h2>{t('exams.suggestTodoTitle')}</h2>
-          <button className="btn btn-ghost btn-icon" onClick={onClose}><CloseIcon /></button>
+          <h2 id="suggest-todo-title">{t('exams.suggestTodoTitle')}</h2>
+          <button className="btn btn-ghost btn-icon" onClick={onClose} aria-label={t('common.close')}><CloseIcon /></button>
         </div>
         <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
           {t('exams.suggestTodoBody', { name: exam.name || '' })}
@@ -335,8 +333,7 @@ function SuggestTodoModal({ exam, onConfirm, onClose, t }) {
             {t('exams.suggestTodoBtnYes')}
           </button>
         </div>
-      </div>
-    </div>
+    </AccessibleDialog>
   );
 }
 
@@ -407,14 +404,13 @@ function StudyLogModal({ exam, onClose, intlLocale, t }) {
   const remMin = totalMin % 60;
 
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 560 }}>
+    <AccessibleDialog onClose={onClose} labelledBy="study-log-title" className="modal" style={{ maxWidth: 560 }}>
         <div className="modal-header">
           <div>
-            <h2>{t('exams.studyLog')}</h2>
+            <h2 id="study-log-title">{t('exams.studyLog')}</h2>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{exam.name}</p>
           </div>
-          <button className="btn btn-ghost btn-icon" onClick={onClose}><CloseIcon /></button>
+          <button className="btn btn-ghost btn-icon" onClick={onClose} aria-label={t('common.close')}><CloseIcon /></button>
         </div>
 
         {error && <div style={styles.logError}>{error}</div>}
@@ -490,8 +486,7 @@ function StudyLogModal({ exam, onClose, intlLocale, t }) {
             ))}
           </div>
         )}
-      </div>
-    </div>
+    </AccessibleDialog>
   );
 }
 
@@ -501,14 +496,13 @@ function GradeModal({ exam, onSave, onClose, t }) {
   if (!exam) return null;
 
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 400 }}>
+    <AccessibleDialog onClose={onClose} labelledBy="grade-modal-title" className="modal" style={{ maxWidth: 400 }}>
         <div className="modal-header">
           <div>
-            <h2>{t('exams.gradeModalTitle')}</h2>
+            <h2 id="grade-modal-title">{t('exams.gradeModalTitle')}</h2>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{exam.name}</p>
           </div>
-          <button className="btn btn-ghost btn-icon" onClick={onClose}><CloseIcon /></button>
+          <button className="btn btn-ghost btn-icon" onClick={onClose} aria-label={t('common.close')}><CloseIcon /></button>
         </div>
 
         <div style={styles.gradeGrid}>
@@ -545,8 +539,7 @@ function GradeModal({ exam, onSave, onClose, t }) {
             {t('exams.gradeSave')}
           </button>
         </div>
-      </div>
-    </div>
+    </AccessibleDialog>
   );
 }
 

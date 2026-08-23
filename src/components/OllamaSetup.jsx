@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useLocale } from '../context/LocaleContext';
 import { useOllamaSetup } from '../hooks/useOllamaSetup';
 import { api } from '../api';
+import AccessibleDialog from './ui/AccessibleDialog';
 
 export default function OllamaSetup({ suppressOverlay = false }) {
   const { t } = useLocale();
@@ -45,11 +46,16 @@ export default function OllamaSetup({ suppressOverlay = false }) {
   const isDownloading = phase === 'downloading';
 
   return (
-    <div style={styles.overlay}>
-      <div style={styles.card}>
+    <AccessibleDialog
+      onClose={handleDismiss}
+      labelledBy="ollama-setup-title"
+      overlayClassName="ollama-setup-overlay"
+      className="ollama-setup-dialog"
+      style={styles.card}
+    >
         <div style={styles.icon}>{isError ? '⚠️' : '🤖'}</div>
 
-        <h2 style={styles.title}>
+        <h2 id="ollama-setup-title" style={styles.title}>
           {isError
             ? t('ollama.setupFailed')
             : isDownloading
@@ -83,7 +89,7 @@ export default function OllamaSetup({ suppressOverlay = false }) {
           </div>
         )}
 
-        <div style={styles.actions}>
+        <div className="ollama-actions" style={styles.actions}>
           {isError && (
             <button className="btn btn-primary" onClick={handleRetry} disabled={retrying}>
               {retrying ? t('ollama.setupRetrying') : t('ollama.setupRetry')}
@@ -95,8 +101,7 @@ export default function OllamaSetup({ suppressOverlay = false }) {
         </div>
 
         <p style={styles.hint}>{t('ollama.setupHint')}</p>
-      </div>
-    </div>
+    </AccessibleDialog>
   );
 }
 

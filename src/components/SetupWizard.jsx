@@ -6,6 +6,7 @@ import ICalImportForm from './lectures/ICalImportForm';
 import ExamICalImportForm from './exams/ExamICalImportForm';
 import { useOllamaSetup, isOllamaSetupActive } from '../hooks/useOllamaSetup';
 import { api } from '../api';
+import AccessibleDialog from './ui/AccessibleDialog';
 
 const TOTAL_STEPS = 4;
 
@@ -139,9 +140,16 @@ export default function SetupWizard({ onComplete, onVisibilityChange, onNavigate
   ];
 
   return (
-    <div style={styles.overlay}>
-      <div style={styles.card}>
-        <div style={styles.progressRow}>
+    <AccessibleDialog
+      onClose={null}
+      closeOnBackdrop={false}
+      closeOnEscape={false}
+      labelledBy="setup-wizard-title"
+      overlayClassName="setup-wizard-overlay"
+      className="setup-wizard-dialog"
+      style={styles.card}
+    >
+        <div className="setup-progress" style={styles.progressRow}>
           {stepLabels.map((label, idx) => (
             <div key={label} style={styles.progressItem}>
               <div style={{
@@ -162,11 +170,11 @@ export default function SetupWizard({ onComplete, onVisibilityChange, onNavigate
           ))}
         </div>
 
-        <div style={styles.content}>
+        <div className="setup-content" style={styles.content}>
           {step === 0 && (
             <>
               <div style={styles.icon}>🎓</div>
-              <h1 style={styles.title}>{t('setupWizard.welcomeTitle')}</h1>
+              <h1 id="setup-wizard-title" style={styles.title}>{t('setupWizard.welcomeTitle')}</h1>
               <p style={styles.body}>{t('setupWizard.welcomeBody')}</p>
               <ul style={styles.featureList}>
                 <li>{t('setupWizard.featureSchedule')}</li>
@@ -178,7 +186,7 @@ export default function SetupWizard({ onComplete, onVisibilityChange, onNavigate
 
           {step === 1 && (
             <>
-              <h2 style={styles.stepTitle}>{t('setupWizard.scheduleTitle')}</h2>
+              <h2 id="setup-wizard-title" style={styles.stepTitle}>{t('setupWizard.scheduleTitle')}</h2>
               <p style={styles.stepSub}>{t('setupWizard.scheduleBody')}</p>
               <ICalImportForm
                 embedded
@@ -190,7 +198,7 @@ export default function SetupWizard({ onComplete, onVisibilityChange, onNavigate
 
           {step === 2 && (
             <>
-              <h2 style={styles.stepTitle}>{t('setupWizard.examsTitle')}</h2>
+              <h2 id="setup-wizard-title" style={styles.stepTitle}>{t('setupWizard.examsTitle')}</h2>
               <p style={styles.stepSub}>{t('setupWizard.examsBody')}</p>
               <ExamICalImportForm
                 embedded
@@ -204,7 +212,7 @@ export default function SetupWizard({ onComplete, onVisibilityChange, onNavigate
           {step === 3 && (
             <>
               <div style={styles.icon}>✅</div>
-              <h2 style={styles.title}>{t('setupWizard.doneTitle')}</h2>
+              <h2 id="setup-wizard-title" style={styles.title}>{t('setupWizard.doneTitle')}</h2>
               <p style={styles.body}>{t('setupWizard.doneBody')}</p>
               <div style={styles.summaryBox}>
                 {importStats.moduleCount > 0 && (
@@ -226,7 +234,7 @@ export default function SetupWizard({ onComplete, onVisibilityChange, onNavigate
 
         <OllamaStatusBar state={ollamaState} t={t} />
 
-        <div style={styles.actions}>
+        <div className="setup-actions" style={styles.actions}>
           {step > 0 && step < TOTAL_STEPS && (
             <button type="button" className="btn btn-secondary" onClick={goBack}>
               {t('setupWizard.back')}
@@ -276,8 +284,7 @@ export default function SetupWizard({ onComplete, onVisibilityChange, onNavigate
             </button>
           )}
         </div>
-      </div>
-    </div>
+    </AccessibleDialog>
   );
 }
 

@@ -4,6 +4,8 @@ import { useLocale } from '../context/LocaleContext';
 import { formatDate, getDaysUntil, resolveTodoCourseLabel } from '../utils/helpers';
 import TodoDetail from '../components/todos/TodoDetail';
 import { api } from '../api';
+import AccessibleDialog from '../components/ui/AccessibleDialog';
+import { useIsMobile } from '../hooks/useMediaQuery';
 
 const SECTION_KEYS = ['high', 'medium', 'low'];
 const SECTION_COLORS = { high: 'var(--danger)', medium: 'var(--warning)', low: 'var(--success)' };
@@ -21,6 +23,7 @@ export default function Todos() {
   const [completing, setCompleting] = useState(new Set());
   const [hideCompleted, setHideCompleted] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     let cancelled = false;
@@ -97,8 +100,8 @@ export default function Todos() {
   };
 
   return (
-    <div>
-      <div style={styles.pageHeader}>
+    <div className="todos-page">
+      <div className="responsive-page-header" style={styles.pageHeader}>
         <div className="page-header" style={{ marginBottom: 0 }}>
           <h1>{t('todos.title')}</h1>
           <p>{t('todos.summary', { open: openCount, done: doneTodos.length })}</p>
@@ -113,7 +116,7 @@ export default function Todos() {
         </label>
       </div>
 
-      <div style={styles.layout}>
+      <div className="todos-layout" style={styles.layout}>
         {/* Task list */}
         <div style={{ flex: 1, minWidth: 0 }}>
           {sections.map(section => {
@@ -189,7 +192,7 @@ export default function Todos() {
         </div>
 
         {/* Detail pane */}
-        {selected && (
+        {selected && !isMobile && (
           <TodoDetail
             todo={selected}
             onUpdate={updateTodo}
@@ -201,6 +204,25 @@ export default function Todos() {
             onClose={() => setSelectedId(null)}
           />
         )}
+        {selected && isMobile && (
+          <AccessibleDialog
+            onClose={() => setSelectedId(null)}
+            labelledBy="todo-detail-title"
+            className="todo-detail-dialog"
+          >
+            <TodoDetail
+              todo={selected}
+              titleId="todo-detail-title"
+              onUpdate={updateTodo}
+              onToggle={(id) => {
+                const todoItem = todos.find(x => x.id === id);
+                if (todoItem) handleComplete(todoItem);
+              }}
+              onDelete={handleDelete}
+              onClose={() => setSelectedId(null)}
+            />
+          </AccessibleDialog>
+        )}
       </div>
     </div>
   );
@@ -209,7 +231,7 @@ export default function Todos() {
 function Section({ section, count, collapsed, onToggleCollapse, children }) {
   return (
     <div style={styles.section}>
-      <button style={styles.sectionHeader} onClick={onToggleCollapse}>
+      <button type="button" style={styles.sectionHeader} onClick={onToggleCollapse} aria-expanded={!collapsed}>
         <Chevron collapsed={collapsed} />
         <span style={{ ...styles.sectionDot, background: section.color }} />
         <span style={styles.sectionLabel}>{section.label}</span>
@@ -230,12 +252,25 @@ function TodoRow({ todo, modules, moodleCourses, selected, done, completing, onS
     <div
       className={`todo-row ${selected ? 'selected' : ''}`}
       onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      aria-label={todo.title}
       style={{ opacity: isDone ? 0.55 : 1 }}
     >
       <button
         className={`todo-check ${isDone ? 'done' : ''}`}
+        type="button"
         onClick={(e) => { e.stopPropagation(); onComplete(); }}
         title={isDone ? t('todos.markOpen') : t('todos.complete')}
+        aria-label={isDone ? t('todos.markOpen') : t('todos.complete')}
       >
         <CheckIcon />
       </button>

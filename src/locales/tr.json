@@ -2,6 +2,8 @@
   "common": {
     "loading": "Veriler yükleniyor…",
     "unknownError": "Bilinmeyen hata",
+    "loadError": "Veriler yüklenemedi.",
+    "refresh": "Yenile",
     "cancel": "İptal",
     "save": "Kaydet",
     "add": "Ekle",
@@ -71,7 +73,9 @@
     "examToday": "Bugün!",
     "examDays": "{days}g",
     "dueWithDate": " · teslim {date}",
-    "dueDate": "teslim {date}"
+    "dueDate": "teslim {date}",
+    "mensaError": "Menü yüklenemedi.",
+    "mensaClosed": "Bugün menü yok (kapalı)."
   },
   "today": {
     "title": "Bugün",
@@ -154,7 +158,15 @@
     "icalSuccess": "Sınavlar başarıyla içe aktarıldı!",
     "icalSuccessMany": "{count} sınav başarıyla içe aktarıldı!",
     "icalNoEvents": "Bu takvimde sınav tarihi bulunamadı.",
-    "icalDuplicate": "Zaten mevcut"
+    "icalDuplicate": "Zaten mevcut",
+    "exportCsvBtn": "CSV olarak dışa aktar",
+    "exportCsvSuccess": "Sınavlar CSV olarak dışa aktarıldı",
+    "suggestTodoTitle": "Çalışma görevi oluşturulsun mu?",
+    "suggestTodoBody": "“{name}” için otomatik bir çalışma görevi oluşturulsun mu?",
+    "suggestTodoBtnYes": "Görev oluştur",
+    "suggestTodoBtnNo": "Atla",
+    "suggestTodoTaskTitle": "{name} için çalış",
+    "suggestTodoCreated": "Çalışma görevi oluşturuldu!"
   },
   "lectures": {
     "title": "Dersler",
@@ -188,6 +200,11 @@
     "fieldTo": "Bitiş",
     "fieldRoom": "Sınıf",
     "fieldLecturer": "Öğretim üyesi",
+    "scopeLabel": "Değişikliğin kapsamı",
+    "scopeAll": "Tüm seri",
+    "scopeSingle": "Yalnızca bu etkinlik",
+    "cancelOccurrence": "Etkinliği iptal et",
+    "timeError": "Bitiş saati başlangıç saatinden sonra olmalıdır.",
     "placeholderName": "ör. Analysis 2",
     "placeholderRoom": "ör. MI HS 1",
     "placeholderLecturer": "ör. Prof. Müller",
@@ -201,6 +218,8 @@
     "nowLine": "Şimdi {time}",
     "overlapTitle": "Çakışan saatler yan yana",
     "viewToggleAria": "Görünüm",
+    "weekGridScrollLabel": "Yatay kaydırılabilir haftalık ders programı",
+    "colorChoice": "Renk {color}",
     "daysLong": {
       "Mo": "Pazartesi",
       "Di": "Salı",
@@ -311,7 +330,16 @@
     "moodleSyncSubmit": "Destekle",
     "moodleSyncSuccess": "Desteğiniz için teşekkürler!",
     "editTitle": "Düzenle",
-    "deleteTitleBtn": "Sil"
+    "deleteTitleBtn": "Sil",
+    "deleteWithLecturesTitle": "Modül silinsin mi?",
+    "deleteWithLecturesBody": "“{name}” ve ilişkili {count} ders saati kalıcı olarak silinir.",
+    "moodleInfoTitle": "Moodle eşitleme kullanılamıyor",
+    "moodleInfoBody": "TUM herkese açık bir API sağlamadığı için otomatik Moodle eşitlemesi mümkün değil. Modülleri manuel ekleyebilir ve hızlı erişim için Moodle bağlantısını kaydedebilirsiniz.",
+    "colorChoice": "Renk {color}",
+    "weekGridScrollLabel": "Yatay kaydırılabilir haftalık program düzenleyici",
+    "clickGridToAdd": "Ders eklemek için programa dokunun",
+    "scheduleEditorHint": "Ders eklemek için programa dokunun. Düzenlemek için bir derse dokunun.",
+    "editSlot": "Dersi düzenle"
   },
   "links": {
     "title": "TUM bağlantıları",
@@ -442,6 +470,21 @@
     "qs3": "Yukarıdan “Modelleri yükle” ve bir model seç",
     "qs4": "“Bağlantıyı test et” — sonra öneriler ve sohbet",
     "testOkMsg": "Bağlantı tamam (model: {model}). Yanıt: “{snippet}…”",
+    "studyTitle": "Öğrenim ve pano",
+    "studySub": "AKTS hedefleri ve yemekhane tercihleri.",
+    "targetEctsLabel": "AKTS hedefi (toplam)",
+    "targetGpaLabel": "Hedef not ortalaması",
+    "targetEctsError": "0 ile 360 arasında bir sayı olmalıdır.",
+    "targetGpaError": "1,0 ile 4,0 arasında bir sayı olmalıdır.",
+    "preferredMensaLabel": "Tercih edilen yemekhane",
+    "backupTitle": "Veri yedekleme",
+    "backupSub": "Tüm verileri dışa aktarın veya bir yedekten geri yükleyin.",
+    "exportBtn": "Dışa aktar",
+    "exportSuccess": "Veriler dışa aktarıldı.",
+    "importBtn": "İçe aktar",
+    "importConfirm": "Mevcut verilerin üzerine yazılacak. Devam edilsin mi?",
+    "importSuccess": "Veriler içe aktarıldı. Uygulama yeniden yüklenecek…",
+    "importError": "İçe aktarma başarısız: {error}",
     "restartTour": "Kurulum sihirbazını yeniden başlat",
     "sessionTitle": "Oturum",
     "sessionSub": "Bu cihazdaki mevcut sunucu oturumunu sonlandırır.",
@@ -472,7 +515,8 @@
     "sug2": "Sonraki sınavım için çalışma planı oluştur.",
     "sug3": "Sonraki sınava kadar ne kadar sürem var?",
     "sug4": "Açık görevleri mantıklı sıralamama yardım et.",
-    "placeholder": "Çalışmaların hakkında sor…"
+    "placeholder": "Çalışmaların hakkında sor…",
+    "send": "Mesaj gönder"
   },
   "ai": {
     "labelKi": "🤖 YZ önerisi",
@@ -494,6 +538,19 @@
     "lectureMany": "Bugün {count} ders — notları gözden geçirmeyi unutma!",
     "relaxed": "Bugün her şey rahat! Zamanı proaktif sınav hazırlığı için kullan."
   },
+  "ollama": {
+    "setupFailed": "YZ kurulumu başarısız",
+    "setupDownloading": "YZ modeli yükleniyor",
+    "setupStarting": "YZ hizmeti başlatılıyor…",
+    "setupErrorMsg": "YZ modeli kurulurken bir hata oluştu.",
+    "setupDownloadHint": "“{model}” bir kez indirilecek. Bağlantınıza göre birkaç dakika sürebilir.",
+    "setupStartingHint": "Yerel YZ hizmeti (Ollama) hazırlanıyor…",
+    "setupRetrying": "Yeniden deneniyor…",
+    "setupRetry": "Tekrar dene",
+    "setupDismissError": "YZ olmadan devam et",
+    "setupDismissDownload": "Arka planda yükle",
+    "setupHint": "Uygulama YZ modeli olmadan da çalışır. İndirmeyi daha sonra Ayarlar’dan yeniden başlatabilirsiniz."
+  },
   "pomodoro": {
     "workLabel": "Odaklanma",
     "breakLabel": "Mola",
@@ -510,7 +567,20 @@
     "logDurationMinutes": "{min} dakika",
     "logSave": "Kaydet",
     "logSkip": "Atla",
-    "logSaveError": "Çalışma oturumu kaydedilemedi. Lütfen tekrar deneyin."
+    "logSaveError": "Çalışma oturumu kaydedilemedi. Lütfen tekrar deneyin.",
+    "toggle": "Pomodoro zamanlayıcısını aç veya kapat"
+  },
+  "gradeAnalytics": {
+    "completed": "Tamamlanan",
+    "remaining": "Kalan",
+    "ectsProgress": "AKTS ilerlemesi",
+    "ofTarget": "{target} üzerinden",
+    "timeline": "Not geçmişi",
+    "notEnoughData": "Not geçmişi için henüz yeterli veri yok.",
+    "targetAnalysis": "Hedef ortalama analizi",
+    "targetBody": "{target} ortalamaya ulaşmak için kalan {remaining} AKTS boyunca gereken ortalama:",
+    "betterThanOne": "1,0’dan daha iyi 🚀",
+    "impossible": "Artık mümkün değil 😅"
   },
   "setupWizard": {
     "stepWelcome": "Hoş geldiniz",

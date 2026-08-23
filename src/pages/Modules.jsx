@@ -6,6 +6,7 @@ import EmptyState from '../components/ui/EmptyState';
 import { PlusIcon, CloseIcon, ExternalIcon } from '../components/icons/Icons';
 import ModuleCard from '../components/modules/ModuleCard';
 import WeekScheduleEditor from '../components/modules/WeekScheduleEditor';
+import AccessibleDialog from '../components/ui/AccessibleDialog';
 
 const COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4', '#F97316', '#6366F1', '#EF4444', '#14B8A6'];
 const EMPTY_SLOT = { id: '', day: 'Mo', time: '', end_time: '', room: '', lecturer: '', allDay: false };
@@ -74,13 +75,13 @@ export default function Modules() {
 
 
   return (
-    <div>
-      <div style={styles.pageHeader}>
+    <div className="modules-page">
+      <div className="responsive-page-header" style={styles.pageHeader}>
         <div className="page-header" style={{ marginBottom: 0 }}>
           <h1>{t('modules.title')}</h1>
           <p>{modules.length === 1 ? t('modules.countOne') : t('modules.countMany', { count: modules.length })}</p>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div className="responsive-toolbar" style={{ display: 'flex', gap: 10 }}>
           <button className="btn btn-secondary" onClick={() => setShowMoodleInfo(true)}>
             {t('modules.moodleSync')}
           </button>
@@ -110,11 +111,10 @@ export default function Modules() {
       )}
 
       {showModal && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && closeModal()}>
-          <div className="modal" style={{ maxWidth: 760 }}>
+        <AccessibleDialog onClose={closeModal} labelledBy="module-form-title" className="modal" style={{ maxWidth: 760 }}>
             <div className="modal-header">
-              <h2>{editing ? t('modules.modalEdit') : t('modules.modalNew')}</h2>
-              <button type="button" className="btn btn-ghost btn-icon" onClick={closeModal}><CloseIcon /></button>
+              <h2 id="module-form-title">{editing ? t('modules.modalEdit') : t('modules.modalNew')}</h2>
+              <button type="button" className="btn btn-ghost btn-icon" onClick={closeModal} aria-label={t('common.close')}><CloseIcon /></button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
@@ -159,11 +159,14 @@ export default function Modules() {
               </div>
               <div className="form-group">
                 <label className="form-label">{t('modules.fieldColor')}</label>
-                <div style={styles.colorPicker}>
+                <div className="color-picker" style={styles.colorPicker}>
                   {COLORS.map((c) => (
                     <button
                       key={c}
                       type="button"
+                      className="color-swatch"
+                      aria-label={t('modules.colorChoice', { color: c })}
+                      aria-pressed={form.color === c}
                       onClick={() => setForm((f) => ({ ...f, color: c }))}
                       style={{
                         ...styles.colorSwatch,
@@ -193,19 +196,17 @@ export default function Modules() {
                 <button type="submit" className="btn btn-primary">{editing ? t('common.save') : t('common.add')}</button>
               </div>
             </form>
-          </div>
-        </div>
+        </AccessibleDialog>
       )}
 
       {deleteConfirm && (() => {
         const mod = modules.find((m) => m.id === deleteConfirm);
         const slotCount = mod?.slots?.length || 0;
         return (
-          <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setDeleteConfirm(null)}>
-            <div className="modal" style={{ maxWidth: 380 }}>
+          <AccessibleDialog onClose={() => setDeleteConfirm(null)} labelledBy="module-delete-title" className="modal" style={{ maxWidth: 380 }}>
               <div className="modal-header">
-                <h2>{slotCount > 0 ? t('modules.deleteWithLecturesTitle') : t('modules.deleteTitle')}</h2>
-                <button type="button" className="btn btn-ghost btn-icon" onClick={() => setDeleteConfirm(null)}><CloseIcon /></button>
+                <h2 id="module-delete-title">{slotCount > 0 ? t('modules.deleteWithLecturesTitle') : t('modules.deleteTitle')}</h2>
+                <button type="button" className="btn btn-ghost btn-icon" onClick={() => setDeleteConfirm(null)} aria-label={t('common.close')}><CloseIcon /></button>
               </div>
               <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
                 {slotCount > 0
@@ -216,17 +217,15 @@ export default function Modules() {
                 <button type="button" className="btn btn-secondary" onClick={() => setDeleteConfirm(null)}>{t('common.cancel')}</button>
                 <button type="button" className="btn btn-danger" onClick={() => handleDelete(deleteConfirm)}>{t('common.delete')}</button>
               </div>
-            </div>
-          </div>
+          </AccessibleDialog>
         );
       })()}
 
       {showMoodleInfo && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowMoodleInfo(false)}>
-          <div className="modal" style={{ maxWidth: 440 }}>
+        <AccessibleDialog onClose={() => setShowMoodleInfo(false)} labelledBy="moodle-info-title" className="modal" style={{ maxWidth: 440 }}>
             <div className="modal-header">
-              <h2>{t('modules.moodleInfoTitle')}</h2>
-              <button type="button" className="btn btn-ghost btn-icon" onClick={() => setShowMoodleInfo(false)}><CloseIcon /></button>
+              <h2 id="moodle-info-title">{t('modules.moodleInfoTitle')}</h2>
+              <button type="button" className="btn btn-ghost btn-icon" onClick={() => setShowMoodleInfo(false)} aria-label={t('common.close')}><CloseIcon /></button>
             </div>
             <div style={{ textAlign: 'center', padding: '8px 0 16px' }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
@@ -246,8 +245,7 @@ export default function Modules() {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
+        </AccessibleDialog>
       )}
     </div>
   );

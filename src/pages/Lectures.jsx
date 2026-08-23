@@ -17,6 +17,7 @@ import WeekTimeGridView from '../components/lectures/WeekTimeGridView';
 import EmptyState from '../components/ui/EmptyState';
 import { PlusIcon, CloseIcon, CalIcon } from '../components/icons/Icons';
 import LectureCard from '../components/lectures/LectureList';
+import AccessibleDialog from '../components/ui/AccessibleDialog';
 
 const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 const COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4', '#F97316', '#6366F1'];
@@ -166,13 +167,13 @@ export default function Lectures({ openImportRequest = 0 }) {
   return loading ? (
     <div className="loading">{t('common.loading')}</div>
   ) : (
-    <div>
-      <div style={styles.pageHeader}>
+    <div className="lectures-page">
+      <div className="responsive-page-header" style={styles.pageHeader}>
         <div className="page-header" style={{ marginBottom: 0 }}>
           <h1>{t('lectures.title')}</h1>
           <p>{lectures.length === 1 ? t('lectures.countOne') : t('lectures.countMany', { count: lectures.length })}</p>
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'flex-end' }}>
+        <div className="responsive-toolbar" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'flex-end' }}>
           <div style={styles.viewToggle} role="group" aria-label={t('lectures.viewToggleAria')}>
             <button
               type="button"
@@ -302,11 +303,10 @@ export default function Lectures({ openImportRequest = 0 }) {
 
       {/* Modal */}
       {showModal && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
-          <div className="modal">
+        <AccessibleDialog onClose={closeModal} labelledBy="lecture-form-title" className="modal">
             <div className="modal-header">
-              <h2>{editing ? t('lectures.modalEdit') : t('lectures.modalNew')}</h2>
-              <button className="btn btn-ghost btn-icon" onClick={closeModal}><CloseIcon /></button>
+              <h2 id="lecture-form-title">{editing ? t('lectures.modalEdit') : t('lectures.modalNew')}</h2>
+              <button className="btn btn-ghost btn-icon" onClick={closeModal} aria-label={t('common.close')}><CloseIcon /></button>
             </div>
             <form onSubmit={handleSubmit}>
               {isModuleBase && (
@@ -370,10 +370,13 @@ export default function Lectures({ openImportRequest = 0 }) {
                 </div>
                 <div className="form-group">
                   <label className="form-label">{t('lectures.fieldColor')}</label>
-                  <div style={styles.colorPicker}>
+                  <div className="color-picker" style={styles.colorPicker}>
                     {COLORS.map(c => (
                       <button
                         key={c} type="button"
+                        className="color-swatch"
+                        aria-label={t('lectures.colorChoice', { color: c })}
+                        aria-pressed={form.color === c}
                         onClick={() => setForm(f => ({ ...f, color: c }))}
                         style={{ ...styles.colorSwatch, background: c, outline: form.color === c ? `3px solid ${c}` : 'none', outlineOffset: 2 }}
                       />
@@ -451,18 +454,16 @@ export default function Lectures({ openImportRequest = 0 }) {
                 <button type="submit" className="btn btn-primary">{editing ? t('common.save') : t('common.add')}</button>
               </div>
             </form>
-          </div>
-        </div>
+        </AccessibleDialog>
       )}
 
       {showIcal && <ICalImport onClose={() => setShowIcal(false)} />}
 
       {deleteConfirm && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setDeleteConfirm(null)}>
-          <div className="modal" style={{ maxWidth: 380 }}>
+        <AccessibleDialog onClose={() => setDeleteConfirm(null)} labelledBy="lecture-delete-title" className="modal" style={{ maxWidth: 380 }}>
             <div className="modal-header">
-              <h2>{t('lectures.deleteTitle')}</h2>
-              <button className="btn btn-ghost btn-icon" onClick={() => setDeleteConfirm(null)}><CloseIcon /></button>
+              <h2 id="lecture-delete-title">{t('lectures.deleteTitle')}</h2>
+              <button className="btn btn-ghost btn-icon" onClick={() => setDeleteConfirm(null)} aria-label={t('common.close')}><CloseIcon /></button>
             </div>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
               {t('lectures.deleteBody', { name: lectures.find(l => l.id === deleteConfirm)?.name || '' })}
@@ -471,8 +472,7 @@ export default function Lectures({ openImportRequest = 0 }) {
               <button className="btn btn-secondary" onClick={() => setDeleteConfirm(null)}>{t('common.cancel')}</button>
               <button className="btn btn-danger" onClick={() => handleDelete(deleteConfirm)}>{t('common.delete')}</button>
             </div>
-          </div>
-        </div>
+        </AccessibleDialog>
       )}
     </div>
   );

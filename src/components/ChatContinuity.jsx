@@ -45,12 +45,12 @@ export default function ChatContinuity({ activePage }) {
   };
 
   return (
-    <div style={styles.container}>
+    <div className="chat-continuity" style={styles.container}>
       {isOpen && (
-        <div style={styles.popup}>
+        <div className="chat-continuity-popup" style={styles.popup}>
           <div style={styles.popupHeader}>
             <span>{t('chat.title')}</span>
-            <button type="button" onClick={toggleOpen} style={styles.closeBtn}>×</button>
+            <button type="button" onClick={toggleOpen} style={styles.closeBtn} aria-label={t('common.close')}>×</button>
           </div>
           <div style={styles.messageArea} ref={scrollRef}>
             {activeAiChat.messages.map((msg, i) => (

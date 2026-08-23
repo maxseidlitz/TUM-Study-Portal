@@ -7,7 +7,7 @@ import { CloseIcon, CheckIcon, TrashIcon } from '../icons/Icons';
 const PRIORITY_KEYS = ['high', 'medium', 'low'];
 const PRIORITY_COLORS = { high: 'var(--danger)', medium: 'var(--warning)', low: 'var(--success)' };
 
-export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose }) {
+export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose, titleId }) {
   const { t, intlLocale } = useLocale();
   const { modules, moodleCourses } = useData();
   const priorities = useMemo(
@@ -31,10 +31,10 @@ export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose
   const prioKey = draft.priority || 'medium';
 
   return (
-    <aside style={styles.panel}>
+    <aside className="todo-detail-panel" style={styles.panel}>
       <div style={styles.header}>
-        <span style={styles.headerLabel}>{t('todoDetail.header')}</span>
-        <button className="btn btn-ghost btn-icon btn-sm" onClick={onClose} title={t('todoDetail.closeTitle')}>
+        <span id={titleId} style={styles.headerLabel}>{t('todoDetail.header')}</span>
+        <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={onClose} title={t('todoDetail.closeTitle')} aria-label={t('todoDetail.closeTitle')}>
           <CloseIcon />
         </button>
       </div>
@@ -44,8 +44,10 @@ export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose
         <div style={styles.titleRow}>
           <button
             className={`todo-check ${draft.done ? 'done' : ''}`}
+            type="button"
             onClick={() => onToggle(draft.id)}
             title={draft.done ? t('todoDetail.markOpen') : t('todoDetail.complete')}
+            aria-label={draft.done ? t('todoDetail.markOpen') : t('todoDetail.complete')}
             style={{ width: 24, height: 24 }}
           >
             <CheckIcon />
@@ -71,7 +73,9 @@ export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose
             {priorities.map(p => (
               <button
                 key={p.key}
+                type="button"
                 onClick={() => commit({ priority: p.key })}
+                aria-pressed={draft.priority === p.key}
                 style={{
                   ...styles.segment,
                   background: draft.priority === p.key ? p.color : 'transparent',
@@ -188,7 +192,7 @@ export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose
 
       <div style={styles.footer}>
         <span style={styles.meta}>{t('todoDetail.priorityMeta', { prio: t(`priority.${prioKey}`) })}</span>
-        <button className="btn btn-danger btn-sm" onClick={() => onDelete(draft.id)}>
+        <button type="button" className="btn btn-danger btn-sm" onClick={() => onDelete(draft.id)}>
           <TrashIcon /> {t('todoDetail.deleteTask')}
         </button>
       </div>

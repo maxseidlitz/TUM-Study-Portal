@@ -73,7 +73,9 @@
     "examToday": "Today!",
     "examDays": "{days}d",
     "dueWithDate": " · due {date}",
-    "dueDate": "due {date}"
+    "dueDate": "due {date}",
+    "mensaError": "Could not load the menu.",
+    "mensaClosed": "No menu is available today (closed)."
   },
   "today": {
     "title": "Today",
@@ -216,6 +218,8 @@
     "nowLine": "Now {time}",
     "overlapTitle": "Overlapping sessions side by side",
     "viewToggleAria": "View",
+    "weekGridScrollLabel": "Horizontally scrollable weekly schedule",
+    "colorChoice": "Color {color}",
     "daysLong": {
       "Mo": "Monday",
       "Di": "Tuesday",
@@ -331,7 +335,12 @@
     "deleteWithLecturesBody": "\"{name}\" and all {count} associated lecture slots will be permanently deleted.",
     "moodleSync": "Moodle Sync",
     "moodleInfoTitle": "Moodle sync not available",
-    "moodleInfoBody": "Automatic Moodle synchronisation is not possible because TUM does not provide a public API. You can add modules manually and save the Moodle link for quick course access."
+    "moodleInfoBody": "Automatic Moodle synchronisation is not possible because TUM does not provide a public API. You can add modules manually and save the Moodle link for quick course access.",
+    "colorChoice": "Color {color}",
+    "weekGridScrollLabel": "Horizontally scrollable weekly schedule editor",
+    "clickGridToAdd": "Tap the schedule to add a session",
+    "scheduleEditorHint": "Tap the schedule to add a session. Tap a session to edit it.",
+    "editSlot": "Edit session"
   },
   "links": {
     "title": "TUM links",
@@ -507,7 +516,8 @@
     "sug2": "Create a study plan for my next exam.",
     "sug3": "How much time do I have until the next exam?",
     "sug4": "Help me sort my open tasks sensibly.",
-    "placeholder": "Ask me about your studies…"
+    "placeholder": "Ask me about your studies…",
+    "send": "Send message"
   },
   "ollama": {
     "setupFailed": "AI setup failed",
@@ -538,7 +548,20 @@
     "logDurationMinutes": "{min} minutes",
     "logSave": "Save",
     "logSkip": "Skip",
-    "logSaveError": "The study session could not be saved. Please try again."
+    "logSaveError": "The study session could not be saved. Please try again.",
+    "toggle": "Open or close Pomodoro timer"
+  },
+  "gradeAnalytics": {
+    "completed": "Completed",
+    "remaining": "Remaining",
+    "ectsProgress": "ECTS progress",
+    "ofTarget": "of {target}",
+    "timeline": "Grade history",
+    "notEnoughData": "Not enough data for a grade history yet.",
+    "targetAnalysis": "Target GPA analysis",
+    "targetBody": "To reach a GPA of {target}, the required average across the remaining {remaining} ECTS is:",
+    "betterThanOne": "Better than 1.0 🚀",
+    "impossible": "No longer possible 😅"
   },
   "ai": {
     "labelKi": "🤖 AI recommendation",

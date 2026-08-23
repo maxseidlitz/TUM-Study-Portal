@@ -96,7 +96,7 @@ export default function LectureCard({ lecture, isToday, onEdit, onDelete, intlLo
             <span style={styles.lectureDateBadge}>{dateLabel}</span>
           )}
         </div>
-        <div style={{ ...styles.lectureActions, opacity: hover ? 1 : 0.5 }}>
+        <div className="lecture-actions" style={{ ...styles.lectureActions, opacity: hover ? 1 : 0.5 }}>
           <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => onEdit(lecture)} title={t('lectures.editTitle')}>
             <EditIcon />
           </button>

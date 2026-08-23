@@ -106,7 +106,7 @@ export default function App() {
             <Sidebar activePage={activePage} onNavigate={navigate} />
             <div className="mobile-shell">
               <MobileTopBar activePage={activePage} />
-              <main className="main-content">
+              <main className={`main-content page-${activePage}`}>
               {isLazy ? (
                 <Suspense fallback={<PageFallback />}>
                   <PageComponent onNavigate={navigate} />

@@ -4,6 +4,7 @@ import { useLocale } from '../context/LocaleContext';
 import { useToast } from '../context/ToastContext';
 import { api } from '../api';
 import { createStudyLog } from '../utils/studyLogPersistence';
+import AccessibleDialog from './ui/AccessibleDialog';
 
 export default function PomodoroWidget() {
   const { exams, todos, refreshData } = useData();
@@ -35,22 +36,16 @@ export default function PomodoroWidget() {
         setTimeLeft(prev => prev - 1);
       }, 1000);
     } else if (timeLeft === 0) {
-      handleSessionEnd();
+      setIsActive(false);
+      if (mode === 'work') setShowModal(true);
+      const nextMode = mode === 'work' ? 'break' : 'work';
+      setMode(nextMode);
+      setTimeLeft(nextMode === 'break' ? 5 * 60 : 25 * 60);
     } else {
       clearInterval(timerRef.current);
     }
     return () => clearInterval(timerRef.current);
-  }, [isActive, timeLeft]);
-
-  const handleSessionEnd = () => {
-    setIsActive(false);
-    if (mode === 'work') {
-      setShowModal(true);
-    }
-    if (mode === 'work') setMode('break');
-    else setMode('work');
-    setTimeLeft(configs[mode === 'work' ? 'break' : 'work'].time);
-  };
+  }, [isActive, mode, timeLeft]);
 
   const toggleTimer = () => setIsActive(!isActive);
   const resetTimer = () => {
@@ -109,8 +104,8 @@ export default function PomodoroWidget() {
 
   return (
     <>
-      <div style={{ ...styles.container, transform: isOpen ? 'translateX(0)' : 'translateX(calc(100% - 40px))' }}>
-        <button style={styles.toggleHandle} onClick={() => setIsOpen(!isOpen)}>
+      <div className="pomodoro-widget" style={{ ...styles.container, transform: isOpen ? 'translateX(0)' : 'translateX(calc(100% - 40px))' }}>
+        <button type="button" style={styles.toggleHandle} onClick={() => setIsOpen(!isOpen)} aria-expanded={isOpen} aria-label={t('pomodoro.toggle')}>
           {isOpen ? '→' : '⏱️'}
         </button>
 
@@ -145,10 +140,9 @@ export default function PomodoroWidget() {
       </div>
 
       {showLogModal && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: 400 }}>
+        <AccessibleDialog onClose={() => setShowModal(false)} labelledBy="pomodoro-log-title" className="modal" style={{ maxWidth: 400 }}>
             <div className="modal-header">
-              <h2>{t('pomodoro.logTitle')}</h2>
+              <h2 id="pomodoro-log-title">{t('pomodoro.logTitle')}</h2>
             </div>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 16 }}>
               {t('pomodoro.logDurationLabel')}: {t('pomodoro.logDurationMinutes', { min: Math.floor(configs.work.time / 60) })}
@@ -210,8 +204,7 @@ export default function PomodoroWidget() {
                 {t('pomodoro.logSave')}
               </button>
             </div>
-          </div>
-        </div>
+        </AccessibleDialog>
       )}
     </>
   );

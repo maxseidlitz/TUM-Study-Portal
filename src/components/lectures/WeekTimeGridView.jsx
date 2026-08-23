@@ -95,9 +95,9 @@ export default function WeekTimeGridView({
   const timeGutterTotalHeight = allDayStripHeight + GRID_BODY_HEIGHT;
 
   return (
-    <div style={styles.wrap}>
-      <div style={styles.toolbar}>
-        <div style={styles.toolbarBtns}>
+    <div className="week-grid-view" style={styles.wrap}>
+      <div className="week-grid-toolbar" style={styles.toolbar}>
+        <div className="week-grid-toolbar-buttons" style={styles.toolbarBtns}>
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => setWeekOffset((w) => w - 1)}>
             {t('lectures.prevWeek')}
           </button>
@@ -115,7 +115,7 @@ export default function WeekTimeGridView({
         {t('lectures.weekGridShort')}
       </p>
 
-      <div style={styles.scrollOuter}>
+      <div className="week-grid-scroll" style={styles.scrollOuter} tabIndex={0} role="region" aria-label={t('lectures.weekGridScrollLabel')}>
         <div style={styles.headerRow}>
           <div style={{ ...styles.cornerCell, width: TIME_GUTTER_PX, minWidth: TIME_GUTTER_PX }} aria-hidden />
           {columns.map((col, i) => {
@@ -287,7 +287,7 @@ function GridEventBlock({ item, pxPerMin, onEdit, onDelete, t }) {
         minHeight: 0,
       }}
     >
-      <div style={{ ...styles.evToolbar, opacity: hover ? 1 : 0 }}>
+      <div className="week-event-actions" style={{ ...styles.evToolbar, opacity: hover ? 1 : 0 }}>
         <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={(e) => { e.stopPropagation(); onEdit(lecture); }} title={t('lectures.editTitle')}>
           <EditIcon />
         </button>

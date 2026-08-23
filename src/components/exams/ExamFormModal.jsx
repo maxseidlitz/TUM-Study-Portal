@@ -1,5 +1,6 @@
 import React from 'react';
 import { CloseIcon } from '../icons/Icons';
+import AccessibleDialog from '../ui/AccessibleDialog';
 
 export default function ExamFormModal({
   editing,
@@ -10,11 +11,10 @@ export default function ExamFormModal({
   t,
 }) {
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
+    <AccessibleDialog onClose={onClose} labelledBy="exam-form-title" className="modal">
         <div className="modal-header">
-          <h2>{editing ? t('exams.modalEdit') : t('exams.modalNew')}</h2>
-          <button type="button" className="btn btn-ghost btn-icon" onClick={onClose}><CloseIcon /></button>
+          <h2 id="exam-form-title">{editing ? t('exams.modalEdit') : t('exams.modalNew')}</h2>
+          <button type="button" className="btn btn-ghost btn-icon" onClick={onClose} aria-label={t('common.close')}><CloseIcon /></button>
         </div>
         <form onSubmit={onSubmit}>
           <div className="form-group">
@@ -56,7 +56,6 @@ export default function ExamFormModal({
             <button type="submit" className="btn btn-primary">{editing ? t('common.save') : t('common.add')}</button>
           </div>
         </form>
-      </div>
-    </div>
+    </AccessibleDialog>
   );
 }

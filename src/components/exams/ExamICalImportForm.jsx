@@ -74,7 +74,7 @@ export default function ExamICalImportForm({
     <div>
       <div className="form-group">
         <label className="form-label">{t('exams.icalUrlLabel')}</label>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div className="ical-input-row" style={{ display: 'flex', gap: 10 }}>
           <input
             className="form-input"
             placeholder="https://campus.tum.de/tumonline/...ics"
@@ -133,7 +133,7 @@ function ImportPreview({ items, onImport, onCancel, t, intlLocale, embedded }) {
   return (
     <>
       <div className="divider" />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+      <div className="ical-preview-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
           {items.length === 1 ? t('exams.icalPreviewOne') : t('exams.icalPreviewMany', { count: items.length })}
         </span>
