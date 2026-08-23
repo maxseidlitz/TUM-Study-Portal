@@ -254,7 +254,8 @@ test('reviewed mobile controls expose 44px touch targets and a named chat input'
   await chatInput.fill('Bitte merken.');
   await page.getByRole('button', { name: 'Nachricht senden' }).click();
   await expect(page.getByText('Floating follow-up').last()).toBeVisible();
-  await page.goto('/dashboard');
+  await page.getByRole('button', { name: 'Heute', exact: true }).click();
+  await expect(page).toHaveURL(/\/today$/);
   await page.getByRole('button', { name: 'Chat öffnen' }).click();
   await expectMinTouchTarget(page.getByRole('textbox', { name: 'Nachricht an den KI-Assistenten' }));
   await expectMinTouchTarget(page.locator('.chat-continuity-input-bar').getByRole('button', { name: 'Nachricht senden' }));
