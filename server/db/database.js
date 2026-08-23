@@ -14,6 +14,23 @@ function parsed(value, fallback = null) {
   }
 }
 
+function hydrateEntity(table, row) {
+  const value = parsed(row.data_json, {});
+  if (table === 'exams') value.date = row.date || '';
+  if (table === 'moodle_courses') value.name = row.name || '';
+  if (table === 'lectures') {
+    value.moduleId = row.module_id || '';
+    value.eventDate = row.event_date || '';
+  }
+  if (table === 'todos') {
+    value.moduleId = row.module_id || '';
+    value.moodleCourseId = row.moodle_course_id || '';
+    value.due = row.due || '';
+    value.done = Boolean(row.done);
+  }
+  return value;
+}
+
 class StudyDatabase {
   constructor(filename) {
     fs.mkdirSync(path.dirname(filename), { recursive: true });
@@ -55,13 +72,13 @@ class StudyDatabase {
   }
 
   listEntities(table, order = '') {
-    const rows = this.db.prepare(`SELECT data_json FROM ${table}${order ? ` ORDER BY ${order}` : ''}`).all();
-    return rows.map((row) => parsed(row.data_json, {}));
+    const rows = this.db.prepare(`SELECT * FROM ${table}${order ? ` ORDER BY ${order}` : ''}`).all();
+    return rows.map((row) => hydrateEntity(table, row));
   }
 
   getEntity(table, id) {
-    const row = this.db.prepare(`SELECT data_json FROM ${table} WHERE id=?`).get(id);
-    return row ? parsed(row.data_json, {}) : null;
+    const row = this.db.prepare(`SELECT * FROM ${table} WHERE id=?`).get(id);
+    return row ? hydrateEntity(table, row) : null;
   }
 
   saveEntity(table, item, mode = 'insert') {

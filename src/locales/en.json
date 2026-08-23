@@ -411,6 +411,7 @@
     "ollamaSub": "Local language model for recommendations and the chat assistant.",
     "ollamaInstall": "Install Ollama →",
     "ollamaUrl": "Ollama server URL",
+    "ollamaServerManaged": "Self-hosted: URL and model are managed by the server through OLLAMA_BASE_URL and OLLAMA_MODEL.",
     "ollamaDisableReasoningLabel": "Disable internal reasoning/thinking (faster, less compute)",
     "ollamaDisableReasoningHint": "Saved immediately when toggled. Matches Ollama API (0.20+): top-level think: false right after model. Also augments the system prompt. Some builds still ignore the flag. For gpt-oss, only low/medium/high.",
     "loadModels": "Load models",
@@ -476,7 +477,10 @@
     "importConfirm": "Existing data will be overwritten. Continue?",
     "importSuccess": "Data imported. App will reload…",
     "importError": "Import failed: {error}",
-    "restartTour": "Restart setup wizard"
+    "restartTour": "Restart setup wizard",
+    "sessionTitle": "Session",
+    "sessionSub": "Ends the current server session on this device.",
+    "logout": "Sign out"
   },
   "chat": {
     "loading": "Loading data…",

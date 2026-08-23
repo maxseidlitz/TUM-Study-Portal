@@ -61,6 +61,38 @@ describe('iCal persistence workflows', () => {
       addLectures: jest.fn().mockResolvedValue([oneOffs[0]]),
     })).rejects.toMatchObject({ stage: 'create-lectures' });
   });
+
+  test('delegates browser replacement to one atomic server command', async () => {
+    const atomicReplace = jest.fn().mockResolvedValue({
+      success: true,
+      moduleCount: 1,
+      lectureCount: 2,
+    });
+    const sequential = {
+      deleteLecture: jest.fn(),
+      deleteModule: jest.fn(),
+      addModule: jest.fn(),
+      addLectures: jest.fn(),
+    };
+    await expect(replaceIcalItems({
+      importedLectures: [{ id: 'old-l' }],
+      importedModules: [{ id: 'old-m' }],
+      nextItems: [{ name: 'Next' }],
+      atomicReplace,
+      ...sequential,
+    })).resolves.toMatchObject({ success: true, moduleCount: 1 });
+    expect(atomicReplace).toHaveBeenCalledWith([{ name: 'Next' }]);
+    Object.values(sequential).forEach(fn => expect(fn).not.toHaveBeenCalled());
+  });
+
+  test('surfaces atomic replacement failures without falling back to partial writes', async () => {
+    await expect(replaceIcalItems({
+      importedLectures: [],
+      importedModules: [],
+      nextItems: [],
+      atomicReplace: jest.fn().mockResolvedValue({ success: false, error: 'rolled back' }),
+    })).rejects.toMatchObject({ stage: 'atomic-replace', message: 'rolled back' });
+  });
 });
 
 describe('study-log persistence workflows', () => {

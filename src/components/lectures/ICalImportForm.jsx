@@ -16,7 +16,9 @@ export default function ICalImportForm({
   showSyncInfo = true,
 }) {
   const { t, intlLocale } = useLocale();
-  const { addLectures, lectures, deleteLecture, modules, addModule, deleteModule } = useData();
+  const {
+    addLectures, lectures, deleteLecture, modules, addModule, deleteModule, refreshData,
+  } = useData();
 
   const [url, setUrl] = useState('');
   const [savedUrl, setSavedUrl] = useState('');
@@ -122,7 +124,9 @@ export default function ICalImportForm({
         deleteModule,
         addModule,
         addLectures,
+        atomicReplace: api.runtime === 'browser' ? api.ical.replace : undefined,
       });
+      if (api.runtime === 'browser') await refreshData();
       const now = new Date().toISOString();
       await api.settings.save({ icalLastSync: now });
       setLastSync(now);

@@ -124,6 +124,15 @@ export default function Settings() {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await api.auth.logout();
+      window.location.assign('/login');
+    } catch (error) {
+      showToast(error.message || t('common.unknownError'), 'error');
+    }
+  };
+
   if (loading) return <div className="loading">{t('settings.loading')}</div>;
 
   return (
@@ -276,6 +285,22 @@ export default function Settings() {
 
       {/* KI-Anbieter (ausgelagert) */}
       <AiSettings settings={settings} setSettings={setSettings} />
+
+      {api.runtime === 'browser' && (
+        <div className="card" style={{ maxWidth: 620, marginBottom: 24 }}>
+          <div style={styles.sectionHeader}>
+            <span style={styles.sectionIcon}>🔒</span>
+            <div>
+              <div style={styles.sectionTitle}>{t('settings.sessionTitle')}</div>
+              <div style={styles.sectionSub}>{t('settings.sessionSub')}</div>
+            </div>
+          </div>
+          <div className="divider" />
+          <button type="button" className="btn btn-danger" onClick={handleLogout}>
+            {t('settings.logout')}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

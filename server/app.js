@@ -45,7 +45,14 @@ function result(handler) {
       const value = await handler(req, res);
       if (!res.headersSent) res.json({ success: true, ...value });
     } catch (error) {
-      res.status(200).json({ success: false, error: error.message || 'Request failed' });
+      const message = error instanceof ZodError
+        ? 'Request validation failed'
+        : (error instanceof HttpError || error.safe)
+          ? error.message
+          : 'External service request failed';
+      const status = error instanceof ZodError || (error instanceof HttpError && error.status === 422)
+        ? 422 : 200;
+      res.status(status).json({ success: false, error: message });
     }
   };
 }
@@ -59,6 +66,7 @@ async function createApp({ config, db: suppliedDb, logger: suppliedLogger } = {}
   const backup = new BackupService(db, config, security);
   const ai = new AiService(domain, config);
   const ollama = new OllamaSetupService(ai, config);
+  let activeSseConnections = 0;
   const app = express();
   app.locals.services = { ai, backup, db, domain, ollama, security };
 
@@ -141,6 +149,20 @@ async function createApp({ config, db: suppliedDb, logger: suppliedLogger } = {}
     return security.requireCsrf()(req, res, next);
   });
   const aiLimiter = rateLimit({ windowMs: 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false });
+  const importLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: config.importRateLimit,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (_req, res) => res.status(429).json({
+      success: false,
+      error: 'Backup import rate limit exceeded',
+    }),
+  });
+
+  api.post('/auth/logout', command((req, res) => {
+    res.set('Set-Cookie', security.destroySession(req)).json({ success: true });
+  }));
 
   for (const type of ['exams', 'todos', 'moodle']) {
     api.get(`/${type}`, (req, res) => res.json(domain.list(type)));
@@ -197,14 +219,17 @@ async function createApp({ config, db: suppliedDb, logger: suppliedLogger } = {}
   }));
 
   api.post('/ical/fetch', result(async (req) => {
-    const url = typeof req.body?.url === 'string' ? req.body.url : '';
+    const { url } = schemas.icalFetch.parse(req.body);
     const text = await safeFetchText(url, { allowedHosts: config.icalAllowedHosts });
     const events = parseIcal(text);
     return { items: eventsToCalendarItems(events), eventCount: events.length };
   }));
+  api.post('/ical/replace', result(async (req) => domain.replaceIcal(req.body?.items)));
 
   api.get('/mensa/:canteenId', result(async (req) => {
-    if (!config.mensaCanteenIds.includes(req.params.canteenId)) throw new Error('Canteen is not allowlisted');
+    if (!config.mensaCanteenIds.includes(req.params.canteenId)) {
+      throw new HttpError(422, 'Canteen is not allowlisted');
+    }
     const date = new Date().toISOString().slice(0, 10);
     const meals = await requestJson(
       `https://openmensa.org/api/v2/canteens/${encodeURIComponent(req.params.canteenId)}/days/${date}/meals`,
@@ -214,13 +239,22 @@ async function createApp({ config, db: suppliedDb, logger: suppliedLogger } = {}
     return { meals };
   }));
 
-  api.post('/ai/models', aiLimiter, result(async (req) => ({ models: await ai.models(req.body || {}) })));
-  api.post('/ai/recommend', aiLimiter, result(async (req) => ai.recommend(req.body || {})));
+  api.post('/ai/models', aiLimiter, result(async (req) => ({
+    models: await ai.models(schemas.aiModels.parse(req.body || {})),
+  })));
+  api.post('/ai/recommend', aiLimiter, result(async (req) => (
+    ai.recommend(schemas.aiRecommend.parse(req.body || {}))
+  )));
   api.post('/ai/chat', aiLimiter, result(async (req) => ai.chat(schemas.aiChat.parse(req.body))));
 
   api.get('/ollama/setup', (_req, res) => res.json(ollama.state));
   api.post('/ollama/setup/retry', aiLimiter, command(async (_req, res) => res.json(await ollama.retry())));
   api.get('/ollama/setup/events', (req, res) => {
+    if (activeSseConnections >= config.maxSseConnections) {
+      return res.status(429).json({ error: 'Too many setup event connections', code: 'SSE_LIMIT' });
+    }
+    activeSseConnections += 1;
+    let closed = false;
     res.set({
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache, no-transform',
@@ -232,13 +266,16 @@ async function createApp({ config, db: suppliedDb, logger: suppliedLogger } = {}
     const heartbeat = setInterval(() => res.write(': heartbeat\n\n'), 25000);
     ollama.on('state', send);
     req.on('close', () => {
+      if (closed) return;
+      closed = true;
+      activeSseConnections -= 1;
       clearInterval(heartbeat);
       ollama.off('state', send);
     });
   });
 
   api.get('/backup/export', result(async () => ({ data: backup.exportJson() })));
-  api.post('/backup/import', result(async (req) => ({
+  api.post('/backup/import', importLimiter, result(async (req) => ({
     warnings: await backup.importJson(req.body?.data),
   })));
 
@@ -268,7 +305,9 @@ async function createApp({ config, db: suppliedDb, logger: suppliedLogger } = {}
     const status = error.status || (isValidation ? 422 : error.code?.startsWith('SQLITE_CONSTRAINT') ? 409 : 500);
     if (status >= 500) logger.error({ err: error, method: req.method, path: req.path }, 'request failed');
     res.status(status).json({
-      error: isValidation ? 'Request validation failed' : error.message || 'Internal server error',
+      error: isValidation
+        ? 'Request validation failed'
+        : status < 500 ? error.message : 'Internal server error',
       code: error.code || (isValidation ? 'VALIDATION_FAILED' : 'INTERNAL_ERROR'),
       ...(isValidation ? { details: error.issues.map((issue) => ({ path: issue.path, message: issue.message })) } : {}),
     });

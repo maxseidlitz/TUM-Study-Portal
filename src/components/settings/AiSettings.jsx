@@ -178,12 +178,16 @@ export default function AiSettings({ settings, setSettings }) {
 
             <div className="form-group">
               <label className="form-label">{t('settings.ollamaUrl')}</label>
+              {isSelfHosted && (
+                <p style={styles.modelsHint}>{t('settings.ollamaServerManaged')}</p>
+              )}
               <div style={{ display: 'flex', gap: 10 }}>
                 <input
                   className="form-input"
                   value={settings.ollamaUrl}
                   onChange={e => setSettings(s => ({ ...s, ollamaUrl: e.target.value }))}
                   placeholder="http://localhost:11434"
+                  readOnly={isSelfHosted}
                 />
                 <button
                   type="button"
@@ -255,7 +259,10 @@ export default function AiSettings({ settings, setSettings }) {
                         <button
                           type="button"
                           key={m}
-                          onClick={() => setSettings(s => ({ ...s, ollamaModel: m }))}
+                          onClick={() => {
+                            if (!isSelfHosted) setSettings(s => ({ ...s, ollamaModel: m }));
+                          }}
+                          disabled={isSelfHosted}
                           style={{
                             ...styles.chip,
                             background: active ? 'var(--accent)' : 'var(--bg-tertiary)',
@@ -421,7 +428,7 @@ export default function AiSettings({ settings, setSettings }) {
       </div>
 
       {/* Quick-Start Ollama */}
-      {isOllama && (
+      {isOllama && !isSelfHosted && (
         <div className="card" style={{ maxWidth: 620, background: 'var(--bg-tertiary)', borderColor: 'var(--border-subtle)' }}>
           <div style={styles.sectionHeader}>
             <span style={styles.sectionIcon}>💡</span>

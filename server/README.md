@@ -20,6 +20,14 @@ Required values:
 - `BACKUP_KEY` before backup import can overwrite data;
 - `ICAL_ALLOWED_HOSTS`: exact calendar hostnames accepted by the SSRF guard.
 
+Operational limits default to 7 retained backups, 3 imports/hour, 5 concurrent
+SSE setup streams, 10 MiB per import and 64 KiB of server-generated AI context.
+Override them with `BACKUP_RETENTION`, `IMPORT_RATE_LIMIT`,
+`MAX_SSE_CONNECTIONS`, `MAX_IMPORT_BYTES` and `MAX_AI_CONTEXT_BYTES`.
+Collection quotas use `IMPORT_MAX_EXAMS`, `IMPORT_MAX_LECTURES`,
+`IMPORT_MAX_TODOS`, `IMPORT_MAX_MOODLE_COURSES`, `IMPORT_MAX_MODULES`,
+`IMPORT_MAX_STUDY_LOGS` and `IMPORT_MAX_CHATS`.
+
 An Argon2id hash can be generated without storing the password in the
 repository:
 
@@ -66,7 +74,8 @@ uses foreign keys, WAL mode and a busy timeout.
 The JSON backup endpoint remains compatible with the desktop export. It never
 exports sessions, password material or Gemini keys. Import validates every
 entity, writes a safety backup first, migrates pre-module desktop exports, and
-replaces domain data transactionally.
+replaces domain data transactionally. Per-entity quotas, a dedicated hourly
+rate limit and `MAX_IMPORT_BYTES` bound this destructive operation.
 
 Safety backups are SQLite online backups encrypted with AES-256-GCM. Restore
 while the server is stopped:
@@ -76,7 +85,11 @@ BACKUP_KEY=... DATABASE_PATH=... npm run server:restore -- /path/backup.enc
 ```
 
 Restore verifies SQLite integrity and foreign keys and invalidates all restored
-sessions. The previous database is retained as `.before-restore`.
+sessions. The previous database is retained with a timestamped
+`.before-restore-*` suffix.
+Backups are pruned to `BACKUP_RETENTION` newest encrypted files. Restore first
+migrates and validates the temporary database, checkpoints WAL, then replaces
+the database with rollback handling and uniquely named previous/failed copies.
 
 ## Network security
 
@@ -89,6 +102,13 @@ Mensa requests use the fixed OpenMensa hostname and an explicit canteen-ID
 allowlist. Ollama's URL comes only from `OLLAMA_BASE_URL`; `ollamaUrl` received
 from browser settings is ignored. Gemini always uses Google's fixed API host,
 and API keys are neither returned nor included in request logs.
+Ollama URL and model are server-owned and exposed read-only to the browser, so
+setup checks and inference always use the same `OLLAMA_MODEL`.
+
+`POST /api/v1/ical/replace` validates and regroups calendar items, deletes only
+prior iCal-owned lectures/modules and inserts the replacement in one SQLite
+transaction. Browser refresh uses this route. Electron retains its sequential
+fail-fast JSON-store workflow.
 
 ## Tests
 
@@ -100,7 +120,8 @@ npm run build
 
 Server tests use a temporary SQLite database and cover authentication, CSRF,
 CRUD, nested modules, lecture overrides, settings secrets, chats, result
-envelopes, backup/import rollback and private-address rejection.
+envelopes, atomic calendar replacement, backup/import rollback, migration
+repair, DNS/redirect policy and private-address rejection.
 
 ## Deliberate fail-closed limitations
 
@@ -111,8 +132,8 @@ envelopes, backup/import rollback and private-address rejection.
   server-generated full-context snapshot. It does not execute model-requested
   write tools; consequently `todoActions` is empty. Todo writes remain
   available through the authenticated Todo API.
-- iCal import persistence remains the client's existing sequence of validated
-  CRUD calls. An atomic calendar-replacement route would require extending the
-  fixed renderer API contract.
+- Electron iCal replacement remains sequential and fail-fast because the
+  desktop JSON store has no transaction primitive. Browser replacement is
+  atomic.
 - `APP_PASSWORD` is hashed in memory at each bootstrap start. Persistent
   deployments should replace it with `APP_PASSWORD_HASH`.

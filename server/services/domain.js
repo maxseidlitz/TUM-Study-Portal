@@ -13,8 +13,9 @@ class HttpError extends Error {
 
 const defaults = {
   aiProvider: 'ollama',
-  ollamaUrl: 'http://localhost:11434',
+  ollamaUrl: '',
   ollamaModel: '',
+  ollamaServerManaged: false,
   ollamaDisableReasoning: false,
   geminiModel: '',
   targetEcts: 180,
@@ -82,6 +83,81 @@ function expandModules(modules) {
   return result;
 }
 
+function mostCommon(values) {
+  const counts = new Map();
+  let best = '';
+  let bestCount = 0;
+  for (const value of values.filter(Boolean)) {
+    const count = (counts.get(value) || 0) + 1;
+    counts.set(value, count);
+    if (count > bestCount) {
+      best = value;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
+function groupIcalItems(items) {
+  const byName = new Map();
+  for (const item of items) {
+    const name = (item.name || '(Ohne Titel)').trim();
+    if (!byName.has(name)) byName.set(name, []);
+    byName.get(name).push(item);
+  }
+  const modules = [];
+  const lectures = [];
+  for (const [name, group] of byName) {
+    const signatures = new Map();
+    for (const item of group) {
+      const signature = `${item.day}|${item.time || ''}|${item.end_time || ''}`;
+      if (!signatures.has(signature)) signatures.set(signature, []);
+      signatures.get(signature).push(item);
+    }
+    const slots = [];
+    const oneOffs = [];
+    for (const occurrences of signatures.values()) {
+      const first = occurrences[0];
+      if (occurrences.length >= 2 && !first.allDay && first.time) {
+        slots.push({
+          id: crypto.randomUUID(),
+          day: first.day,
+          time: first.time || '',
+          end_time: first.end_time || '',
+          room: mostCommon(occurrences.map(item => item.room)),
+          lecturer: '',
+          allDay: false,
+        });
+      } else {
+        oneOffs.push(...occurrences);
+      }
+    }
+    if (slots.length) {
+      modules.push({
+        id: crypto.randomUUID(),
+        name,
+        code: '',
+        semester: '',
+        moodleUrl: '',
+        color: group.find(item => item.color)?.color || '#3B82F6',
+        source: 'ical',
+        slots,
+      });
+      lectures.push(...oneOffs);
+    } else {
+      lectures.push(...group);
+    }
+  }
+  return {
+    modules,
+    lectures: lectures.map(item => ({
+      ...item,
+      id: crypto.randomUUID(),
+      imported: true,
+    })),
+  };
+}
+
 class DomainService {
   constructor(db, security, config) {
     this.db = db;
@@ -135,7 +211,7 @@ class DomainService {
   }
 
   createLecture(raw) {
-    const lecture = schemas.lecture.parse(raw);
+    const lecture = schemas.standaloneLecture.parse(raw);
     this.db.saveEntity('lectures', lecture, 'insert');
     return lecture;
   }
@@ -176,6 +252,9 @@ class DomainService {
 
   publicSettings() {
     const result = { ...defaults, ...this.db.settings() };
+    result.ollamaUrl = this.config.ollamaUrl;
+    result.ollamaModel = this.config.ollamaModel;
+    result.ollamaServerManaged = true;
     result.geminiApiKeyConfigured = Boolean(this.config.geminiApiKey
       || this.db.db.prepare('SELECT 1 FROM secrets WHERE key=?').get('geminiApiKey'));
     delete result.geminiApiKey;
@@ -189,12 +268,27 @@ class DomainService {
       delete patch.geminiApiKey;
     }
     delete patch.ollamaUrl;
+    delete patch.ollamaModel;
     if (Object.keys(patch).length) this.db.patchSettings(patch);
     return this.publicSettings();
   }
 
   geminiKey() {
     return this.config.geminiApiKey || this.security.readSecret('geminiApiKey');
+  }
+
+  replaceIcal(rawItems) {
+    const items = schemas.icalItems.parse(rawItems);
+    const grouped = groupIcalItems(items);
+    this.db.transaction(() => {
+      this.db.db.prepare("DELETE FROM lectures WHERE json_extract(data_json, '$.imported') = 1").run();
+      this.db.db.prepare("DELETE FROM modules WHERE json_extract(data_json, '$.source') = 'ical'").run();
+      for (const mod of grouped.modules) this.db.saveModule(schemas.module.parse(mod), 'insert');
+      for (const lecture of grouped.lectures) {
+        this.db.saveEntity('lectures', schemas.standaloneLecture.parse(lecture), 'insert');
+      }
+    });
+    return { moduleCount: grouped.modules.length, lectureCount: grouped.lectures.length };
   }
 }
 
@@ -224,9 +318,20 @@ class BackupService {
       const payload = JSON.stringify({ version: 1, ...encrypted });
       fs.writeFileSync(`${target}.tmp`, payload, { mode: 0o600 });
       fs.renameSync(`${target}.tmp`, target);
+      this.pruneBackups();
       return target;
     } finally {
       fs.rmSync(temp, { force: true });
+    }
+  }
+
+  pruneBackups() {
+    const files = fs.readdirSync(this.config.backupDir)
+      .filter(name => /^backup-.*\.enc$/.test(name))
+      .sort()
+      .reverse();
+    for (const name of files.slice(this.config.backupRetention)) {
+      fs.rmSync(path.join(this.config.backupDir, name), { force: true });
     }
   }
 
@@ -243,23 +348,29 @@ class BackupService {
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw new HttpError(422, 'Invalid backup root');
     const result = {};
     const specifications = {
-      exams: schemas.exam,
-      lectures: schemas.lecture,
-      todos: schemas.todo,
-      moodle_courses: schemas.moodle,
-      modules: schemas.module,
-      study_logs: schemas.studyLog,
-      chat_sessions: schemas.chat,
+      exams: [schemas.exam, this.config.importQuotas.exams],
+      lectures: [schemas.standaloneLecture, this.config.importQuotas.lectures],
+      todos: [schemas.todo, this.config.importQuotas.todos],
+      moodle_courses: [schemas.moodle, this.config.importQuotas.moodleCourses],
+      modules: [schemas.module, this.config.importQuotas.modules],
+      study_logs: [schemas.studyLog, this.config.importQuotas.studyLogs],
+      chat_sessions: [schemas.chat, this.config.importQuotas.chats],
     };
-    for (const [keyName, schema] of Object.entries(specifications)) {
+    for (const [keyName, [schema, quota]] of Object.entries(specifications)) {
       const list = input[keyName] == null ? [] : input[keyName];
-      if (!Array.isArray(list) || list.length > 100000) throw new HttpError(422, `Invalid ${keyName} collection`);
+      if (!Array.isArray(list) || list.length > quota) {
+        throw new HttpError(422, `Invalid or oversized ${keyName} collection`);
+      }
       result[keyName] = list.map((item) => schema.parse(item));
       const ids = new Set(result[keyName].map((item) => item.id));
       if (ids.size !== result[keyName].length) throw new HttpError(422, `Duplicate ID in ${keyName}`);
     }
     result.settings = input.settings && typeof input.settings === 'object' && !Array.isArray(input.settings)
       ? input.settings : {};
+    if (Object.keys(result.settings).length > 100
+      || Buffer.byteLength(JSON.stringify(result.settings), 'utf8') > 64 * 1024) {
+      throw new HttpError(422, 'Invalid or oversized settings collection');
+    }
     return result;
   }
 

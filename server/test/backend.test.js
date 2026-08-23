@@ -4,10 +4,18 @@ const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const { EventEmitter } = require('node:events');
+const { PassThrough } = require('node:stream');
+const BetterSqlite3 = require('better-sqlite3');
 const request = require('supertest');
 const { createApp } = require('../app');
+const { loadConfig } = require('../config');
 const { StudyDatabase } = require('../db/database');
-const { isPrivateIp } = require('../services/safeFetch');
+const { restoreBackup } = require('../restore');
+const { compactContext } = require('../services/ai');
+const { BackupService } = require('../services/domain');
+const { SecurityService } = require('../services/security');
+const { isPrivateIp, resolvePublic, safeFetchText } = require('../services/safeFetch');
 
 const ORIGIN = 'https://portal.test';
 const KEY = Buffer.alloc(32, 7);
@@ -39,6 +47,14 @@ async function fixture(t) {
     geminiApiKey: '',
     maxJsonBytes: 1024 * 1024,
     maxImportBytes: 10 * 1024 * 1024,
+    maxAiContextBytes: 64 * 1024,
+    backupRetention: 2,
+    importRateLimit: 2,
+    maxSseConnections: 1,
+    importQuotas: {
+      exams: 3, lectures: 10, todos: 10, moodleCourses: 10,
+      modules: 10, studyLogs: 10, chats: 10,
+    },
   };
   const app = await createApp({
     config,
@@ -92,6 +108,9 @@ test('health, login, session, CSRF and origin enforcement', async (t) => {
   await request(app).post('/api/v1/exams').set('Cookie', auth.session)
     .set('Origin', 'https://evil.test').set('X-CSRF-Token', auth.csrf)
     .send({ id: 'e1', name: 'Exam', date: '' }).expect(403);
+  const logout = await api(app, auth, 'post', '/api/v1/auth/logout').expect(200, { success: true });
+  assert.match(logout.headers['set-cookie'].join(';'), /Max-Age=0/);
+  await request(app).get('/api/v1/exams').set('Cookie', auth.session).expect(401);
 });
 
 test('all entity CRUD routes preserve HTTP adapter shapes', async (t) => {
@@ -111,6 +130,41 @@ test('all entity CRUD routes preserve HTTP adapter shapes', async (t) => {
     await api(app, auth, 'delete', `/api/v1/${resource}/${item.id}`).expect(200, { success: true });
     await api(app, auth, 'get', `/api/v1/${resource}`).expect(200, []);
   }
+});
+
+test('schemas normalize unknown data and reject reserved IDs and invalid dates/times', async (t) => {
+  const { app } = await fixture(t);
+  const auth = await login(app);
+  await api(app, auth, 'post', '/api/v1/exams', {
+    id: 'e1', name: 'Normalized', date: '2026-08-23', time: '23:59', injected: 'drop-me',
+  }).expect(200);
+  const exams = await api(app, auth, 'get', '/api/v1/exams').expect(200);
+  assert.equal(Object.hasOwn(exams.body[0], 'injected'), false);
+  await api(app, auth, 'post', '/api/v1/exams', {
+    id: 'bad-date', name: 'Bad', date: '2026-02-30',
+  }).expect(422);
+  await api(app, auth, 'post', '/api/v1/exams', {
+    id: 'bad-time', name: 'Bad', date: '', time: '25:61',
+  }).expect(422);
+  await api(app, auth, 'post', '/api/v1/modules', {
+    id: 'bad::module', name: 'Bad', slots: [],
+  }).expect(422);
+  await api(app, auth, 'post', '/api/v1/modules', {
+    id: 'm1', name: 'Bad slot',
+    slots: [{ id: 's::1', day: 'Mo', time: '10:00', end_time: '09:00' }],
+  }).expect(422);
+  await api(app, auth, 'post', '/api/v1/lectures', {
+    id: 'standalone::collision', name: 'Bad', day: 'Mo', time: '10:00', end_time: '11:00',
+  }).expect(422);
+  await api(app, auth, 'patch', '/api/v1/settings', { unknownSetting: true }).expect(422);
+  await api(app, auth, 'post', '/api/v1/ical/replace', {
+    items: [{ name: 'Bad date', day: 'Mo', eventDate: '2026-02-30' }],
+  }).expect(422).expect(({ body }) => assert.deepEqual(body, {
+    success: false, error: 'Request validation failed',
+  }));
+  await api(app, auth, 'post', '/api/v1/ai/chat', {
+    messages: [], context: { unexpected: true },
+  }).expect(422).expect(({ body }) => assert.equal(body.success, false));
 });
 
 test('nested modules and lecture composite IDs update series and occurrences', async (t) => {
@@ -137,6 +191,42 @@ test('nested modules and lecture composite IDs update series and occurrences', a
   assert.equal(lectures.body.some((row) => row.overrideDate === '2026-08-24'), false);
 });
 
+test('iCal replacement is atomic, scoped to imported rows and rolls back injected failures', async (t) => {
+  const { app } = await fixture(t);
+  const auth = await login(app);
+  await api(app, auth, 'post', '/api/v1/modules', {
+    id: 'manual', name: 'Manual', source: 'manual', slots: [],
+  }).expect(200);
+  await api(app, auth, 'post', '/api/v1/modules', {
+    id: 'old-import', name: 'Old import', source: 'ical',
+    slots: [{ id: 'old-slot', day: 'Mo', time: '08:00', end_time: '09:00' }],
+  }).expect(200);
+  await api(app, auth, 'post', '/api/v1/lectures', {
+    id: 'old-lecture', name: 'Old one-off', day: 'Di', time: '10:00',
+    end_time: '11:00', eventDate: '2026-08-25', imported: true,
+  }).expect(200);
+  const items = [
+    { name: 'New course', day: 'Mo', time: '10:00', end_time: '11:00', eventDate: '2026-08-24' },
+    { name: 'New course', day: 'Mo', time: '10:00', end_time: '11:00', eventDate: '2026-08-31' },
+  ];
+  const replaced = await api(app, auth, 'post', '/api/v1/ical/replace', { items }).expect(200);
+  assert.deepEqual(replaced.body, { success: true, moduleCount: 1, lectureCount: 0 });
+  let modules = await api(app, auth, 'get', '/api/v1/modules').expect(200);
+  assert.equal(modules.body.some(mod => mod.id === 'manual'), true);
+  assert.equal(modules.body.some(mod => mod.id === 'old-import'), false);
+  assert.equal(modules.body.some(mod => mod.name === 'New course'), true);
+
+  const database = app.locals.services.db;
+  const originalSaveModule = database.saveModule;
+  database.saveModule = () => { throw new Error('sensitive sqlite internals'); };
+  const failed = await api(app, auth, 'post', '/api/v1/ical/replace', { items }).expect(200);
+  database.saveModule = originalSaveModule;
+  assert.deepEqual(failed.body, { success: false, error: 'External service request failed' });
+  modules = await api(app, auth, 'get', '/api/v1/modules').expect(200);
+  assert.equal(modules.body.some(mod => mod.name === 'New course'), true);
+  assert.equal(modules.body.some(mod => mod.id === 'manual'), true);
+});
+
 test('study logs, settings secrets, chats and result routes work', async (t) => {
   const { app } = await fixture(t);
   const auth = await login(app);
@@ -152,6 +242,9 @@ test('study logs, settings secrets, chats and result routes work', async (t) => 
   }).expect(200);
   assert.equal(settings.body.locale, 'en');
   assert.equal(settings.body.geminiApiKeyConfigured, true);
+  assert.equal(settings.body.ollamaServerManaged, true);
+  assert.equal(settings.body.ollamaModel, 'test-model');
+  assert.equal(settings.body.ollamaUrl, 'http://127.0.0.1:1');
   assert.equal(Object.hasOwn(settings.body, 'geminiApiKey'), false);
   assert.equal(app.locals.services.domain.geminiKey(), 'top-secret');
 
@@ -162,7 +255,7 @@ test('study logs, settings secrets, chats and result routes work', async (t) => 
 
   await api(app, auth, 'post', '/api/v1/ical/fetch', { url: 'https://not-allowed.test/a.ics' })
     .expect(200).expect(({ body }) => assert.equal(body.success, false));
-  await api(app, auth, 'get', '/api/v1/mensa/999').expect(200)
+  await api(app, auth, 'get', '/api/v1/mensa/999').expect(422)
     .expect(({ body }) => assert.equal(body.success, false));
   await api(app, auth, 'post', '/api/v1/ai/models', { aiProvider: 'gemini' }).expect(200)
     .expect(({ body }) => assert.equal(body.success, true));
@@ -181,6 +274,31 @@ test('study logs, settings secrets, chats and result routes work', async (t) => 
   app.locals.services.ai.models = async () => ['test-model'];
   await api(app, auth, 'post', '/api/v1/ollama/setup/retry').expect(200)
     .expect(({ body }) => assert.equal(body.phase, 'ready'));
+});
+
+test('ON DELETE SET NULL keeps relational columns and compatibility JSON synchronized', async (t) => {
+  const { app } = await fixture(t);
+  const auth = await login(app);
+  await api(app, auth, 'post', '/api/v1/modules', { id: 'm1', name: 'Module', slots: [] }).expect(200);
+  await api(app, auth, 'post', '/api/v1/moodle', { id: 'c1', name: 'Course' }).expect(200);
+  await api(app, auth, 'post', '/api/v1/todos', {
+    id: 't1', title: 'Linked', moduleId: 'm1', moodleCourseId: 'c1',
+  }).expect(200);
+  await api(app, auth, 'post', '/api/v1/lectures', {
+    id: 'l1', name: 'Linked lecture', moduleId: 'm1', day: 'Mo', time: '10:00', end_time: '11:00',
+  }).expect(200);
+  await api(app, auth, 'delete', '/api/v1/modules/m1').expect(200);
+  await api(app, auth, 'delete', '/api/v1/moodle/c1').expect(200);
+  const todos = await api(app, auth, 'get', '/api/v1/todos').expect(200);
+  const lectures = await api(app, auth, 'get', '/api/v1/lectures').expect(200);
+  assert.equal(todos.body[0].moduleId, '');
+  assert.equal(todos.body[0].moodleCourseId, '');
+  assert.equal(lectures.body[0].moduleId, '');
+  const rawTodo = app.locals.services.db.db.prepare('SELECT data_json FROM todos WHERE id=?').get('t1');
+  const rawLecture = app.locals.services.db.db.prepare('SELECT data_json FROM lectures WHERE id=?').get('l1');
+  assert.equal(JSON.parse(rawTodo.data_json).moduleId, '');
+  assert.equal(JSON.parse(rawTodo.data_json).moodleCourseId, '');
+  assert.equal(JSON.parse(rawLecture.data_json).moduleId, '');
 });
 
 test('backup export/import is validated, encrypted and transactional', async (t) => {
@@ -204,10 +322,58 @@ test('backup export/import is validated, encrypted and transactional', async (t)
     exams: [{ id: 'broken', name: '', date: '' }],
     lectures: [], todos: [], moodle_courses: [], modules: [], study_logs: [], chat_sessions: [],
   });
-  await api(app, auth, 'post', '/api/v1/backup/import', { data: invalid }).expect(200)
+  await api(app, auth, 'post', '/api/v1/backup/import', { data: invalid }).expect(422)
     .expect(({ body }) => assert.equal(body.success, false));
   await api(app, auth, 'get', '/api/v1/exams').expect(200)
     .expect(({ body }) => assert.deepEqual(body.map((row) => row.id), ['new']));
+});
+
+test('backup retention, import quotas and import rate limits are enforced', async (t) => {
+  const { app, root } = await fixture(t);
+  const auth = await login(app);
+  await app.locals.services.backup.safetyBackup();
+  await new Promise(resolve => setTimeout(resolve, 2));
+  await app.locals.services.backup.safetyBackup();
+  await new Promise(resolve => setTimeout(resolve, 2));
+  await app.locals.services.backup.safetyBackup();
+  assert.equal(
+    fs.readdirSync(path.join(root, 'backups')).filter(name => name.endsWith('.enc')).length,
+    2,
+  );
+  const oversized = JSON.stringify({
+    exams: Array.from({ length: 4 }, (_, index) => ({ id: `e${index}`, name: 'Exam', date: '' })),
+  });
+  await api(app, auth, 'post', '/api/v1/backup/import', { data: oversized }).expect(422)
+    .expect(({ body }) => assert.equal(body.success, false));
+  await api(app, auth, 'post', '/api/v1/backup/import', { data: '{}' }).expect(200);
+  await api(app, auth, 'post', '/api/v1/backup/import', { data: '{}' }).expect(429)
+    .expect(({ body }) => assert.deepEqual(body, {
+      success: false, error: 'Backup import rate limit exceeded',
+    }));
+});
+
+test('external provider details are not returned in result envelopes', async (t) => {
+  const { app } = await fixture(t);
+  const auth = await login(app);
+  app.locals.services.ai.generate = async () => {
+    throw new Error('upstream secret token and internal hostname');
+  };
+  await api(app, auth, 'post', '/api/v1/ai/recommend', {}).expect(200)
+    .expect(({ body }) => assert.deepEqual(body, {
+      success: false, error: 'External service request failed',
+    }));
+});
+
+test('AI context serialization is byte-bounded for multibyte nested data', () => {
+  const huge = '🧠'.repeat(10000);
+  const context = compactContext({
+    exams: Array.from({ length: 30 }, (_, id) => ({ id, notes: huge })),
+    todos: Array.from({ length: 60 }, (_, id) => ({ id, notes: huge })),
+    lectures: Array.from({ length: 80 }, (_, id) => ({ id, name: huge })),
+    modules: Array.from({ length: 40 }, (_, id) => ({ id, name: huge })),
+  }, 4096);
+  assert.ok(Buffer.byteLength(context, 'utf8') <= 4096);
+  assert.doesNotThrow(() => JSON.parse(context));
 });
 
 test('private and reserved address checks fail closed', () => {
@@ -222,16 +388,97 @@ test('private and reserved address checks fail closed', () => {
   assert.equal(isPrivateIp('2606:4700:4700::1111'), false);
 });
 
-test('versioned migrations are idempotent and data survives restart', () => {
+test('DNS answers and every redirect target are deterministically revalidated', async () => {
+  await assert.rejects(
+    resolvePublic('calendar.test', async () => [{ address: '127.0.0.1', family: 4 }]),
+    error => error.code === 'ICAL_TARGET_BLOCKED',
+  );
+  const requestImpl = (_url, _options, callback) => {
+    const outgoing = new EventEmitter();
+    outgoing.destroy = () => outgoing.emit('error');
+    process.nextTick(() => {
+      const response = new PassThrough();
+      response.statusCode = 302;
+      response.headers = { location: 'https://not-allowlisted.test/private.ics' };
+      callback(response);
+      response.end();
+    });
+    return outgoing;
+  };
+  await assert.rejects(safeFetchText('https://calendar.test/source.ics', {
+    allowedHosts: ['calendar.test'],
+    lookupImpl: async () => [{ address: '8.8.8.8', family: 4 }],
+    requestImpl,
+  }), error => error.code === 'ICAL_HOST_NOT_ALLOWED');
+});
+
+test('startup rejects missing required encryption keys', () => {
+  const previousSettingsKey = process.env.SETTINGS_ENCRYPTION_KEY;
+  const previousBackupKey = process.env.BACKUP_KEY;
+  delete process.env.SETTINGS_ENCRYPTION_KEY;
+  delete process.env.BACKUP_KEY;
+  try {
+    assert.throws(() => loadConfig({
+      nodeEnv: 'test',
+      publicOrigin: ORIGIN,
+      bootstrapPassword: 'password',
+      sessionSecret: 's'.repeat(32),
+      csrfSecret: 'c'.repeat(32),
+    }), /SETTINGS_ENCRYPTION_KEY is required/);
+  } finally {
+    if (previousSettingsKey === undefined) delete process.env.SETTINGS_ENCRYPTION_KEY;
+    else process.env.SETTINGS_ENCRYPTION_KEY = previousSettingsKey;
+    if (previousBackupKey === undefined) delete process.env.BACKUP_KEY;
+    else process.env.BACKUP_KEY = previousBackupKey;
+  }
+});
+
+test('versioned migrations repair existing JSON/FK drift and remain idempotent', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'study-migration-'));
   const filename = path.join(root, 'db.sqlite');
-  const first = new StudyDatabase(filename);
-  first.saveEntity('exams', { id: 'persisted', name: 'Persisted', date: '' }, 'insert');
-  first.close();
-  const second = new StudyDatabase(filename);
-  assert.equal(second.listEntities('exams')[0].id, 'persisted');
-  assert.deepEqual(second.db.prepare('SELECT version FROM schema_migrations').all(), [{ version: 1 }]);
-  second.close();
+  const legacy = new BetterSqlite3(filename);
+  legacy.exec(fs.readFileSync(path.resolve('server/db/migrations/001-initial.sql'), 'utf8'));
+  legacy.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(1,?,?)')
+    .run('001-initial.sql', new Date().toISOString());
+  legacy.prepare('INSERT INTO todos(id,module_id,moodle_course_id,due,done,data_json) VALUES(?,?,?,?,?,?)')
+    .run('drifted', null, null, '', 0, JSON.stringify({
+      id: 'drifted', title: 'Old', moduleId: 'deleted-module', moodleCourseId: 'deleted-course',
+    }));
+  legacy.close();
+  const migrated = new StudyDatabase(filename);
+  assert.equal(migrated.getEntity('todos', 'drifted').moduleId, '');
+  assert.equal(JSON.parse(migrated.db.prepare('SELECT data_json FROM todos').get().data_json).moduleId, '');
+  assert.deepEqual(migrated.db.prepare('SELECT version FROM schema_migrations ORDER BY version').all(), [
+    { version: 1 }, { version: 2 },
+  ]);
+  migrated.close();
+  const reopened = new StudyDatabase(filename);
+  assert.equal(reopened.getEntity('todos', 'drifted').moodleCourseId, '');
+  reopened.close();
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('atomic restore validates, migrates and preserves a uniquely named previous database', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'study-restore-'));
+  const destination = path.join(root, 'study.sqlite');
+  const backupDir = path.join(root, 'backups');
+  const database = new StudyDatabase(destination);
+  database.saveEntity('exams', { id: 'from-backup', name: 'Backup', date: '' }, 'insert');
+  const backup = new BackupService(database, {
+    backupDir, backupKey: KEY, backupRetention: 2,
+  }, new SecurityService(database, {}, 'unused'));
+  const source = await backup.safetyBackup();
+  database.deleteEntity('exams', 'from-backup');
+  database.saveEntity('exams', { id: 'before-restore', name: 'Current', date: '' }, 'insert');
+  database.close();
+
+  const outcome = restoreBackup({ source, destination, key: KEY });
+  assert.match(outcome.previous, /\.before-restore-/);
+  assert.equal(fs.existsSync(outcome.previous), true);
+  const restored = new StudyDatabase(destination);
+  assert.deepEqual(restored.listEntities('exams').map(exam => exam.id), ['from-backup']);
+  assert.equal(restored.db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
+  restored.close();
   fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -250,6 +497,12 @@ test('authenticated Ollama SSE emits initial state and closes cleanly', async (t
     assert.match(response.headers.get('content-type'), /text\/event-stream/);
     const { value } = await response.body.getReader().read();
     assert.match(Buffer.from(value).toString('utf8'), /"phase":"idle"/);
+    const limited = await fetch(
+      `http://127.0.0.1:${server.address().port}/api/v1/ollama/setup/events`,
+      { headers: { Cookie: auth.session } },
+    );
+    assert.equal(limited.status, 429);
+    assert.equal((await limited.json()).code, 'SSE_LIMIT');
   } finally {
     controller.abort();
     await new Promise((resolve) => server.close(resolve));

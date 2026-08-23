@@ -47,10 +47,10 @@ export async function persistIcalItems(items, { addModule, addLectures }) {
 }
 
 /**
- * Replaces imported data sequentially and stops at the first failed command.
- * Confirmed commands update both the backing store and React state through the
- * CRUD callbacks. Rollback/transactional replacement requires a future server
- * endpoint and cannot be guaranteed by this client-side orchestration.
+ * Browser/self-hosted mode supplies atomicReplace and delegates the complete
+ * replacement to one transactional server command. Electron intentionally
+ * keeps the local sequential fail-fast path because its JSON store has no
+ * transaction primitive.
  */
 export async function replaceIcalItems({
   importedLectures,
@@ -60,7 +60,15 @@ export async function replaceIcalItems({
   deleteModule,
   addModule,
   addLectures,
+  atomicReplace,
 }) {
+  if (typeof atomicReplace === 'function') {
+    const result = await requireSuccess(() => atomicReplace(nextItems), 'atomic-replace');
+    if (result.success === false) {
+      throw new ICalPersistenceError('atomic-replace', new Error(result.error || 'Atomic replacement failed'));
+    }
+    return result;
+  }
   for (const lecture of importedLectures) {
     await requireSuccess(() => deleteLecture(lecture.id), 'delete-lecture');
   }

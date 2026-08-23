@@ -12,7 +12,8 @@ export const API_METHODS = Object.freeze([
   'modules.getAll', 'modules.create', 'modules.update', 'modules.delete',
   'studyLogs.getByExam', 'studyLogs.getByTodo', 'studyLogs.create', 'studyLogs.delete',
   'settings.get', 'settings.save',
-  'ical.fetch',
+  'auth.logout',
+  'ical.fetch', 'ical.replace',
   'ai.recommend', 'ai.chat', 'ai.models',
   'chats.getAll', 'chats.get', 'chats.save', 'chats.delete',
   'mensa.fetch',
@@ -25,7 +26,7 @@ export const API_METHODS = Object.freeze([
 // report expected/domain failures as { success: false, error }; commands must
 // reject so optimistic callers do not commit local state after a failed write.
 export const RESULT_METHODS = Object.freeze([
-  'ical.fetch',
+  'ical.fetch', 'ical.replace',
   'ai.recommend', 'ai.chat', 'ai.models',
   'mensa.fetch',
   'backup.export', 'backup.import',
@@ -39,6 +40,7 @@ export const COMMAND_METHODS = Object.freeze([
   'modules.create', 'modules.update', 'modules.delete',
   'studyLogs.create', 'studyLogs.delete',
   'settings.save',
+  'auth.logout',
   'chats.save', 'chats.delete',
 ]);
 

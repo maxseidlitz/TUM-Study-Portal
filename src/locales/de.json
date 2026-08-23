@@ -407,6 +407,7 @@
     "ollamaSub": "Lokales Sprachmodell für Empfehlungen und den Chat-Assistenten.",
     "ollamaInstall": "Ollama installieren →",
     "ollamaUrl": "Ollama Server-URL",
+    "ollamaServerManaged": "Self-hosted: URL und Modell werden vom Server über OLLAMA_BASE_URL und OLLAMA_MODEL verwaltet.",
     "ollamaDisableReasoningLabel": "Internes Reasoning/Thinking deaktivieren (schneller, weniger Rechenzeit)",
     "ollamaDisableReasoningHint": "Wird beim Umschalten sofort gespeichert (ohne „Speichern“). Entspricht der Ollama-API (0.20+): Top-Level `think: false` direkt nach `model`. Zusätzlich wird der System-Prompt ergänzt. Wirkt bei thinking-fähigen Modellen; einige Builds ignorieren die Option teilweise. Bei gpt-oss nur low/medium/high, nicht vollständig abschaltbar.",
     "loadModels": "Modelle laden",
@@ -472,7 +473,10 @@
     "importConfirm": "Bestehende Daten werden überschrieben. Fortfahren?",
     "importSuccess": "Daten importiert. App wird neu geladen…",
     "importError": "Import fehlgeschlagen: {error}",
-    "restartTour": "Setup-Assistent neu starten"
+    "restartTour": "Setup-Assistent neu starten",
+    "sessionTitle": "Sitzung",
+    "sessionSub": "Beendet die aktuelle Server-Sitzung auf diesem Gerät.",
+    "logout": "Abmelden"
   },
   "chat": {
     "loading": "Lade Daten…",

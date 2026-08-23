@@ -203,6 +203,8 @@ describe('HTTP API adapter', () => {
     })).toEqual({ locale: 'de', geminiApiKeyConfigured: true });
     expect(browserSettingsWriteDto({ locale: 'de', geminiApiKey: '' }))
       .toEqual({ locale: 'de' });
+    expect(browserSettingsWriteDto({ locale: 'de', ollamaServerManaged: true }))
+      .toEqual({ locale: 'de' });
 
     const fetchImpl = jest.fn()
       .mockResolvedValueOnce(jsonResponse({ geminiApiKey: 'must-not-escape', geminiApiKeyConfigured: true }))
@@ -220,13 +222,21 @@ describe('HTTP API adapter', () => {
     const httpApi = createHttpApi({ baseUrl: '/api/v1', fetchImpl, csrfToken: 'csrf' });
 
     await httpApi.ical.fetch('https://example.test/calendar.ics');
+    await httpApi.ical.replace([{ name: 'Lecture' }]);
+    await httpApi.auth.logout();
     await httpApi.ai.chat({ messages: [], context: {} });
     await httpApi.chats.save({ id: 'chat/1' });
     await httpApi.backup.import('{"ok":true}');
 
-    expect(fetchImpl.mock.calls.map(([url, options]) => [url, options.method, JSON.parse(options.body)]))
+    expect(fetchImpl.mock.calls.map(([url, options]) => [
+      url,
+      options.method,
+      options.body === undefined ? undefined : JSON.parse(options.body),
+    ]))
       .toEqual([
         ['/api/v1/ical/fetch', 'POST', { url: 'https://example.test/calendar.ics' }],
+        ['/api/v1/ical/replace', 'POST', { items: [{ name: 'Lecture' }] }],
+        ['/api/v1/auth/logout', 'POST', undefined],
         ['/api/v1/ai/chat', 'POST', { messages: [], context: {} }],
         ['/api/v1/chats/chat%2F1', 'PUT', { id: 'chat/1' }],
         ['/api/v1/backup/import', 'POST', { data: '{"ok":true}' }],

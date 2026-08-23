@@ -1,6 +1,7 @@
 const http = require('http');
 const https = require('https');
 const { EventEmitter } = require('events');
+const { safeExternalError } = require('./errors');
 
 const GEMINI_HOST = 'generativelanguage.googleapis.com';
 const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-pro'];
@@ -31,18 +32,18 @@ function requestJson(urlValue, { method = 'GET', body, headers = {}, timeoutMs =
         try {
           parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'));
         } catch {
-          reject(new Error(`Provider returned invalid JSON (HTTP ${response.statusCode})`));
+          reject(safeExternalError('AI provider returned an invalid response', 'AI_INVALID_RESPONSE'));
           return;
         }
         if (response.statusCode < 200 || response.statusCode >= 300 || parsed.error) {
-          reject(new Error(parsed.error?.message || parsed.error || `Provider returned HTTP ${response.statusCode}`));
+          reject(safeExternalError('AI provider rejected the request', 'AI_PROVIDER_REJECTED'));
           return;
         }
         resolve(parsed);
       });
     });
-    request.on('timeout', () => request.destroy(new Error('Provider request timed out')));
-    request.on('error', reject);
+    request.on('timeout', () => request.destroy());
+    request.on('error', () => reject(safeExternalError('AI provider is unavailable', 'AI_UNAVAILABLE')));
     if (encoded) request.write(encoded);
     request.end();
   });
@@ -53,7 +54,7 @@ function today() {
   return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 
-function compactContext(store) {
+function compactContext(store, maxBytes = 64 * 1024) {
   const payload = {
     today: today(),
     exams: store.exams.slice(0, 30),
@@ -61,14 +62,17 @@ function compactContext(store) {
     lectures: store.lectures.slice(0, 80),
     modules: store.modules.slice(0, 40),
   };
-  const text = JSON.stringify(payload);
-  return text.length <= 50000 ? text : JSON.stringify({
-    today: payload.today,
-    exams: payload.exams.slice(0, 10),
-    todos: payload.todos.slice(0, 20),
-    lectures: payload.lectures.slice(0, 20),
-    modules: payload.modules.slice(0, 15),
-  });
+  while (Buffer.byteLength(JSON.stringify(payload), 'utf8') > maxBytes) {
+    const largest = ['lectures', 'todos', 'modules', 'exams']
+      .sort((a, b) => payload[b].length - payload[a].length)[0];
+    if (!payload[largest].length) break;
+    payload[largest].pop();
+  }
+  const encoded = JSON.stringify(payload);
+  if (Buffer.byteLength(encoded, 'utf8') > maxBytes) {
+    return JSON.stringify({ today: payload.today, truncated: true });
+  }
+  return encoded;
 }
 
 class AiService {
@@ -116,7 +120,7 @@ class AiService {
     const model = this.model(provider);
     if (provider === 'gemini') {
       const apiKey = this.domain.geminiKey();
-      if (!apiKey) throw new Error('Gemini API key is not configured');
+      if (!apiKey) throw safeExternalError('Gemini API key is not configured', 'GEMINI_NOT_CONFIGURED');
       const contents = messages.map((message) => ({
         role: message.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: message.content }],
@@ -132,7 +136,7 @@ class AiService {
       );
       const content = (response.candidates?.[0]?.content?.parts || [])
         .map((part) => part.text || '').join('').trim();
-      if (!content) throw new Error('Gemini returned an empty response');
+      if (!content) throw safeExternalError('Gemini returned an empty response', 'AI_EMPTY_RESPONSE');
       return { content, model };
     }
     const settings = this.settings();
@@ -146,14 +150,14 @@ class AiService {
       },
     });
     const content = String(response.message?.content || response.response || '').trim();
-    if (!content) throw new Error('Ollama returned an empty response');
+    if (!content) throw safeExternalError('Ollama returned an empty response', 'AI_EMPTY_RESPONSE');
     return { content, model };
   }
 
   async recommend(context = {}) {
     const provider = this.provider();
     const system = 'Du bist ein persönlicher Studienassistent. Antworte kurz, konkret und ohne erfundene Fakten.';
-    const data = compactContext(this.snapshot());
+    const data = compactContext(this.snapshot(), this.config.maxAiContextBytes);
     return this.generate(provider, [{
       role: 'user',
       content: `Studiendaten: ${data}\nHeute: ${context.today || today()}\nWas sollte heute priorisiert werden?`,
@@ -168,7 +172,7 @@ class AiService {
       'Du bist der persönliche Studienassistent im TUM Study Portal.',
       `Antworte ausschließlich in ${language}.`,
       'Erfinde keine persönlichen Fakten. Nutze nur die beigefügten Studiendaten.',
-      `Studiendaten: ${compactContext(this.snapshot())}`,
+      `Studiendaten: ${compactContext(this.snapshot(), this.config.maxAiContextBytes)}`,
     ].join('\n');
     const result = await this.generate(provider, payload.messages, system);
     return {
@@ -215,4 +219,6 @@ class OllamaSetupService extends EventEmitter {
   }
 }
 
-module.exports = { AiService, GEMINI_MODELS, OllamaSetupService, requestJson };
+module.exports = {
+  AiService, GEMINI_MODELS, OllamaSetupService, compactContext, requestJson,
+};

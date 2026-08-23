@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { useLocale } from '../context/LocaleContext';
 import { useToast } from '../context/ToastContext';
-import { getDaysUntil, formatDate, generateId } from '../utils/helpers';
+import {
+  createExamTodoPayload, getDaysUntil, formatDate, generateId,
+} from '../utils/helpers';
 import EmptyState from '../components/ui/EmptyState';
 import { PlusIcon, CloseIcon, TrashIcon } from '../components/icons/Icons';
 import ExamCard from '../components/exams/ExamCard';
@@ -273,7 +275,8 @@ export default function Exams() {
         <SuggestTodoModal
           exam={suggestTodoExam}
           onConfirm={async (todoText, dueDate) => {
-            await addTodo({ id: generateId(), text: todoText, done: false, dueDate, examId: suggestTodoExam.id });
+            const created = await addTodo(createExamTodoPayload(suggestTodoExam, todoText, dueDate));
+            if (!created) return;
             showToast(t('exams.suggestTodoCreated'), 'success');
             setSuggestTodoExam(null);
           }}

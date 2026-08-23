@@ -1,5 +1,6 @@
 import {
   generateId,
+  createExamTodoPayload,
   getDaysUntil,
   getCountdownClass,
   getCountdownColor,
@@ -21,6 +22,20 @@ describe('generateId', () => {
     expect(a.length).toBeGreaterThan(0);
     expect(a).not.toBe(b);
   });
+});
+
+test('Exam-to-Todo uses the canonical Todo payload fields', () => {
+  expect(createExamTodoPayload({ id: 'exam-1', name: 'Analysis' }, '  Learn proofs  ', '2026-08-30'))
+    .toEqual({
+      title: 'Learn proofs',
+      priority: 'medium',
+      subject: 'Analysis',
+      due: '2026-08-30',
+      notes: '',
+      done: false,
+      moduleId: '',
+      moodleCourseId: '',
+    });
 });
 
 describe('getDaysUntil', () => {

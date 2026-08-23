@@ -391,6 +391,7 @@
     "ollamaSub": "Öneriler ve sohbet için yerel dil modeli.",
     "ollamaInstall": "Ollama kur →",
     "ollamaUrl": "Ollama sunucu URL",
+    "ollamaServerManaged": "Self-hosted: URL ve model sunucuda OLLAMA_BASE_URL ve OLLAMA_MODEL ile yönetilir.",
     "ollamaDisableReasoningLabel": "Dahili akıl yürütme/thinking kapat (daha hızlı, daha az işlem)",
     "ollamaDisableReasoningHint": "Anında kaydedilir. Ollama API (0.20+): modelden hemen sonra think: false. Sistem istemi de genişletilir. Bazı yapılar bayrağı yok sayabilir. gpt-oss: yalnızca low/medium/high.",
     "loadModels": "Modelleri yükle",
@@ -441,7 +442,10 @@
     "qs3": "Yukarıdan “Modelleri yükle” ve bir model seç",
     "qs4": "“Bağlantıyı test et” — sonra öneriler ve sohbet",
     "testOkMsg": "Bağlantı tamam (model: {model}). Yanıt: “{snippet}…”",
-    "restartTour": "Kurulum sihirbazını yeniden başlat"
+    "restartTour": "Kurulum sihirbazını yeniden başlat",
+    "sessionTitle": "Oturum",
+    "sessionSub": "Bu cihazdaki mevcut sunucu oturumunu sonlandırır.",
+    "logout": "Çıkış yap"
   },
   "chat": {
     "loading": "Veriler yükleniyor…",

@@ -31,6 +31,7 @@ function browserSettingsWriteDto(settings) {
     delete dto.geminiApiKey;
   }
   delete dto.geminiApiKeyConfigured;
+  delete dto.ollamaServerManaged;
   return dto;
 }
 
@@ -115,8 +116,8 @@ export function createHttpRequest({
 /**
  * HTTP implementation of the renderer API contract.
  *
- * Resource routes are rooted at /api/v1 by default. Cookies are included for
- * the future server-side session model; callers never handle auth tokens.
+ * Resource routes are rooted at /api/v1 by default. Cookies carry the opaque
+ * server-side session; callers never handle auth tokens.
  */
 export function createHttpApi(options = {}) {
   const request = createHttpRequest(options);
@@ -171,8 +172,12 @@ export function createHttpApi(options = {}) {
           body: browserSettingsWriteDto(settings),
         })),
     },
+    auth: {
+      logout: () => commandRequest('/auth/logout', { method: 'POST' }),
+    },
     ical: {
       fetch: url => resultRequest('/ical/fetch', { method: 'POST', body: { url } }),
+      replace: items => resultRequest('/ical/replace', { method: 'POST', body: { items } }),
     },
     ai: {
       recommend: context => resultRequest('/ai/recommend', { method: 'POST', body: context }),

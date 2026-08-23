@@ -68,6 +68,13 @@ describe('real preload bridge contract', () => {
       listener,
     );
   });
+
+  test('keeps server-only session and atomic calendar methods safe on Electron', async () => {
+    const { api, ipcRenderer } = loadRealPreload();
+    await expect(api.auth.logout()).resolves.toEqual({ success: true, noop: true });
+    await expect(api.ical.replace([])).resolves.toMatchObject({ success: false });
+    expect(ipcRenderer.invoke).not.toHaveBeenCalled();
+  });
 });
 
 describe('Electron external URL policy', () => {

@@ -20,7 +20,8 @@ The method surface matches `public/preload.js`. Return semantics are explicit:
 | exams, lectures, todos, moodle, modules | `getAll()`, `create(item)`, `update(item)`, `delete(id)` |
 | studyLogs | `getByExam(id)`, `getByTodo(id)`, `create(log)`, `delete(id)` |
 | settings | `get()`, `save(partialSettings)` |
-| iCal | `fetch(url)` |
+| auth | `logout()` |
+| iCal | `fetch(url)`, `replace(items)` |
 | AI | `recommend(context)`, `chat(payload)`, `models(options)` |
 | chats | `getAll()`, `get(id)`, `save(session)`, `delete(id)` |
 | mensa | `fetch(canteenId)` |
@@ -34,7 +35,8 @@ The browser adapter uses same-origin `/api/v1` by default, configurable through
 `REACT_APP_API_BASE_URL`. Entity resources use REST conventions (`GET`/`POST`
 on the collection and `PUT`/`DELETE` on `/:id`). Settings updates use `PATCH`.
 Action endpoints are grouped by area, for example `/ai/chat`, `/ical/fetch`,
-`/backup/export`, and `/ollama/setup/retry`. Ollama progress is read from the
+`/ical/replace`, `/auth/logout`, `/backup/export`, and `/ollama/setup/retry`.
+Ollama progress is read from the
 SSE endpoint `/ollama/setup/events`.
 
 All requests send `credentials: include`; authentication remains cookie-based.
@@ -65,10 +67,15 @@ response before transmission and storing the secret securely.
 `noopener,noreferrer` and explicitly clear `opener`; Electron validates in the
 main process and denies renderer-owned child windows.
 
-## Multi-step iCal replacement
+## iCal replacement
 
-The current renderer replaces imported lectures/modules through sequential API
-commands. It stops on the first failed delete or create and reports the error;
-confirmed commands remain reflected in local state. This prevents silent
-continuation but cannot provide rollback. True atomic replacement must be
-implemented later as one transactional server-side command.
+The browser adapter replaces imported lectures/modules through one
+`ical.replace(items)` call. The server deletes prior iCal-owned rows and writes
+the regrouped import in one SQLite transaction, so any failure rolls back the
+complete replacement. Electron has no transactional JSON store and deliberately
+keeps the existing sequential fail-fast path. Its `ical.replace` bridge method
+returns an unsupported result and is not called by the renderer workflow.
+
+In self-hosted mode Ollama URL and model are server-owned settings. Browser
+writes for these fields do not change the provider target; the values returned
+by `settings.get()` reflect `OLLAMA_BASE_URL` and `OLLAMA_MODEL`.

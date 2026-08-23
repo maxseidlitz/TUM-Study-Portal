@@ -4,6 +4,19 @@ export function generateId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+export function createExamTodoPayload(exam, title, due) {
+  return {
+    title: String(title || '').trim(),
+    priority: 'medium',
+    subject: exam?.name || '',
+    due: due || '',
+    notes: '',
+    done: false,
+    moduleId: '',
+    moodleCourseId: '',
+  };
+}
+
 /** Anzeigename für Kurs/Fach in ToDos (Modul > Moodle > Freitext). */
 export function resolveTodoCourseLabel(todo, modules = [], moodleCourses = []) {
   if (todo.moduleId) {
