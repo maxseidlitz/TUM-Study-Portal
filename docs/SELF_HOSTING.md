@@ -58,7 +58,7 @@ remove `APP_PASSWORD`. Alternatively, use the documented Node command in
 | `SESSION_SECRET` | required, at least 32 chars | Session-cookie signing secret. |
 | `CSRF_SECRET` | required, at least 32 chars | Independent CSRF signing secret. |
 | `SESSION_TTL_MS` | `604800000` | Session lifetime in milliseconds. |
-| `SECURE_COOKIES` | `true` | Keep true in every deployment. `false` enables unprefixed cookies solely for HTTP-only local testing. |
+| `SECURE_COOKIES` | `true` | `false` is rejected in production. Development/test permits it only with an HTTP origin on exactly `localhost`, `127.0.0.1`, or `[::1]`; LAN/public origins fail startup. |
 | `TRUST_PROXY` | `false` | Set true only behind the directly connected trusted proxy. |
 | `SETTINGS_ENCRYPTION_KEY` | required, base64 32 bytes | Encrypts stored provider settings. |
 | `BACKUP_KEY` | required, base64 32 bytes | Encrypts and authenticates `.enc` safety backups. Losing it makes them unrestorable. |
@@ -102,6 +102,10 @@ For Ollama, set `OLLAMA_BASE_URL=http://ollama:11434`, then:
 docker compose --profile ollama up -d
 docker compose exec ollama ollama pull qwen3:4b-instruct
 ```
+
+Both Compose services set `no-new-privileges:true` and drop all Linux
+capabilities. Ollama remains writable only through its named model volume; do
+not add capabilities to work around host-device/GPU configuration errors.
 
 To update, first take a backup, fetch the reviewed source revision, then run:
 
@@ -174,6 +178,14 @@ users and devices. Tailscale transport encryption does not replace the app
 password, secure cookies, or backup encryption.
 
 ## Backup and restore
+
+Application JSON exports identify themselves with
+`format: "tum-study-portal-backup"` and `formatVersion: 1`. Versioned imports
+must contain every defined collection array. Formatless desktop exports are
+accepted for compatibility only if they contain at least one recognized
+collection array. Empty objects, unrelated JSON, unsupported versions, and
+incomplete versioned exports fail validation before a safety backup or database
+mutation.
 
 SQLite uses WAL; never copy only the live `.sqlite` file. For a consistent
 full-volume backup, briefly stop the app and archive the complete volume:

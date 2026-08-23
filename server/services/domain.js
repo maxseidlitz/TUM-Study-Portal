@@ -3,6 +3,12 @@ const fs = require('fs');
 const path = require('path');
 const { schemas, settingsPatch, validIsoDate } = require('../validation');
 
+const BACKUP_FORMAT = 'tum-study-portal-backup';
+const BACKUP_FORMAT_VERSION = 1;
+const BACKUP_COLLECTIONS = [
+  'exams', 'lectures', 'todos', 'moodle_courses', 'modules', 'study_logs', 'chat_sessions',
+];
+
 class HttpError extends Error {
   constructor(status, message, code = 'REQUEST_FAILED') {
     super(message);
@@ -497,6 +503,8 @@ class BackupService {
 
   exportJson() {
     const data = this.db.exportStore();
+    data.format = BACKUP_FORMAT;
+    data.formatVersion = BACKUP_FORMAT_VERSION;
     data.settings = { ...data.settings };
     delete data.settings.geminiApiKey;
     return JSON.stringify(data, null, 2);
@@ -542,6 +550,16 @@ class BackupService {
       throw new HttpError(422, 'Backup is not valid JSON');
     }
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw new HttpError(422, 'Invalid backup root');
+    const hasFormatMetadata = Object.hasOwn(input, 'format') || Object.hasOwn(input, 'formatVersion');
+    if (hasFormatMetadata) {
+      if (input.format !== BACKUP_FORMAT || input.formatVersion !== BACKUP_FORMAT_VERSION) {
+        throw new HttpError(422, 'Unsupported backup format or version');
+      }
+      const missing = BACKUP_COLLECTIONS.filter(keyName => !Array.isArray(input[keyName]));
+      if (missing.length) throw new HttpError(422, `Versioned backup is missing collections: ${missing.join(', ')}`);
+    } else if (!BACKUP_COLLECTIONS.some(keyName => Array.isArray(input[keyName]))) {
+      throw new HttpError(422, 'Legacy backup must contain at least one recognized collection');
+    }
     const specifications = {
       exams: [schemas.exam, this.config.importQuotas.exams],
       lectures: [schemas.standaloneLecture, this.config.importQuotas.lectures],

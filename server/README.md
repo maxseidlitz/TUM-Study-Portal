@@ -55,7 +55,8 @@ HttpOnly, SameSite=Strict and use the `__Host-` prefix. When
 `SECURE_COOKIES=false` is explicitly selected for local HTTP development, the
 server uses unprefixed cookies because browsers reject `__Host-` cookies without
 HTTPS. It also disables HSTS and CSP request upgrades for that local mode.
-Never use that setting for a deployed instance.
+Startup rejects this setting in production and, in development/test, unless
+`PUBLIC_ORIGIN` is HTTP on exactly `localhost`, `127.0.0.1`, or `[::1]`.
 
 The server provides:
 
@@ -75,8 +76,13 @@ assets are immutable.
 `server/db/migrations` and are recorded in `schema_migrations`. The connection
 uses foreign keys, WAL mode and a busy timeout.
 
-The JSON backup endpoint remains compatible with the desktop export. It never
-exports sessions, password material or Gemini keys. Before strict validation,
+The JSON backup endpoint remains compatible with the desktop export. New
+exports carry `format: "tum-study-portal-backup"` and `formatVersion: 1`; a
+versioned import must contain every defined array collection. Formatless
+desktop backups remain accepted only when at least one recognized collection
+is present as an array, so `{}` and unrelated JSON can never mean “replace with
+empty”. Format validation occurs before the safety backup or any deletion.
+Backups never export sessions, password material or Gemini keys. Before strict validation,
 import normalizes legacy `text`/`dueDate`/`examId` Todos and migrates pre-module
 desktop exports. Legacy module, slot and standalone-lecture IDs containing the
 reserved `::` composite separator are deterministically remapped; module

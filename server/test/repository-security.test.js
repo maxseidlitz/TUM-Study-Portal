@@ -56,3 +56,12 @@ test('CI actions and mutable upstream image tags are digest pinned', () => {
     /ollama\/ollama:0\.24\.0@sha256:[a-f0-9]{64}/,
   );
 });
+
+test('application and Ollama containers drop capabilities and prevent privilege escalation', () => {
+  const compose = fs.readFileSync(path.join(root, 'docker-compose.yml'), 'utf8');
+  for (const service of ['app', 'ollama']) {
+    const block = compose.match(new RegExp(`\\n  ${service}:([\\s\\S]*?)(?=\\n  [a-z][\\w-]*:|\\nvolumes:)`))?.[1] || '';
+    assert.match(block, /security_opt:\s*\n\s+- no-new-privileges:true/);
+    assert.match(block, /cap_drop:\s*\n\s+- ALL/);
+  }
+});

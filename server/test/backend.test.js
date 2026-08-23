@@ -356,6 +356,13 @@ test('backup export/import is validated, encrypted and transactional', async (t)
   await api(app, auth, 'post', '/api/v1/exams', { id: 'old', name: 'Old', date: '' }).expect(200);
   const exported = await api(app, auth, 'get', '/api/v1/backup/export').expect(200);
   assert.equal(exported.body.success, true);
+  const exportedData = JSON.parse(exported.body.data);
+  assert.equal(exportedData.format, 'tum-study-portal-backup');
+  assert.equal(exportedData.formatVersion, 1);
+  assert.deepEqual(
+    app.locals.services.backup.validateImport(exported.body.data).exams.map(exam => exam.id),
+    ['old'],
+  );
   const replacement = JSON.stringify({
     exams: [{ id: 'new', name: 'New', date: '2026-12-01' }],
     lectures: [], todos: [], moodle_courses: [], modules: [], study_logs: [],
@@ -375,6 +382,35 @@ test('backup export/import is validated, encrypted and transactional', async (t)
     .expect(({ body }) => assert.equal(body.success, false));
   await api(app, auth, 'get', '/api/v1/exams').expect(200)
     .expect(({ body }) => assert.deepEqual(body.map((row) => row.id), ['new']));
+});
+
+test('empty, foreign and incomplete versioned backup objects fail before safety backup or deletion', async (t) => {
+  const { app, root } = await fixture(t, { importRateLimit: 10 });
+  const auth = await login(app);
+  await api(app, auth, 'post', '/api/v1/exams', {
+    id: 'preserved', name: 'Preserved', date: '2026-12-01',
+  }).expect(200);
+  const invalidBackups = [
+    '{}',
+    JSON.stringify({ users: [] }),
+    JSON.stringify({
+      format: 'tum-study-portal-backup',
+      formatVersion: 1,
+      exams: [],
+    }),
+    JSON.stringify({
+      format: 'unknown-backup',
+      formatVersion: 1,
+      exams: [],
+    }),
+  ];
+  for (const data of invalidBackups) {
+    await api(app, auth, 'post', '/api/v1/backup/import', { data }).expect(422)
+      .expect(({ body }) => assert.equal(body.success, false));
+    await api(app, auth, 'get', '/api/v1/exams').expect(200)
+      .expect(({ body }) => assert.deepEqual(body.map(exam => exam.id), ['preserved']));
+  }
+  assert.equal(fs.existsSync(path.join(root, 'backups')), false);
 });
 
 test('current desktop backup fixture imports without compatibility rewrites', async (t) => {
@@ -453,7 +489,7 @@ test('backup retention, import quotas and import rate limits are enforced', asyn
   });
   await api(app, auth, 'post', '/api/v1/backup/import', { data: oversized }).expect(422)
     .expect(({ body }) => assert.equal(body.success, false));
-  await api(app, auth, 'post', '/api/v1/backup/import', { data: '{}' }).expect(200);
+  await api(app, auth, 'post', '/api/v1/backup/import', { data: '{}' }).expect(422);
   await api(app, auth, 'post', '/api/v1/backup/import', { data: '{}' }).expect(429)
     .expect(({ body }) => assert.deepEqual(body, {
       success: false, error: 'Backup import rate limit exceeded',
@@ -538,6 +574,36 @@ test('startup rejects missing required encryption keys', () => {
     else process.env.SETTINGS_ENCRYPTION_KEY = previousSettingsKey;
     if (previousBackupKey === undefined) delete process.env.BACKUP_KEY;
     else process.env.BACKUP_KEY = previousBackupKey;
+  }
+});
+
+test('SECURE_COOKIES=false is restricted to explicit non-production HTTP loopback origins', () => {
+  const base = {
+    bootstrapPassword: 'password',
+    sessionSecret: 's'.repeat(32),
+    csrfSecret: 'c'.repeat(32),
+    settingsEncryptionKey: KEY,
+    backupKey: KEY,
+    secureCookies: false,
+  };
+  for (const publicOrigin of [
+    'http://localhost:3443',
+    'http://127.0.0.1:3443',
+    'http://[::1]:3443',
+  ]) {
+    assert.doesNotThrow(() => loadConfig({ ...base, nodeEnv: 'development', publicOrigin }));
+  }
+  assert.throws(() => loadConfig({
+    ...base, nodeEnv: 'production', publicOrigin: 'https://portal.example',
+  }), /SECURE_COOKIES=false is forbidden in production/);
+  for (const publicOrigin of [
+    'http://192.168.1.20:3443',
+    'http://study.example:3443',
+    'https://localhost:3443',
+  ]) {
+    assert.throws(() => loadConfig({
+      ...base, nodeEnv: 'test', publicOrigin,
+    }), /HTTP loopback PUBLIC_ORIGIN/);
   }
 });
 

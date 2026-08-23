@@ -41,6 +41,10 @@ services:
       - ollama-data:/root/.ollama
     expose:
       - "11434"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
 volumes:
   study-data:

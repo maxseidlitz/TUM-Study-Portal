@@ -5,6 +5,21 @@ function bool(value, fallback = false) {
   return /^(1|true|yes)$/i.test(String(value));
 }
 
+function strictBool(value, fallback, name) {
+  if (value == null || value === '') return fallback;
+  if (/^(1|true|yes)$/i.test(String(value))) return true;
+  if (/^(0|false|no)$/i.test(String(value))) return false;
+  throw new Error(`${name} must be true or false`);
+}
+
+function isLoopbackHostname(hostname) {
+  const normalized = String(hostname || '').toLowerCase();
+  return normalized === 'localhost'
+    || normalized === '127.0.0.1'
+    || normalized === '::1'
+    || normalized === '[::1]';
+}
+
 function csv(value, fallback = []) {
   if (!value) return fallback;
   return String(value).split(',').map((item) => item.trim().toLowerCase()).filter(Boolean);
@@ -34,7 +49,8 @@ function loadConfig(overrides = {}) {
     sessionSecret: overrides.sessionSecret || env.SESSION_SECRET || '',
     csrfSecret: overrides.csrfSecret || env.CSRF_SECRET || '',
     sessionTtlMs: Number(env.SESSION_TTL_MS || 7 * 24 * 60 * 60 * 1000),
-    secureCookies: overrides.secureCookies ?? bool(env.SECURE_COOKIES, true),
+    secureCookies: overrides.secureCookies
+      ?? strictBool(env.SECURE_COOKIES, true, 'SECURE_COOKIES'),
     trustProxy: bool(env.TRUST_PROXY),
     settingsEncryptionKey: overrides.settingsEncryptionKey
       || key(env.SETTINGS_ENCRYPTION_KEY, 'SETTINGS_ENCRYPTION_KEY'),
@@ -92,6 +108,14 @@ function loadConfig(overrides = {}) {
     throw new Error('OLLAMA_BASE_URL must be an HTTP(S) URL without credentials');
   }
   const origin = new URL(config.publicOrigin);
+  if (!config.secureCookies) {
+    if (nodeEnv === 'production') {
+      throw new Error('SECURE_COOKIES=false is forbidden in production');
+    }
+    if (origin.protocol !== 'http:' || !isLoopbackHostname(origin.hostname)) {
+      throw new Error('SECURE_COOKIES=false requires an HTTP loopback PUBLIC_ORIGIN');
+    }
+  }
   if (nodeEnv === 'production' && origin.protocol !== 'https:') {
     throw new Error('PUBLIC_ORIGIN must use HTTPS in production');
   }
