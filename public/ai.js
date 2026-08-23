@@ -205,37 +205,48 @@ function allowsTodoWriteIntent(rawText) {
   const text = String(rawText || '').trim().toLocaleLowerCase('de-DE');
   if (!text || text.length > 12000) return false;
 
-  // Information requests are not write instructions, even if they mention creation verbs.
-  if (/^(?:wie|warum|was|wo|wann|welche|erklär|how|why|what|where|when|explain|nasıl|neden|niçin|ne|nerede|açıkla)\b/u.test(text)) {
-    return false;
-  }
   if (/\b(?:wie|how|nasıl)\b/u.test(text)
     || /^(?:(?:kann|könnte|soll|darf)\s+ich|(?:can|could|should|may)\s+i)\b/u.test(text)
+    || /\b(?:falls|wenn|if|eğer|erklär\w*|beschreib\w*|explain\w*|describe\w*|tell\s+me|sag\s+mir|açıkla\w*)\b/u.test(text)
     || /\b(?:nicht|keine?|don't|do not|never|oluşturma|ekleme|kaydetme)\b/u.test(text)
     || /\b(?:ignore|ignoriere|anweisungen|instructions?|system[\s-]?prompt|tool|function|provider|model|talimatları|kuralları)\b/u.test(text)) {
     return false;
   }
 
   const germanTodo = /\b(?:todos?|to-dos?|aufgaben?|erinnerungen?)\b/u;
-  const germanAction = /\b(?:erstell(?:e|en)?|anleg(?:e|en)?|leg(?:e|en)?|speicher(?:e|n)?|merk(?:e|en)?)\b/u;
+  const germanDirect = /^(?:bitte\s+)?(?:erstell(?:e)?|leg(?:e)?|speicher(?:e)?|merk(?:e)?)\b/u;
+  const germanElliptical = /^bitte\s+(?:(?:das|dies|dieses|diesen|diese|es)\s+)?(?:als\s+)?(?:ein(?:e|en)?\s+)?(?:todo|to-do|aufgabe|erinnerung)\b.*\b(?:erstellen|anlegen|speichern)\s*[?!.]*$/u;
+  const germanPolite = /^(?:kannst|könntest)\s+du\s+(?:bitte\s+)?.*\b(?:erstellen|anlegen|speichern|merken)\s*[?!.]*$/u;
   const germanExplicit = (
-    (germanTodo.test(text) && germanAction.test(text))
-    || /\berinner(?:e|n)\s+(?:mich|uns)\b/u.test(text)
+    (germanTodo.test(text) && (
+      germanDirect.test(text)
+      || germanElliptical.test(text)
+      || germanPolite.test(text)
+    ))
+    || /^(?:bitte\s+)?erinner(?:e)?\s+(?:mich|uns)\b/u.test(text)
+    || /^(?:kannst|könntest)\s+du\s+(?:bitte\s+)?(?:mich|uns)(?:\s+bitte)?\b.*\berinnern\b/u.test(text)
   );
 
   const englishTodo = /\b(?:todos?|to-dos?|tasks?|reminders?)\b/u;
-  const englishAction = /\b(?:create|add|save|store|remember|remind)\b/u;
+  const englishDirect = /^(?:please\s+)?(?:create|add|save|store)\b/u;
+  const englishPolite = /^(?:can|could|would)\s+you\s+(?:please\s+)?(?:create|add|save|store)\b/u;
   const englishExplicit = (
-    (englishTodo.test(text) && englishAction.test(text))
-    || /\bremind\s+(?:me|us)\b/u.test(text)
-    || /\bremember\s+to\b/u.test(text)
+    (englishTodo.test(text) && (
+      englishDirect.test(text)
+      || englishPolite.test(text)
+    ))
+    || /^(?:please\s+)?remind\s+(?:me|us)\b/u.test(text)
+    || /^(?:can|could|would)\s+you\s+(?:please\s+)?remind\s+(?:me|us)\b/u.test(text)
+    || /^(?:please\s+)?remember\s+to\b/u.test(text)
   );
 
   const turkishTodo = /\b(?:görev(?:ler)?|ödev(?:ler)?|hatırlatıcı(?:lar)?|yapılacak(?:lar)?)\b/u;
-  const turkishAction = /\b(?:oluştur(?:un)?|ekle(?:yin)?|kaydet(?:in)?|hatırlat(?:ın)?)\b/u;
+  const turkishAction = /\b(?:oluştur(?:un)?|ekle(?:yin)?|kaydet(?:in)?|oluşturabilir\s+misin(?:iz)?|ekleyebilir\s+misin(?:iz)?|kaydedebilir\s+misin(?:iz)?)\b/u;
+  const turkishDirectStart = /^(?:(?:bir\s+)?(?:görev(?:ler)?|ödev(?:ler)?|hatırlatıcı(?:lar)?|yapılacak(?:lar)?)\b|(?:bunu|şunu)\s+(?:bir\s+)?(?:görev|ödev|hatırlatıcı)\b)/u;
   const turkishExplicit = (
-    (turkishTodo.test(text) && turkishAction.test(text))
-    || /\b(?:bana|bize)\b.*\bhatırlat(?:ın)?\b/u.test(text)
+    (turkishTodo.test(text) && turkishAction.test(text)
+      && (/^lütfen\b/u.test(text) || turkishDirectStart.test(text)))
+    || /^(?:lütfen\s+)?(?:bana|bize)\b.*\b(?:hatırlat(?:ın)?|hatırlatabilir\s+misin(?:iz)?|hatırlatır\s+mısın(?:ız)?)\b/u.test(text)
   );
 
   return germanExplicit || englishExplicit || turkishExplicit;
