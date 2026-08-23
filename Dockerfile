@@ -15,6 +15,7 @@ RUN npm ci --omit=dev --no-audit --no-fund \
 FROM native-base AS frontend-build
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
+COPY index.html vite.config.mjs ./
 COPY public ./public
 COPY src ./src
 COPY scripts ./scripts
