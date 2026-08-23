@@ -293,6 +293,12 @@ class BackupService {
     }
     store.modules = modules.map((mod) => schemas.module.parse(mod));
     store.lectures = kept;
+    const moduleIds = new Set(store.modules.map((mod) => mod.id));
+    store.todos = store.todos.map((todo) => (
+      todo.moodleCourseId && moduleIds.has(todo.moodleCourseId)
+        ? { ...todo, moduleId: todo.moodleCourseId, moodleCourseId: '' }
+        : todo
+    ));
     store.moodle_courses = [];
   }
 

@@ -5,6 +5,7 @@ const path = require('node:path');
 const test = require('node:test');
 const request = require('supertest');
 const { createApp } = require('../app');
+const { StudyDatabase } = require('../db/database');
 const { isPrivateIp } = require('../services/safeFetch');
 
 const ORIGIN = 'https://portal.test';
@@ -196,9 +197,26 @@ test('backup export/import is validated, encrypted and transactional', async (t)
 });
 
 test('private and reserved address checks fail closed', () => {
-  for (const address of ['127.0.0.1', '10.0.0.1', '172.16.0.1', '192.168.1.1', '169.254.1.1', '::1', 'fc00::1', 'fe80::1']) {
+  for (const address of [
+    '127.0.0.1', '10.0.0.1', '172.16.0.1', '192.168.1.1', '169.254.1.1',
+    '192.0.2.1', '224.0.0.1', '::1', 'fc00::1', 'fe80::1', '2001:db8::1',
+    '::ffff:127.0.0.1',
+  ]) {
     assert.equal(isPrivateIp(address), true, address);
   }
   assert.equal(isPrivateIp('8.8.8.8'), false);
   assert.equal(isPrivateIp('2606:4700:4700::1111'), false);
+});
+
+test('versioned migrations are idempotent and data survives restart', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'study-migration-'));
+  const filename = path.join(root, 'db.sqlite');
+  const first = new StudyDatabase(filename);
+  first.saveEntity('exams', { id: 'persisted', name: 'Persisted', date: '' }, 'insert');
+  first.close();
+  const second = new StudyDatabase(filename);
+  assert.equal(second.listEntities('exams')[0].id, 'persisted');
+  assert.deepEqual(second.db.prepare('SELECT version FROM schema_migrations').all(), [{ version: 1 }]);
+  second.close();
+  fs.rmSync(root, { recursive: true, force: true });
 });

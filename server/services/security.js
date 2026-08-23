@@ -102,8 +102,9 @@ class SecurityService {
     const raw = base64url(crypto.randomBytes(32));
     const now = new Date();
     const expires = new Date(now.getTime() + this.config.sessionTtlMs);
+    const idHash = hmac(this.config.sessionSecret, raw);
     this.db.db.prepare('INSERT INTO sessions(id_hash,created_at,last_seen_at,expires_at) VALUES(?,?,?,?)')
-      .run(hash(raw), now.toISOString(), now.toISOString(), expires.toISOString());
+      .run(idHash, now.toISOString(), now.toISOString(), expires.toISOString());
     return {
       raw,
       csrf: hmac(this.config.csrfSecret, raw),
@@ -114,21 +115,23 @@ class SecurityService {
   session(req, { touch = true } = {}) {
     const raw = parseCookies(req.headers.cookie)[this.sessionCookie];
     if (!raw) return null;
-    const row = this.db.db.prepare('SELECT * FROM sessions WHERE id_hash=?').get(hash(raw));
+    const idHash = hmac(this.config.sessionSecret, raw);
+    const row = this.db.db.prepare('SELECT * FROM sessions WHERE id_hash=?').get(idHash);
     if (!row || Date.parse(row.expires_at) <= Date.now()) {
-      if (row) this.db.db.prepare('DELETE FROM sessions WHERE id_hash=?').run(hash(raw));
+      if (row) this.db.db.prepare('DELETE FROM sessions WHERE id_hash=?').run(idHash);
       return null;
     }
     if (touch && Date.now() - Date.parse(row.last_seen_at) > 5 * 60 * 1000) {
       this.db.db.prepare('UPDATE sessions SET last_seen_at=? WHERE id_hash=?')
-        .run(new Date().toISOString(), hash(raw));
+        .run(new Date().toISOString(), idHash);
     }
     return { raw, csrf: hmac(this.config.csrfSecret, raw) };
   }
 
   destroySession(req) {
     const raw = parseCookies(req.headers.cookie)[this.sessionCookie];
-    if (raw) this.db.db.prepare('DELETE FROM sessions WHERE id_hash=?').run(hash(raw));
+    if (raw) this.db.db.prepare('DELETE FROM sessions WHERE id_hash=?')
+      .run(hmac(this.config.sessionSecret, raw));
     return this.cookie(this.sessionCookie, '', { maxAge: 0 });
   }
 
