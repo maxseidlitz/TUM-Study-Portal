@@ -75,7 +75,7 @@ jobs:
             -e ACME_EMAIL=admin@example.com \
             -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" \
             caddy:2.10.0-alpine@sha256:ae4458638da8e1a91aafffb231c5f8778e964bca650c8a8cb23a7e8ac557aa3c \
-            validate --config /etc/caddy/Caddyfile
+            caddy validate --config /etc/caddy/Caddyfile
       - name: Build production image from pinned base
         run: docker compose build --pull app
       - name: Verify non-root runtime, health, and volume writes
