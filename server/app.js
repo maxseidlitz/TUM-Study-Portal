@@ -82,8 +82,10 @@ async function createApp({ config, db: suppliedDb, logger: suppliedLogger } = {}
         connectSrc: ["'self'"],
         objectSrc: ["'none'"],
         frameAncestors: ["'none'"],
+        upgradeInsecureRequests: config.secureCookies ? [] : null,
       },
     },
+    strictTransportSecurity: config.secureCookies ? undefined : false,
   }));
   app.use((req, res, next) => {
     res.set('Cache-Control', req.path.startsWith('/static/') ? 'public, max-age=31536000, immutable' : 'no-store');

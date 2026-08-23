@@ -54,7 +54,8 @@ for a trusted, directly connected proxy. Production session cookies are Secure,
 HttpOnly, SameSite=Strict and use the `__Host-` prefix. When
 `SECURE_COOKIES=false` is explicitly selected for local HTTP development, the
 server uses unprefixed cookies because browsers reject `__Host-` cookies without
-HTTPS. Never use that setting for a deployed instance.
+HTTPS. It also disables HSTS and CSP request upgrades for that local mode.
+Never use that setting for a deployed instance.
 
 The server provides:
 

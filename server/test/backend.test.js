@@ -107,6 +107,8 @@ test('local HTTP development uses unprefixed cookies browsers accept', async (t)
   const page = await request(app).get('/login').expect(200);
   assert.match(page.headers['set-cookie'].join(';'), /^login_nonce=/);
   assert.doesNotMatch(page.headers['set-cookie'].join(';'), /;\s*Secure(?:;|$)/);
+  assert.doesNotMatch(page.headers['content-security-policy'], /upgrade-insecure-requests/);
+  assert.equal(page.headers['strict-transport-security'], undefined);
 
   const auth = await login(app, { origin, cookiePrefix: '', secureCookies: false });
   assert.match(auth.session, /^tum_session=/);
