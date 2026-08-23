@@ -138,17 +138,17 @@ export default function Lectures({ openImportRequest = 0 }) {
     if (editing) {
       if (isModuleBase && editScope === 'single' && overrideDate) {
         // Nur diesen Termin verschieben/ändern → Override-ID moduleId::slotId::datum
-        await updateLecture({
+        if (!await updateLecture({
           id: `${editing}::${overrideDate}`,
           time: payload.time,
           end_time: payload.end_time,
           room: payload.room,
-        });
+        })) return;
       } else {
-        await updateLecture({ ...payload, id: editing });
+        if (!await updateLecture({ ...payload, id: editing })) return;
       }
     } else {
-      await addLecture(payload);
+      if (!await addLecture(payload)) return;
     }
     closeModal();
   };
@@ -156,13 +156,11 @@ export default function Lectures({ openImportRequest = 0 }) {
   // Einzelnen Termin einer Reihe absagen
   const handleCancelOccurrence = async () => {
     if (!editing || !overrideDate) return;
-    await deleteLecture(`${editing}::${overrideDate}`);
-    closeModal();
+    if (await deleteLecture(`${editing}::${overrideDate}`)) closeModal();
   };
 
   const handleDelete = async (id) => {
-    await deleteLecture(id);
-    setDeleteConfirm(null);
+    if (await deleteLecture(id)) setDeleteConfirm(null);
   };
 
   return loading ? (

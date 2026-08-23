@@ -5,6 +5,7 @@ const http = require('http');
 const https = require('https');
 const { spawn } = require('child_process');
 const { parseIcal, eventsToCalendarItems } = require('./ical');
+const { isSafeExternalUrl } = require('./externalUrl');
 const {
   store, saveStore, initStore,
   getMergedLecturesForClient, parseCompositeLectureId, setSlotOverride,
@@ -76,6 +77,15 @@ function createWindow() {
     : `file://${path.join(__dirname, '../build/index.html')}`;
 
   mainWindow.loadURL(startUrl);
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (isSafeExternalUrl(url)) {
+      shell.openExternal(url).catch((error) => {
+        console.error('Externe URL konnte nicht geöffnet werden:', error.message);
+      });
+    }
+    // Never create a renderer-owned child window with an opener.
+    return { action: 'deny' };
+  });
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
@@ -368,7 +378,11 @@ function registerIpcHandlers() {
     }
   });
 
-  ipcMain.handle('shell:openExternal', (_, url) => shell.openExternal(url));
+  ipcMain.handle('shell:openExternal', async (_, url) => {
+    if (!isSafeExternalUrl(url)) return false;
+    await shell.openExternal(url);
+    return true;
+  });
 
   // Backup — Export / Import
   ipcMain.handle('backup:export', () => {

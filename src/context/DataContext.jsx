@@ -92,13 +92,17 @@ export function DataProvider({ children }) {
   useEffect(() => { loadAll(); }, [loadAll]);
 
   const toggleTodo = useCallback(async (id) => {
-    setTodos(prev => {
-      const updated = prev.map(item => item.id === id ? { ...item, done: !item.done } : item);
-      const todo = updated.find(item => item.id === id);
-      api.todos.update(todo);
-      return updated;
-    });
-  }, []);
+    const previous = todos.find(item => item.id === id);
+    if (!previous) return;
+    const todo = { ...previous, done: !previous.done };
+    setTodos(prev => prev.map(item => item.id === id ? todo : item));
+    try {
+      await api.todos.update(todo);
+    } catch (error) {
+      setTodos(prev => prev.map(item => item.id === id ? previous : item));
+      crudError(error);
+    }
+  }, [todos, crudError]);
 
   const sendAiMessage = useCallback(async (content, sessionId, history) => {
     const userMsg = { role: 'user', content: content.trim() };

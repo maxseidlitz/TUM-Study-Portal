@@ -12,18 +12,24 @@ export default function OllamaSetup({ suppressOverlay = false }) {
   useEffect(() => {
     api.settings.get().then((s) => {
       if (s?.ollamaSetupDismissed) setDismissed(true);
-    });
+    }).catch(() => {});
   }, []);
 
   const handleDismiss = useCallback(async () => {
     setDismissed(true);
-    await api.settings.save({ ollamaSetupDismissed: true });
+    try {
+      await api.settings.save({ ollamaSetupDismissed: true });
+    } catch {
+      setDismissed(false);
+    }
   }, []);
 
   const handleRetry = useCallback(async () => {
     setRetrying(true);
     try {
       await api.ollama.retrySetup();
+    } catch {
+      // The setup state remains on the existing error and can be retried.
     } finally {
       setRetrying(false);
     }

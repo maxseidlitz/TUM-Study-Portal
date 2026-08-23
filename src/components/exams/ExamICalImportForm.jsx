@@ -62,7 +62,7 @@ export default function ExamICalImportForm({
     const toImport = selected
       .filter((i) => i._selected)
       .map(({ _selected, _duplicate, ...rest }) => rest);
-    await onImport(toImport);
+    if (await onImport(toImport) === false) return;
     setStatus('success');
     onImportComplete?.({ examCount: toImport.length });
     if (onClose && !embedded) {

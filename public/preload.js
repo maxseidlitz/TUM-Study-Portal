@@ -68,7 +68,9 @@ contextBridge.exposeInMainWorld('api', {
       return () => ipcRenderer.removeListener('ollama:setup-progress', listener);
     },
   },
-  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
+  // Navigation is validated again in the main process. Resolve false instead
+  // of leaking an ignored invoke rejection into renderer event handlers.
+  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url).then(Boolean, () => false),
   backup: {
     export: () => ipcRenderer.invoke('backup:export'),
     import: (json) => ipcRenderer.invoke('backup:import', json),

@@ -61,14 +61,15 @@ export default function Modules() {
       color: form.color,
       slots,
     };
-    if (editing) await updateModule({ ...payload, id: editing });
-    else await addModule(payload);
+    const saved = editing
+      ? await updateModule({ ...payload, id: editing })
+      : await addModule(payload);
+    if (!saved) return;
     closeModal();
   };
 
   const handleDelete = async (id) => {
-    await deleteModule(id);
-    setDeleteConfirm(null);
+    if (await deleteModule(id)) setDeleteConfirm(null);
   };
 
 

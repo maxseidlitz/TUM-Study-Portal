@@ -21,15 +21,25 @@ export default function SetupWizard({ onComplete, onVisibilityChange, onNavigate
   const [scheduleImported, setScheduleImported] = useState(false);
 
   const saveStep = useCallback(async (nextStep) => {
-    setStep(nextStep);
-    await api.settings.save({ onboardingStep: nextStep });
+    try {
+      await api.settings.save({ onboardingStep: nextStep });
+      setStep(nextStep);
+      return true;
+    } catch {
+      return false;
+    }
   }, []);
 
   const completeOnboarding = useCallback(async () => {
-    await api.settings.save({ onboardingCompleted: true, onboardingStep: TOTAL_STEPS });
+    try {
+      await api.settings.save({ onboardingCompleted: true, onboardingStep: TOTAL_STEPS });
+    } catch {
+      return false;
+    }
     setVisible(false);
     onVisibilityChange?.(false);
     onComplete?.();
+    return true;
   }, [onComplete, onVisibilityChange]);
 
   useEffect(() => {
@@ -76,7 +86,13 @@ export default function SetupWizard({ onComplete, onVisibilityChange, onNavigate
       setInitDone(true);
     };
 
-    init();
+    init().catch(() => {
+      // A settings transport failure must not leave initialization pending.
+      setStep(0);
+      setVisible(true);
+      onVisibilityChange?.(true);
+      setInitDone(true);
+    });
   }, [dataLoading, initDone, lectures.length, onVisibilityChange]);
 
   const handleScheduleImport = useCallback((result) => {
@@ -90,9 +106,10 @@ export default function SetupWizard({ onComplete, onVisibilityChange, onNavigate
 
   const handleExamImport = useCallback(async (candidates) => {
     for (const c of candidates) {
-      await addExam({ ...c, id: generateId() });
+      if (!await addExam({ ...c, id: generateId() })) return false;
     }
     setImportStats((prev) => ({ ...prev, examCount: candidates.length }));
+    return true;
   }, [addExam]);
 
   const handleExamImportComplete = useCallback((result) => {

@@ -21,6 +21,8 @@ export default function AiSettings({ settings, setSettings }) {
 
   const isOllama = settings.aiProvider !== 'gemini';
   const isGemini = settings.aiProvider === 'gemini';
+  const isSelfHosted = api.runtime === 'browser';
+  const hasServerGeminiKey = isSelfHosted && Boolean(settings.geminiApiKeyConfigured);
 
   const fetchModelList = useCallback(async (snapshot) => {
     const s = {
@@ -61,16 +63,27 @@ export default function AiSettings({ settings, setSettings }) {
   }, [settings.aiProvider, settings.ollamaUrl, settings.geminiModel, fetchModelList]);
 
   const handleSave = async () => {
-    await api.settings.save({ ...settings, locale });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      await api.settings.save({ ...settings, locale });
+      if (isSelfHosted && settings.geminiApiKey) {
+        setSettings(s => ({ ...s, geminiApiKey: '', geminiApiKeyConfigured: true }));
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      setTestStatus('error');
+      setTestMsg(e.message);
+    }
   };
 
   const handleTestAi = async () => {
     setTestStatus('loading');
     setTestMsg('');
-    await api.settings.save({ ...settings, locale });
     try {
+      await api.settings.save({ ...settings, locale });
+      if (isSelfHosted && settings.geminiApiKey) {
+        setSettings(s => ({ ...s, geminiApiKey: '', geminiApiKeyConfigured: true }));
+      }
       const result = await api.ai.recommend({
         exams: [],
         todos: [],
@@ -313,12 +326,16 @@ export default function AiSettings({ settings, setSettings }) {
                 className="form-input"
                 type="password"
                 autoComplete="off"
-                value={settings.geminiApiKey}
+                value={settings.geminiApiKey || ''}
                 onChange={e => setSettings(s => ({ ...s, geminiApiKey: e.target.value }))}
-                placeholder={t('settings.apiKeyPlaceholder')}
+                placeholder={isSelfHosted
+                  ? t(hasServerGeminiKey ? 'settings.apiKeyConfiguredPlaceholder' : 'settings.apiKeySelfHostedPlaceholder')
+                  : t('settings.apiKeyPlaceholder')}
               />
               <p style={styles.modelsHint}>
-                {t('settings.apiKeyHint')} <code style={styles.code}>GEMINI_API_KEY</code> {t('settings.apiKeyHint2')}
+                {isSelfHosted
+                  ? t('settings.apiKeySelfHostedHint')
+                  : <>{t('settings.apiKeyHint')} <code style={styles.code}>GEMINI_API_KEY</code> {t('settings.apiKeyHint2')}</>}
               </p>
             </div>
 

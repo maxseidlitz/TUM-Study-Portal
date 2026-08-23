@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useData } from '../context/DataContext';
 import { useLocale } from '../context/LocaleContext';
+import { useToast } from '../context/ToastContext';
 import { api } from '../api';
+import { createStudyLog } from '../utils/studyLogPersistence';
 
 export default function PomodoroWidget() {
   const { exams, todos, refreshData } = useData();
   const { t } = useLocale();
+  const showToast = useToast();
 
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState('work');
@@ -15,6 +18,8 @@ export default function PomodoroWidget() {
   const [logTarget, setLogTarget] = useState('exam'); // 'exam' | 'todo'
   const [selectedExamId, setSelectedExamId] = useState('');
   const [selectedTodoId, setSelectedTodoId] = useState('');
+  const [logSaving, setLogSaving] = useState(false);
+  const [logError, setLogError] = useState('');
 
   const timerRef = useRef(null);
 
@@ -73,15 +78,24 @@ export default function PomodoroWidget() {
       duration_min: duration,
       topics: t('pomodoro.workLabel'),
     };
-    if (logTarget === 'exam' && selectedExamId) {
-      await api.studyLogs.create({ ...base, exam_id: selectedExamId });
-    } else if (logTarget === 'todo' && selectedTodoId) {
-      await api.studyLogs.create({ ...base, todo_id: selectedTodoId });
+    const log = logTarget === 'exam'
+      ? { ...base, exam_id: selectedExamId }
+      : { ...base, todo_id: selectedTodoId };
+    setLogSaving(true);
+    setLogError('');
+    try {
+      await createStudyLog(api.studyLogs, log);
+      await refreshData();
+      setShowModal(false);
+      setSelectedExamId('');
+      setSelectedTodoId('');
+    } catch {
+      const message = t('pomodoro.logSaveError');
+      setLogError(message);
+      showToast(message, 'error');
+    } finally {
+      setLogSaving(false);
     }
-    await refreshData();
-    setShowModal(false);
-    setSelectedExamId('');
-    setSelectedTodoId('');
   };
 
   const upcomingExams = exams.filter(e => {
@@ -139,6 +153,7 @@ export default function PomodoroWidget() {
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 16 }}>
               {t('pomodoro.logDurationLabel')}: {t('pomodoro.logDurationMinutes', { min: Math.floor(configs.work.time / 60) })}
             </p>
+            {logError && <div style={styles.logError}>{logError}</div>}
 
             <div className="form-group">
               <label className="form-label">{t('pomodoro.logTypeLabel')}</label>
@@ -188,10 +203,10 @@ export default function PomodoroWidget() {
             )}
 
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowModal(false)}>
+              <button className="btn btn-secondary" onClick={() => setShowModal(false)} disabled={logSaving}>
                 {t('pomodoro.logSkip')}
               </button>
-              <button className="btn btn-primary" onClick={handleSaveLog} disabled={!canSave}>
+              <button className="btn btn-primary" onClick={handleSaveLog} disabled={!canSave || logSaving}>
                 {t('pomodoro.logSave')}
               </button>
             </div>
@@ -242,6 +257,7 @@ const styles = {
   modeBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: 0 },
   timer: { fontSize: 32, fontWeight: 800, fontVariantNumeric: 'tabular-nums', lineHeight: 1 },
   controls: { display: 'flex', gap: 8, width: '100%' },
+  logError: { padding: '9px 11px', marginBottom: 12, borderRadius: 8, background: 'var(--danger-subtle)', color: 'var(--danger)', fontSize: 12 },
   activeTab: {
     borderColor: 'var(--accent)',
     boxShadow: '0 0 0 1px var(--accent)',

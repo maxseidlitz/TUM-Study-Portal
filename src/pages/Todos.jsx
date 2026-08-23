@@ -90,9 +90,10 @@ export default function Todos() {
     });
   };
 
-  const handleDelete = (id) => {
-    deleteTodo(id);
-    if (selectedId === id) setSelectedId(null);
+  const handleDelete = async (id) => {
+    if (await deleteTodo(id)) {
+      if (selectedId === id) setSelectedId(null);
+    }
   };
 
   return (

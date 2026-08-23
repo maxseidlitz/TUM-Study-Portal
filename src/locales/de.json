@@ -124,6 +124,9 @@
     "logPlaceholderTopics": "z.B. Kapitel 3-5, Übungsblätter",
     "logAdd": "Hinzufügen",
     "logEmpty": "Noch keine Lerneinträge. Füge deine erste Sitzung hinzu!",
+    "logLoadError": "Lerneinträge konnten nicht geladen werden. Bitte versuche es erneut.",
+    "logCreateError": "Der Lerneintrag konnte nicht gespeichert werden.",
+    "logDeleteError": "Der Lerneintrag konnte nicht gelöscht werden.",
     "gradeModalTitle": "Note eintragen",
     "gradeNotPassed": "Nicht best.",
     "gradeSave": "Note speichern",
@@ -370,7 +373,9 @@
     "deselectAll": "Alle abwählen",
     "selectAll": "Alle auswählen",
     "importOne": "1 Termin importieren",
-    "importMany": "{count} Termine importieren"
+    "importMany": "{count} Termine importieren",
+    "importFailed": "Der Kalenderimport wurde abgebrochen: {error}",
+    "replaceFailed": "Die Kalenderaktualisierung wurde beim ersten Fehler abgebrochen. Bereits bestätigte Änderungen bleiben erhalten: {error}"
   },
   "settings": {
     "pageTitle": "Einstellungen",
@@ -419,6 +424,9 @@
     "geminiSub2": "rotieren.",
     "apiKey": "API-Schlüssel",
     "apiKeyPlaceholder": "Aus Google AI Studio (oder GEMINI_API_KEY in der Umgebung)",
+    "apiKeySelfHostedPlaceholder": "Neuen Schlüssel sicher hinterlegen",
+    "apiKeyConfiguredPlaceholder": "Schlüssel ist auf dem Server hinterlegt",
+    "apiKeySelfHostedHint": "Self-hosted: Der Schlüssel wird nur beim Speichern an den Server gesendet und nie wieder an diesen Browser ausgeliefert. Ein leeres Feld behält den vorhandenen Schlüssel.",
     "apiKeyHint": "Alternative: Schlüssel nur per Umgebungsvariable",
     "apiKeyHint2": "beim Start von Electron setzen – dann Feld leer lassen.",
     "modelId": "Modell-ID",
@@ -531,7 +539,8 @@
     "logDurationLabel": "Dauer",
     "logDurationMinutes": "{min} Minuten",
     "logSave": "Speichern",
-    "logSkip": "Überspringen"
+    "logSkip": "Überspringen",
+    "logSaveError": "Die Lernsitzung konnte nicht gespeichert werden. Bitte versuche es erneut."
   },
   "setupWizard": {
     "stepWelcome": "Willkommen",

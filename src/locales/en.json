@@ -122,6 +122,9 @@
     "logPlaceholderTopics": "e.g. chapters 3–5, problem sets",
     "logAdd": "Add",
     "logEmpty": "No study entries yet. Add your first session!",
+    "logLoadError": "Study entries could not be loaded. Please try again.",
+    "logCreateError": "The study entry could not be saved.",
+    "logDeleteError": "The study entry could not be deleted.",
     "gradeModalTitle": "Enter grade",
     "gradeNotPassed": "Failed",
     "gradeSave": "Save grade",
@@ -374,7 +377,9 @@
     "deselectAll": "Deselect all",
     "selectAll": "Select all",
     "importOne": "Import 1 event",
-    "importMany": "Import {count} events"
+    "importMany": "Import {count} events",
+    "importFailed": "The calendar import was stopped: {error}",
+    "replaceFailed": "The calendar refresh stopped at the first error. Already confirmed changes remain applied: {error}"
   },
   "settings": {
     "pageTitle": "Settings",
@@ -423,6 +428,9 @@
     "geminiSub2": ".",
     "apiKey": "API key",
     "apiKeyPlaceholder": "From Google AI Studio (or GEMINI_API_KEY in environment)",
+    "apiKeySelfHostedPlaceholder": "Store a new key securely",
+    "apiKeyConfiguredPlaceholder": "A key is stored on the server",
+    "apiKeySelfHostedHint": "Self-hosted: The key is sent to the server only when saving and is never returned to this browser. An empty field keeps the existing key.",
     "apiKeyHint": "Alternative: set key only via env var",
     "apiKeyHint2": "when starting Electron — leave field empty.",
     "modelId": "Model ID",
@@ -515,7 +523,8 @@
     "logDurationLabel": "Duration",
     "logDurationMinutes": "{min} minutes",
     "logSave": "Save",
-    "logSkip": "Skip"
+    "logSkip": "Skip",
+    "logSaveError": "The study session could not be saved. Please try again."
   },
   "ai": {
     "labelKi": "🤖 AI recommendation",

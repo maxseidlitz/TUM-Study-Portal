@@ -104,33 +104,41 @@ export function useChatSessions({ activeAiChat, setActiveAiChat }) {
 
   const startNewChat = useCallback(async () => {
     if (thinking) return;
-    if (persistReady) {
-      await flushSaveCurrentSession();
-      const nid = generateId();
-      const now = new Date().toISOString();
-      const row = { id: nid, title: '', startedAt: now, updatedAt: now, messages: [] };
-      const st = await api.settings.get();
-      await api.chats.save(row);
-      await api.settings.save({ ...st, lastActiveChatId: nid });
-      const nextList = await api.chats.getAll();
-      setSessions(nextList);
-      setActiveSessionId(nid);
-      setMessages([]);
-    } else {
-      setMessages([]);
+    try {
+      if (persistReady) {
+        await flushSaveCurrentSession();
+        const nid = generateId();
+        const now = new Date().toISOString();
+        const row = { id: nid, title: '', startedAt: now, updatedAt: now, messages: [] };
+        const st = await api.settings.get();
+        await api.chats.save(row);
+        await api.settings.save({ ...st, lastActiveChatId: nid });
+        const nextList = await api.chats.getAll();
+        setSessions(nextList);
+        setActiveSessionId(nid);
+        setMessages([]);
+      } else {
+        setMessages([]);
+      }
+    } catch (error) {
+      console.error(error);
     }
   }, [thinking, persistReady, flushSaveCurrentSession]);
 
   const selectSession = useCallback(async (id) => {
     if (id === activeSessionId || thinking) return;
-    if (persistReady) {
-      await flushSaveCurrentSession();
-      const s = sessions.find(x => x.id === id);
-      if (!s) return;
-      const st = await api.settings.get();
-      await api.settings.save({ ...st, lastActiveChatId: id });
-      setActiveSessionId(id);
-      setMessages(Array.isArray(s.messages) ? [...s.messages] : []);
+    try {
+      if (persistReady) {
+        await flushSaveCurrentSession();
+        const s = sessions.find(x => x.id === id);
+        if (!s) return;
+        const st = await api.settings.get();
+        await api.settings.save({ ...st, lastActiveChatId: id });
+        setActiveSessionId(id);
+        setMessages(Array.isArray(s.messages) ? [...s.messages] : []);
+      }
+    } catch (error) {
+      console.error(error);
     }
   }, [activeSessionId, thinking, persistReady, flushSaveCurrentSession, sessions]);
 

@@ -21,7 +21,28 @@ export const API_METHODS = Object.freeze([
   'backup.export', 'backup.import',
 ]);
 
-function valueAtPath(object, path) {
+// IPC handlers intentionally expose different return shapes. Result methods
+// report expected/domain failures as { success: false, error }; commands must
+// reject so optimistic callers do not commit local state after a failed write.
+export const RESULT_METHODS = Object.freeze([
+  'ical.fetch',
+  'ai.recommend', 'ai.chat', 'ai.models',
+  'mensa.fetch',
+  'backup.export', 'backup.import',
+]);
+
+export const COMMAND_METHODS = Object.freeze([
+  'exams.create', 'exams.update', 'exams.delete',
+  'lectures.create', 'lectures.update', 'lectures.delete',
+  'todos.create', 'todos.update', 'todos.delete',
+  'moodle.create', 'moodle.update', 'moodle.delete',
+  'modules.create', 'modules.update', 'modules.delete',
+  'studyLogs.create', 'studyLogs.delete',
+  'settings.save',
+  'chats.save', 'chats.delete',
+]);
+
+export function valueAtPath(object, path) {
   return path.split('.').reduce((value, part) => value?.[part], object);
 }
 

@@ -22,7 +22,7 @@ export default function Dashboard({ onNavigate }) {
   useEffect(() => {
     api.settings.get().then((s) => {
       setOnboardingDone(Boolean(s?.onboardingCompleted));
-    });
+    }).catch(() => setOnboardingDone(false));
   }, []);
 
   if (loading) return <div className="loading">{t('common.loading')}</div>;

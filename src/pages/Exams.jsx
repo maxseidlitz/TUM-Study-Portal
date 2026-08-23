@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { useLocale } from '../context/LocaleContext';
 import { useToast } from '../context/ToastContext';
@@ -10,6 +10,11 @@ import ExamFormModal from '../components/exams/ExamFormModal';
 import GradeAnalytics from '../components/exams/GradeAnalytics';
 import ExamICalImport from '../components/exams/ExamICalImport';
 import { api } from '../api';
+import {
+  createStudyLog,
+  deleteStudyLog,
+  loadExamStudyLogs,
+} from '../utils/studyLogPersistence';
 
 const EMPTY_FORM = { name: '', date: '', time: '', room: '', credits: '', notes: '' };
 const GRADES = ['1.0', '1.3', '1.7', '2.0', '2.3', '2.7', '3.0', '3.3', '3.7', '4.0', '5.0'];
@@ -36,7 +41,7 @@ export default function Exams() {
         targetGpa: s.targetGpa ?? 1.0, 
         targetEcts: s.targetEcts ?? 180 
       });
-    });
+    }).catch(() => {});
   }, []);
 
   if (loading) return <div className="loading">{t('common.loading')}</div>;
@@ -58,17 +63,18 @@ export default function Exams() {
     e.preventDefault();
     const data = { ...form, credits: form.credits ? parseInt(form.credits) : null };
     if (editing) {
-      await updateExam({ ...data, id: editing });
+      if (!await updateExam({ ...data, id: editing })) return;
     } else {
       const newExam = await addExam(data);
-      if (data.date) setSuggestTodoExam(newExam || { ...data, id: generateId() });
+      if (!newExam) return;
+      if (data.date) setSuggestTodoExam(newExam);
     }
     closeModal();
   };
 
   const handleIcalImport = async (candidates) => {
     for (const c of candidates) {
-      await addExam({ ...c, id: generateId() });
+      if (!await addExam({ ...c, id: generateId() })) return false;
     }
     showToast(
       candidates.length === 1
@@ -76,6 +82,7 @@ export default function Exams() {
         : t('exams.icalSuccessMany', { count: candidates.length }),
       'success'
     );
+    return true;
   };
 
   const handleExportCsv = () => {
@@ -101,15 +108,15 @@ export default function Exams() {
   };
 
   const handleDelete = async (id) => {
-    await deleteExam(id);
-    setDeleteConfirm(null);
+    if (await deleteExam(id)) setDeleteConfirm(null);
   };
 
   const handleGradeSave = async (examId, grade) => {
     const exam = exams.find(e => e.id === examId);
     if (!exam) return;
-    await updateExam({ ...exam, grade: parseFloat(grade), passed: parseFloat(grade) < 5.0 });
-    setGradeExamId(null);
+    if (await updateExam({ ...exam, grade: parseFloat(grade), passed: parseFloat(grade) < 5.0 })) {
+      setGradeExamId(null);
+    }
   };
 
   const handleGradeRemove = async (examId) => {
@@ -334,27 +341,60 @@ function StudyLogModal({ exam, onClose, intlLocale, t }) {
   const [logs, setLogs] = useState([]);
   const [form, setForm] = useState({ date: new Date().toISOString().split('T')[0], duration_min: '', topics: '' });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
-  const loadLogs = useCallback(async () => {
-    if (!exam) return;
-    const result = await api.studyLogs.getByExam(exam.id);
-    setLogs(result || []);
-    setLoading(false);
-  }, [exam]);
-
-  useEffect(() => { loadLogs(); }, [loadLogs]);
+  useEffect(() => {
+    let cancelled = false;
+    if (!exam) {
+      setLoading(false);
+      return () => { cancelled = true; };
+    }
+    setLoading(true);
+    setError('');
+    loadExamStudyLogs(api.studyLogs, exam.id)
+      .then(result => {
+        if (!cancelled) setLogs(result);
+      })
+      .catch(() => {
+        if (!cancelled) setError(t('exams.logLoadError'));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [exam, t]);
 
   const handleAdd = async (e) => {
     e.preventDefault();
     const log = { id: generateId(), exam_id: exam.id, ...form, duration_min: parseInt(form.duration_min) || 0 };
-    await api.studyLogs.create(log);
-    setLogs(prev => [log, ...prev]);
-    setForm({ date: new Date().toISOString().split('T')[0], duration_min: '', topics: '' });
+    setSaving(true);
+    setError('');
+    try {
+      await createStudyLog(api.studyLogs, log, created => {
+        setLogs(prev => [created, ...prev]);
+      });
+      setForm({ date: new Date().toISOString().split('T')[0], duration_min: '', topics: '' });
+    } catch {
+      setError(t('exams.logCreateError'));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async (id) => {
-    await api.studyLogs.delete(id);
-    setLogs(prev => prev.filter(l => l.id !== id));
+    setDeletingId(id);
+    setError('');
+    try {
+      await deleteStudyLog(api.studyLogs, id, deletedId => {
+        setLogs(prev => prev.filter(log => log.id !== deletedId));
+      });
+    } catch {
+      setError(t('exams.logDeleteError'));
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   if (!exam) return null;
@@ -373,6 +413,8 @@ function StudyLogModal({ exam, onClose, intlLocale, t }) {
           </div>
           <button className="btn btn-ghost btn-icon" onClick={onClose}><CloseIcon /></button>
         </div>
+
+        {error && <div style={styles.logError}>{error}</div>}
 
         {/* Stats */}
         <div style={styles.logStats}>
@@ -411,7 +453,7 @@ function StudyLogModal({ exam, onClose, intlLocale, t }) {
             <input className="form-input" placeholder={t('exams.logPlaceholderTopics')} required
               value={form.topics} onChange={e => setForm(f => ({ ...f, topics: e.target.value }))} />
           </div>
-          <button type="submit" className="btn btn-primary btn-sm" style={{ alignSelf: 'flex-end' }}>
+          <button type="submit" className="btn btn-primary btn-sm" style={{ alignSelf: 'flex-end' }} disabled={saving}>
             <PlusIcon /> {t('exams.logAdd')}
           </button>
         </form>
@@ -439,6 +481,7 @@ function StudyLogModal({ exam, onClose, intlLocale, t }) {
                   <div style={styles.logTopics}>{log.topics}</div>
                 </div>
                 <button className="btn btn-ghost btn-icon btn-sm" onClick={() => handleDelete(log.id)}
+                  disabled={deletingId === log.id}
                   style={{ color: 'var(--danger)', flexShrink: 0 }}><TrashIcon /></button>
               </div>
             ))}
@@ -507,6 +550,7 @@ function GradeModal({ exam, onSave, onClose, t }) {
 const styles = {
   pageHeader: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32 },
   examGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16, marginBottom: 16 },
+  logError: { padding: '10px 12px', marginBottom: 12, borderRadius: 8, background: 'var(--danger-subtle)', color: 'var(--danger)', fontSize: 12 },
   logStats: { display: 'flex', gap: 20, padding: '12px 0', marginBottom: 16 },
   logStat: { textAlign: 'center' },
   logStatValue: { fontSize: 20, fontWeight: 700, color: 'var(--accent-hover)' },

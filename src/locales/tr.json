@@ -120,6 +120,9 @@
     "logPlaceholderTopics": "ör. Bölüm 3-5, ödevler",
     "logAdd": "Ekle",
     "logEmpty": "Henüz kayıt yok. İlk oturumu ekleyin!",
+    "logLoadError": "Çalışma kayıtları yüklenemedi. Lütfen tekrar deneyin.",
+    "logCreateError": "Çalışma kaydı kaydedilemedi.",
+    "logDeleteError": "Çalışma kaydı silinemedi.",
     "gradeModalTitle": "Not gir",
     "gradeNotPassed": "Başarısız",
     "gradeSave": "Notu kaydet",
@@ -354,7 +357,9 @@
     "deselectAll": "Tümünü kaldır",
     "selectAll": "Tümünü seç",
     "importOne": "1 etkinliği içe aktar",
-    "importMany": "{count} etkinliği içe aktar"
+    "importMany": "{count} etkinliği içe aktar",
+    "importFailed": "Takvim içe aktarma durduruldu: {error}",
+    "replaceFailed": "Takvim yenileme ilk hatada durduruldu. Onaylanmış değişiklikler korunur: {error}"
   },
   "settings": {
     "pageTitle": "Ayarlar",
@@ -403,6 +408,9 @@
     "geminiSub2": "yenileyin.",
     "apiKey": "API anahtarı",
     "apiKeyPlaceholder": "Google AI Studio (veya ortamda GEMINI_API_KEY)",
+    "apiKeySelfHostedPlaceholder": "Yeni anahtarı güvenli şekilde kaydet",
+    "apiKeyConfiguredPlaceholder": "Sunucuda bir anahtar kayıtlı",
+    "apiKeySelfHostedHint": "Self-hosted: Anahtar yalnızca kaydederken sunucuya gönderilir ve bu tarayıcıya geri verilmez. Boş alan mevcut anahtarı korur.",
     "apiKeyHint": "Alternatif: anahtarı yalnızca ortam değişkeniyle",
     "apiKeyHint2": "Electron başlatırken ayarlayın — alanı boş bırakın.",
     "modelId": "Model kimliği",
@@ -471,6 +479,24 @@
     "lectureOne": "Bugün 1 ders — notları gözden geçirmeyi unutma!",
     "lectureMany": "Bugün {count} ders — notları gözden geçirmeyi unutma!",
     "relaxed": "Bugün her şey rahat! Zamanı proaktif sınav hazırlığı için kullan."
+  },
+  "pomodoro": {
+    "workLabel": "Odaklanma",
+    "breakLabel": "Mola",
+    "longBreakLabel": "Uzun mola",
+    "logTitle": "Çalışma oturumunu kaydet",
+    "logTypeLabel": "Şunun için",
+    "logTypeExam": "Sınav",
+    "logTypeTodo": "Görev",
+    "logExamLabel": "Sınav seç",
+    "logTodoLabel": "Görev seç",
+    "logNoExam": "Sınav seçilmedi",
+    "logNoTodo": "Görev seçilmedi",
+    "logDurationLabel": "Süre",
+    "logDurationMinutes": "{min} dakika",
+    "logSave": "Kaydet",
+    "logSkip": "Atla",
+    "logSaveError": "Çalışma oturumu kaydedilemedi. Lütfen tekrar deneyin."
   },
   "setupWizard": {
     "stepWelcome": "Hoş geldiniz",

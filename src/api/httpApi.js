@@ -11,19 +11,46 @@ export class ApiError extends Error {
 
 const trimTrailingSlash = value => value.replace(/\/+$/, '');
 const encode = value => encodeURIComponent(String(value));
+const SAFE_METHODS = new Set(['GET', 'HEAD']);
 
-function entityApi(request, resource) {
+function defaultCsrfToken() {
+  if (typeof document === 'undefined') return '';
+  return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')?.trim() || '';
+}
+
+function browserSettingsDto(settings) {
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return settings;
+  const { geminiApiKey: _secret, ...safeSettings } = settings;
+  return safeSettings;
+}
+
+function browserSettingsWriteDto(settings) {
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return settings;
+  const dto = { ...settings };
+  if (typeof dto.geminiApiKey !== 'string' || !dto.geminiApiKey.trim()) {
+    delete dto.geminiApiKey;
+  }
+  delete dto.geminiApiKeyConfigured;
+  return dto;
+}
+
+export { browserSettingsDto, browserSettingsWriteDto };
+
+function entityApi(request, commandRequest, resource) {
   return {
     getAll: () => request(`/${resource}`),
-    create: item => request(`/${resource}`, { method: 'POST', body: item }),
-    update: item => request(`/${resource}/${encode(item.id)}`, { method: 'PUT', body: item }),
-    delete: id => request(`/${resource}/${encode(id)}`, { method: 'DELETE' }),
+    create: item => commandRequest(`/${resource}`, { method: 'POST', body: item }),
+    update: item => commandRequest(`/${resource}/${encode(item.id)}`, { method: 'PUT', body: item }),
+    delete: id => commandRequest(`/${resource}/${encode(id)}`, { method: 'DELETE' }),
   };
 }
 
 export function createHttpRequest({
   baseUrl = '/api/v1',
   fetchImpl = typeof window !== 'undefined' ? window.fetch?.bind(window) : undefined,
+  csrf = true,
+  csrfHeaderName = 'X-CSRF-Token',
+  csrfToken,
 } = {}) {
   const normalizedBaseUrl = trimTrailingSlash(baseUrl);
 
@@ -31,16 +58,28 @@ export function createHttpRequest({
     if (typeof fetchImpl !== 'function') {
       throw new ApiError('API request failed: fetch is unavailable');
     }
+    const normalizedMethod = String(method).toUpperCase();
+    const requestHeaders = {
+      Accept: 'application/json',
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      ...headers,
+    };
+
+    if (csrf && !SAFE_METHODS.has(normalizedMethod)) {
+      const configuredToken = typeof csrfToken === 'function' ? csrfToken() : csrfToken;
+      const token = configuredToken === undefined ? defaultCsrfToken() : String(configuredToken).trim();
+      if (!token) {
+        throw new ApiError(`API request blocked: missing CSRF token for ${normalizedMethod}`);
+      }
+      requestHeaders[csrfHeaderName] = token;
+    }
+
     let response;
     try {
       response = await fetchImpl(`${normalizedBaseUrl}${path}`, {
-        method,
+        method: normalizedMethod,
         credentials: 'include',
-        headers: {
-          Accept: 'application/json',
-          ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-          ...headers,
-        },
+        headers: requestHeaders,
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
     } catch (cause) {
@@ -50,9 +89,16 @@ export function createHttpRequest({
     const contentType = response.headers?.get?.('content-type') || '';
     let responseBody = null;
     if (response.status !== 204) {
-      responseBody = contentType.includes('application/json')
-        ? await response.json()
-        : await response.text();
+      try {
+        responseBody = contentType.includes('application/json')
+          ? await response.json()
+          : await response.text();
+      } catch (cause) {
+        throw new ApiError(`API request failed (${response.status}): invalid response body`, {
+          status: response.status,
+          body: cause,
+        });
+      }
     }
 
     if (!response.ok) {
@@ -80,38 +126,67 @@ export function createHttpApi(options = {}) {
   const openWindow = options.openWindow
     ?? (typeof window !== 'undefined' ? window.open?.bind(window) : undefined);
 
+  const resultRequest = async (path, requestOptions) => {
+    try {
+      return await request(path, requestOptions);
+    } catch (error) {
+      return { success: false, error: error?.message || 'API request failed' };
+    }
+  };
+
+  const commandRequest = async (path, requestOptions) => {
+    const result = await request(path, requestOptions);
+    if (result?.success === false) {
+      throw new ApiError(result.error || 'API command failed', { body: result });
+    }
+    return result;
+  };
+
+  const isSafeExternalUrl = value => {
+    try {
+      const protocol = new URL(value).protocol;
+      return protocol === 'http:' || protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
+
   const api = {
-    exams: entityApi(request, 'exams'),
-    lectures: entityApi(request, 'lectures'),
-    todos: entityApi(request, 'todos'),
-    moodle: entityApi(request, 'moodle'),
-    modules: entityApi(request, 'modules'),
+    runtime: 'browser',
+    exams: entityApi(request, commandRequest, 'exams'),
+    lectures: entityApi(request, commandRequest, 'lectures'),
+    todos: entityApi(request, commandRequest, 'todos'),
+    moodle: entityApi(request, commandRequest, 'moodle'),
+    modules: entityApi(request, commandRequest, 'modules'),
     studyLogs: {
       getByExam: examId => request(`/study-logs?examId=${encode(examId)}`),
       getByTodo: todoId => request(`/study-logs?todoId=${encode(todoId)}`),
-      create: log => request('/study-logs', { method: 'POST', body: log }),
-      delete: id => request(`/study-logs/${encode(id)}`, { method: 'DELETE' }),
+      create: log => commandRequest('/study-logs', { method: 'POST', body: log }),
+      delete: id => commandRequest(`/study-logs/${encode(id)}`, { method: 'DELETE' }),
     },
     settings: {
-      get: () => request('/settings'),
-      save: settings => request('/settings', { method: 'PATCH', body: settings }),
+      get: async () => browserSettingsDto(await request('/settings')),
+      save: async settings => browserSettingsDto(await commandRequest('/settings', {
+          method: 'PATCH',
+          body: browserSettingsWriteDto(settings),
+        })),
     },
     ical: {
-      fetch: url => request('/ical/fetch', { method: 'POST', body: { url } }),
+      fetch: url => resultRequest('/ical/fetch', { method: 'POST', body: { url } }),
     },
     ai: {
-      recommend: context => request('/ai/recommend', { method: 'POST', body: context }),
-      chat: payload => request('/ai/chat', { method: 'POST', body: payload }),
-      models: optionsArg => request('/ai/models', { method: 'POST', body: optionsArg }),
+      recommend: context => resultRequest('/ai/recommend', { method: 'POST', body: context }),
+      chat: payload => resultRequest('/ai/chat', { method: 'POST', body: payload }),
+      models: optionsArg => resultRequest('/ai/models', { method: 'POST', body: optionsArg }),
     },
     chats: {
       getAll: () => request('/chats'),
       get: id => request(`/chats/${encode(id)}`),
-      save: session => request(`/chats/${encode(session.id)}`, { method: 'PUT', body: session }),
-      delete: id => request(`/chats/${encode(id)}`, { method: 'DELETE' }),
+      save: session => commandRequest(`/chats/${encode(session.id)}`, { method: 'PUT', body: session }),
+      delete: id => commandRequest(`/chats/${encode(id)}`, { method: 'DELETE' }),
     },
     mensa: {
-      fetch: canteenId => request(`/mensa/${encode(canteenId)}`),
+      fetch: canteenId => resultRequest(`/mensa/${encode(canteenId)}`),
     },
     ollama: {
       getSetupState: () => request('/ollama/setup'),
@@ -130,12 +205,19 @@ export function createHttpApi(options = {}) {
       },
     },
     openExternal: url => {
-      if (typeof openWindow !== 'function') return false;
-      return Boolean(openWindow(url, '_blank', 'noopener,noreferrer'));
+      if (typeof openWindow !== 'function' || !isSafeExternalUrl(url)) return false;
+      const opened = openWindow(url, '_blank', 'noopener,noreferrer');
+      if (!opened) return false;
+      try {
+        opened.opener = null;
+      } catch {
+        // noopener is already requested; cross-origin WindowProxy may reject assignment.
+      }
+      return true;
     },
     backup: {
-      export: () => request('/backup/export'),
-      import: json => request('/backup/import', { method: 'POST', body: { data: json } }),
+      export: () => resultRequest('/backup/export'),
+      import: json => resultRequest('/backup/import', { method: 'POST', body: { data: json } }),
     },
   };
 

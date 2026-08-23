@@ -54,6 +54,7 @@
       "public/aiRetrieval.js",
       "public/store.js",
       "public/ical.js",
+      "public/externalUrl.js",
       "node_modules/**/*"
     ],
     "extraResources": [

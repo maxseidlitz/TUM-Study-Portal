@@ -30,17 +30,30 @@ export default function Settings() {
   const [gpaError, setGpaError] = useState('');
 
   useEffect(() => {
-    api.settings.get().then((s) => {
-      setSettings({ ...defaultState(), ...s });
-      setLoading(false);
-    });
-  }, []);
+    let cancelled = false;
+    api.settings.get()
+      .then((s) => {
+        if (!cancelled) setSettings({ ...defaultState(), ...s });
+      })
+      .catch((error) => {
+        if (!cancelled) showToast(error.message || t('common.unknownError'), 'error');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [showToast, t]);
 
   const saveSettings = async (next) => {
     setSaving(true);
     setSettings(next);
-    await api.settings.save(next);
-    setTimeout(() => setSaving(false), 800);
+    try {
+      await api.settings.save(next);
+      setTimeout(() => setSaving(false), 800);
+    } catch (error) {
+      setSaving(false);
+      showToast(error.message || t('common.unknownError'), 'error');
+    }
   };
 
   const handleEctsChange = (e) => {
@@ -103,8 +116,12 @@ export default function Settings() {
   };
 
   const handleRestartTour = async () => {
-    await api.settings.save({ onboardingCompleted: false, onboardingStep: 0 });
-    window.dispatchEvent(new CustomEvent('restart-setup-wizard'));
+    try {
+      await api.settings.save({ onboardingCompleted: false, onboardingStep: 0 });
+      window.dispatchEvent(new CustomEvent('restart-setup-wizard'));
+    } catch (error) {
+      showToast(error.message || t('common.unknownError'), 'error');
+    }
   };
 
   if (loading) return <div className="loading">{t('settings.loading')}</div>;
