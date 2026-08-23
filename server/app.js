@@ -129,6 +129,14 @@ async function createApp({ config, db: suppliedDb, logger: suppliedLogger } = {}
   const api = express.Router();
   api.use(security.requireAuth());
   api.use((req, res, next) => {
+    if (req.path === '/backup/import') return next();
+    const size = Buffer.byteLength(JSON.stringify(req.body ?? null));
+    if (size > config.maxJsonBytes) {
+      return res.status(413).json({ error: 'Request body exceeds the size limit', code: 'BODY_TOO_LARGE' });
+    }
+    return next();
+  });
+  api.use((req, res, next) => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
     return security.requireCsrf()(req, res, next);
   });

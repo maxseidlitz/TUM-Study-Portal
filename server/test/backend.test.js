@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
@@ -165,8 +166,21 @@ test('study logs, settings secrets, chats and result routes work', async (t) => 
     .expect(({ body }) => assert.equal(body.success, false));
   await api(app, auth, 'post', '/api/v1/ai/models', { aiProvider: 'gemini' }).expect(200)
     .expect(({ body }) => assert.equal(body.success, true));
+  app.locals.services.ai.generate = async () => ({ content: 'Safe test response', model: 'test-model' });
+  await api(app, auth, 'post', '/api/v1/ai/recommend', { today: '2026-08-23' }).expect(200)
+    .expect(({ body }) => assert.equal(body.content, 'Safe test response'));
+  await api(app, auth, 'post', '/api/v1/ai/chat', {
+    messages: [{ role: 'user', content: 'What should I study?' }],
+    context: { locale: 'en' },
+  }).expect(200).expect(({ body }) => {
+    assert.equal(body.success, true);
+    assert.deepEqual(body.todoActions, []);
+  });
   await api(app, auth, 'get', '/api/v1/ollama/setup').expect(200)
     .expect(({ body }) => assert.equal(body.phase, 'idle'));
+  app.locals.services.ai.models = async () => ['test-model'];
+  await api(app, auth, 'post', '/api/v1/ollama/setup/retry').expect(200)
+    .expect(({ body }) => assert.equal(body.phase, 'ready'));
 });
 
 test('backup export/import is validated, encrypted and transactional', async (t) => {
@@ -219,4 +233,25 @@ test('versioned migrations are idempotent and data survives restart', () => {
   assert.deepEqual(second.db.prepare('SELECT version FROM schema_migrations').all(), [{ version: 1 }]);
   second.close();
   fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('authenticated Ollama SSE emits initial state and closes cleanly', async (t) => {
+  const { app } = await fixture(t);
+  const auth = await login(app);
+  const server = http.createServer(app);
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const controller = new AbortController();
+  try {
+    const response = await fetch(
+      `http://127.0.0.1:${server.address().port}/api/v1/ollama/setup/events`,
+      { headers: { Cookie: auth.session }, signal: controller.signal },
+    );
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type'), /text\/event-stream/);
+    const { value } = await response.body.getReader().read();
+    assert.match(Buffer.from(value).toString('utf8'), /"phase":"idle"/);
+  } finally {
+    controller.abort();
+    await new Promise((resolve) => server.close(resolve));
+  }
 });
