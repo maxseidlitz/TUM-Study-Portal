@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { schemas, settingsPatch } = require('../validation');
+const { schemas, settingsPatch, validIsoDate } = require('../validation');
 
 class HttpError extends Error {
   constructor(status, message, code = 'REQUEST_FAILED') {
@@ -30,8 +30,16 @@ function composite(id) {
   if (typeof id !== 'string' || !id.includes('::')) return null;
   const parts = id.split('::');
   return parts.length >= 3
-    ? { moduleId: parts[0], slotId: parts[1], overrideDate: parts.slice(2).join('::') }
-    : { moduleId: parts[0], slotId: parts[1] };
+    ? {
+      moduleId: parts[0], slotId: parts[1], overrideDate: parts.slice(2).join('::'), hasOverride: true,
+    }
+    : { moduleId: parts[0], slotId: parts[1], hasOverride: false };
+}
+
+function requireValidOverrideDate(target) {
+  if (target?.hasOverride && !validIsoDate(target.overrideDate)) {
+    throw new HttpError(422, 'Lecture override ID contains an invalid calendar date', 'VALIDATION_FAILED');
+  }
 }
 
 const days = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
@@ -219,6 +227,7 @@ class DomainService {
   updateLecture(raw) {
     const lecture = schemas.lecture.parse(raw);
     const target = composite(lecture.id);
+    requireValidOverrideDate(target);
     if (!target) {
       if (!this.db.getEntity('lectures', lecture.id)) throw new HttpError(404, 'Lecture not found');
       this.db.saveEntity('lectures', lecture, 'update');
@@ -233,7 +242,7 @@ class DomainService {
       allDay: Boolean(lecture.allDay),
       ...(lecture.name ? { name: lecture.name } : {}),
     };
-    const ok = target.overrideDate
+    const ok = target.hasOverride
       ? this.db.setSlotOverride(target.moduleId, target.slotId, target.overrideDate,
         { canceled: false, time: patch.time, end_time: patch.end_time, room: patch.room })
       : this.db.updateSlot(target.moduleId, target.slotId, patch);
@@ -242,9 +251,10 @@ class DomainService {
 
   deleteLecture(id) {
     const target = composite(id);
+    requireValidOverrideDate(target);
     const ok = !target
       ? this.db.deleteEntity('lectures', id)
-      : target.overrideDate
+      : target.hasOverride
         ? this.db.setSlotOverride(target.moduleId, target.slotId, target.overrideDate, { canceled: true })
         : this.db.deleteSlot(target.moduleId, target.slotId);
     if (!ok) throw new HttpError(404, 'Lecture not found');
@@ -289,6 +299,192 @@ class DomainService {
       }
     });
     return { moduleCount: grouped.modules.length, lectureCount: grouped.lectures.length };
+  }
+}
+
+function importCollection(input, keyName, quota) {
+  const list = input[keyName] == null ? [] : input[keyName];
+  if (!Array.isArray(list) || list.length > quota) {
+    throw new HttpError(422, `Invalid or oversized ${keyName} collection`);
+  }
+  return list.map(item => (
+    item && typeof item === 'object' && !Array.isArray(item) ? { ...item } : item
+  ));
+}
+
+function normalizeLegacyTodos(todos, exams) {
+  const examNames = new Map(exams
+    .filter(exam => exam && typeof exam === 'object')
+    .map(exam => [exam.id, typeof exam.name === 'string' ? exam.name : '']));
+  return todos.map((raw) => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return raw;
+    const title = String(raw.title || raw.text || '').trim();
+    const due = String(raw.due || raw.dueDate || '');
+    const subject = String(raw.subject || examNames.get(raw.examId) || '');
+    return {
+      id: raw.id,
+      title,
+      priority: ['high', 'medium', 'low'].includes(raw.priority) ? raw.priority : 'medium',
+      subject,
+      due,
+      notes: String(raw.notes || ''),
+      done: raw.done === true || raw.done === 1,
+      moduleId: typeof raw.moduleId === 'string' ? raw.moduleId : '',
+      moodleCourseId: typeof raw.moodleCourseId === 'string' ? raw.moodleCourseId : '',
+    };
+  });
+}
+
+function deterministicLegacyId(kind, identity, used) {
+  const digest = crypto.createHash('sha256').update(`${kind}\0${identity}`).digest('hex');
+  let candidate = `legacy-${kind}-${digest.slice(0, 32)}`;
+  let suffix = 0;
+  while (used.has(candidate)) {
+    suffix += 1;
+    candidate = `legacy-${kind}-${digest.slice(0, 28)}-${suffix}`;
+  }
+  used.add(candidate);
+  return candidate;
+}
+
+function assertUniqueStringIds(items, collection) {
+  const seen = new Set();
+  for (const item of items) {
+    if (!item || typeof item.id !== 'string') continue;
+    if (seen.has(item.id)) throw new HttpError(422, `Duplicate legacy ID in ${collection}`);
+    seen.add(item.id);
+  }
+}
+
+function migratePreModuleCollections(store, warnings) {
+  if (store.modules_migration_v1 === true || store.modules.length) return;
+  assertUniqueStringIds(store.moodle_courses, 'moodle_courses');
+  const modules = store.moodle_courses.map(course => ({
+    id: course.id,
+    name: course.name || 'Modul',
+    code: course.code || '',
+    semester: course.semester || '',
+    moodleUrl: course.url || '',
+    color: course.color || '#3B82F6',
+    slots: [],
+  }));
+  const usedModuleIds = new Set(modules.map(mod => mod.id));
+  const kept = [];
+  const normalize = value => String(value || '').trim().toLowerCase();
+  for (const lecture of store.lectures) {
+    if (!lecture || typeof lecture !== 'object' || lecture.eventDate) {
+      kept.push(lecture);
+      continue;
+    }
+    let mod = modules.find(entry => normalize(entry.name) === normalize(lecture.name));
+    if (!mod) {
+      let moduleId = lecture.id;
+      if (usedModuleIds.has(moduleId)) {
+        moduleId = deterministicLegacyId('module', `lecture\0${lecture.id}\0${lecture.name}`, usedModuleIds);
+      } else {
+        usedModuleIds.add(moduleId);
+      }
+      mod = {
+        id: moduleId,
+        name: lecture.name || 'Modul',
+        code: '',
+        semester: '',
+        moodleUrl: '',
+        color: lecture.color || '#3B82F6',
+        slots: [],
+      };
+      modules.push(mod);
+    }
+    mod.slots.push({
+      id: lecture.id,
+      day: lecture.day || 'Mo',
+      time: lecture.time || '',
+      end_time: lecture.end_time || '',
+      room: lecture.room || '',
+      lecturer: lecture.lecturer || '',
+      allDay: Boolean(lecture.allDay),
+    });
+  }
+  store.modules = modules;
+  store.lectures = kept;
+  const moduleIds = new Set(modules.map(mod => mod.id));
+  store.todos = store.todos.map(todo => (
+    todo?.moodleCourseId && moduleIds.has(todo.moodleCourseId)
+      ? { ...todo, moduleId: todo.moodleCourseId, moodleCourseId: '' }
+      : todo
+  ));
+  store.moodle_courses = [];
+  warnings.push('Migrated pre-module desktop backup');
+}
+
+function remapReservedCompositeIds(store, warnings) {
+  assertUniqueStringIds(store.modules, 'modules');
+  const moduleIds = new Set(store.modules
+    .map(mod => mod?.id)
+    .filter(value => typeof value === 'string' && !value.includes('::')));
+  const moduleMap = new Map();
+  for (const mod of store.modules) {
+    if (!mod || typeof mod.id !== 'string') continue;
+    const oldModuleId = mod.id;
+    if (oldModuleId.includes('::')) {
+      mod.id = deterministicLegacyId('module', oldModuleId, moduleIds);
+      moduleMap.set(oldModuleId, mod.id);
+      warnings.push(`Remapped reserved legacy module ID: ${oldModuleId}`);
+    }
+    const slots = Array.isArray(mod.slots) ? mod.slots.map(slot => (
+      slot && typeof slot === 'object' && !Array.isArray(slot) ? { ...slot } : slot
+    )) : mod.slots;
+    if (!Array.isArray(slots)) continue;
+    assertUniqueStringIds(slots, `module ${oldModuleId} slots`);
+    const slotIds = new Set(slots
+      .map(slot => slot?.id)
+      .filter(value => typeof value === 'string' && !value.includes('::')));
+    for (const slot of slots) {
+      if (slot && typeof slot.id === 'string' && slot.id.includes('::')) {
+        slot.id = deterministicLegacyId('slot', `${oldModuleId}\0${slot.id}`, slotIds);
+        warnings.push(`Remapped reserved legacy slot ID in module: ${oldModuleId}`);
+      }
+    }
+    mod.slots = slots;
+  }
+
+  assertUniqueStringIds(store.lectures, 'lectures');
+  const lectureIds = new Set(store.lectures
+    .map(lecture => lecture?.id)
+    .filter(value => typeof value === 'string' && !value.includes('::')));
+  for (const lecture of store.lectures) {
+    if (!lecture || typeof lecture !== 'object') continue;
+    if (typeof lecture.id === 'string' && lecture.id.includes('::')) {
+      const oldLectureId = lecture.id;
+      lecture.id = deterministicLegacyId('lecture', oldLectureId, lectureIds);
+      warnings.push(`Remapped reserved legacy lecture ID: ${oldLectureId}`);
+    }
+    if (moduleMap.has(lecture.moduleId)) lecture.moduleId = moduleMap.get(lecture.moduleId);
+  }
+  for (const todo of store.todos) {
+    if (todo && moduleMap.has(todo.moduleId)) todo.moduleId = moduleMap.get(todo.moduleId);
+  }
+}
+
+function normalizeImportReferences(store, warnings) {
+  const moduleIds = new Set(store.modules.map(mod => mod?.id));
+  const moodleIds = new Set(store.moodle_courses.map(course => course?.id));
+  for (const todo of store.todos) {
+    if (!todo || typeof todo !== 'object') continue;
+    if (todo.moduleId && !moduleIds.has(todo.moduleId)) {
+      todo.moduleId = '';
+      warnings.push('Cleared dangling legacy Todo module reference');
+    }
+    if (todo.moodleCourseId && !moodleIds.has(todo.moodleCourseId)) {
+      todo.moodleCourseId = '';
+      warnings.push('Cleared dangling legacy Todo Moodle reference');
+    }
+  }
+  for (const lecture of store.lectures) {
+    if (lecture?.moduleId && !moduleIds.has(lecture.moduleId)) {
+      lecture.moduleId = '';
+      warnings.push('Cleared dangling legacy Lecture module reference');
+    }
   }
 }
 
@@ -346,7 +542,6 @@ class BackupService {
       throw new HttpError(422, 'Backup is not valid JSON');
     }
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw new HttpError(422, 'Invalid backup root');
-    const result = {};
     const specifications = {
       exams: [schemas.exam, this.config.importQuotas.exams],
       lectures: [schemas.standaloneLecture, this.config.importQuotas.lectures],
@@ -356,12 +551,22 @@ class BackupService {
       study_logs: [schemas.studyLog, this.config.importQuotas.studyLogs],
       chat_sessions: [schemas.chat, this.config.importQuotas.chats],
     };
+    const normalized = { modules_migration_v1: input.modules_migration_v1 === true };
+    for (const [keyName, [, quota]] of Object.entries(specifications)) {
+      normalized[keyName] = importCollection(input, keyName, quota);
+    }
+    normalized.todos = normalizeLegacyTodos(normalized.todos, normalized.exams);
+    const warnings = [];
+    migratePreModuleCollections(normalized, warnings);
+    remapReservedCompositeIds(normalized, warnings);
+    normalizeImportReferences(normalized, warnings);
+
+    const result = {};
     for (const [keyName, [schema, quota]] of Object.entries(specifications)) {
-      const list = input[keyName] == null ? [] : input[keyName];
-      if (!Array.isArray(list) || list.length > quota) {
+      if (normalized[keyName].length > quota) {
         throw new HttpError(422, `Invalid or oversized ${keyName} collection`);
       }
-      result[keyName] = list.map((item) => schema.parse(item));
+      result[keyName] = normalized[keyName].map(item => schema.parse(item));
       const ids = new Set(result[keyName].map((item) => item.id));
       if (ids.size !== result[keyName].length) throw new HttpError(422, `Duplicate ID in ${keyName}`);
     }
@@ -371,54 +576,22 @@ class BackupService {
       || Buffer.byteLength(JSON.stringify(result.settings), 'utf8') > 64 * 1024) {
       throw new HttpError(422, 'Invalid or oversized settings collection');
     }
-    return result;
-  }
-
-  migrateLegacy(store) {
-    if (store.modules.length) return;
-    const modules = store.moodle_courses.map((course) => ({
-      id: course.id, name: course.name || 'Modul', code: course.code || '',
-      semester: course.semester || '', moodleUrl: course.url || '',
-      color: course.color || '#3B82F6', slots: [],
-    }));
-    const kept = [];
-    const normalize = (value) => String(value || '').trim().toLowerCase();
-    for (const lecture of store.lectures) {
-      if (lecture.eventDate) {
-        kept.push(lecture);
-        continue;
+    const examIds = new Set(result.exams.map(exam => exam.id));
+    const todoIds = new Set(result.todos.map(todo => todo.id));
+    for (const log of result.study_logs) {
+      if ((log.exam_id && !examIds.has(log.exam_id)) || (log.todo_id && !todoIds.has(log.todo_id))) {
+        throw new HttpError(422, 'Study log references a missing Exam or Todo');
       }
-      let mod = modules.find((entry) => normalize(entry.name) === normalize(lecture.name));
-      if (!mod) {
-        mod = {
-          id: lecture.id, name: lecture.name || 'Modul', code: '', semester: '',
-          moodleUrl: '', color: lecture.color || '#3B82F6', slots: [],
-        };
-        modules.push(mod);
-      }
-      mod.slots.push({
-        id: lecture.id, day: lecture.day || 'Mo', time: lecture.time || '',
-        end_time: lecture.end_time || '', room: lecture.room || '',
-        lecturer: lecture.lecturer || '', allDay: Boolean(lecture.allDay),
-      });
     }
-    store.modules = modules.map((mod) => schemas.module.parse(mod));
-    store.lectures = kept;
-    const moduleIds = new Set(store.modules.map((mod) => mod.id));
-    store.todos = store.todos.map((todo) => (
-      todo.moodleCourseId && moduleIds.has(todo.moodleCourseId)
-        ? { ...todo, moduleId: todo.moodleCourseId, moodleCourseId: '' }
-        : todo
-    ));
-    store.moodle_courses = [];
+    result.migrationWarnings = warnings;
+    return result;
   }
 
   async importJson(raw) {
     const store = this.validateImport(raw);
-    this.migrateLegacy(store);
     await this.safetyBackup();
     const settings = {};
-    const warnings = [];
+    const warnings = [...store.migrationWarnings];
     for (const [keyName, value] of Object.entries(store.settings)) {
       if (keyName === 'geminiApiKey') continue;
       try {

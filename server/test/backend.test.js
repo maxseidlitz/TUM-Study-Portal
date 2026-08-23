@@ -231,6 +231,13 @@ test('nested modules and lecture composite IDs update series and occurrences', a
   await api(app, auth, 'delete', '/api/v1/lectures/m1%3A%3As1%3A%3A2026-08-24').expect(200);
   lectures = await api(app, auth, 'get', '/api/v1/lectures').expect(200);
   assert.equal(lectures.body.some((row) => row.overrideDate === '2026-08-24'), false);
+  for (const invalidDate of ['not-a-date', '2026-02-30', '']) {
+    const invalidId = `m1::s1::${invalidDate}`;
+    await api(app, auth, 'put', `/api/v1/lectures/${encodeURIComponent(invalidId)}`, {
+      id: invalidId, time: '12:00', end_time: '13:00', room: 'X',
+    }).expect(422);
+    await api(app, auth, 'delete', `/api/v1/lectures/${encodeURIComponent(invalidId)}`).expect(422);
+  }
 });
 
 test('iCal replacement is atomic, scoped to imported rows and rolls back injected failures', async (t) => {
@@ -370,6 +377,65 @@ test('backup export/import is validated, encrypted and transactional', async (t)
     .expect(({ body }) => assert.deepEqual(body.map((row) => row.id), ['new']));
 });
 
+test('current desktop backup fixture imports without compatibility rewrites', async (t) => {
+  const { app } = await fixture(t);
+  const auth = await login(app);
+  const raw = fs.readFileSync(path.resolve('server/test/fixtures/current-backup.json'), 'utf8');
+  await api(app, auth, 'post', '/api/v1/backup/import', { data: raw }).expect(200)
+    .expect(({ body }) => {
+      assert.equal(body.success, true);
+      assert.deepEqual(body.warnings, []);
+    });
+  const modules = await api(app, auth, 'get', '/api/v1/modules').expect(200);
+  const todos = await api(app, auth, 'get', '/api/v1/todos').expect(200);
+  const lectures = await api(app, auth, 'get', '/api/v1/lectures').expect(200);
+  assert.equal(modules.body[0].id, 'module-current');
+  assert.equal(todos.body[0].moduleId, 'module-current');
+  assert.equal(lectures.body.find(row => row.name === 'Current One-Off').moduleId, 'module-current');
+});
+
+test('legacy desktop backup is normalized before validation with deterministic reference-safe IDs', async (t) => {
+  const { app } = await fixture(t);
+  const auth = await login(app);
+  const raw = fs.readFileSync(path.resolve('server/test/fixtures/legacy-desktop-backup.json'), 'utf8');
+  const first = app.locals.services.backup.validateImport(raw);
+  const second = app.locals.services.backup.validateImport(raw);
+  assert.equal(first.modules[0].id, second.modules[0].id);
+  assert.equal(first.modules[0].slots[0].id, second.modules[0].slots[0].id);
+  assert.equal(first.lectures[0].id, second.lectures[0].id);
+  assert.doesNotMatch(first.modules[0].id, /::/);
+  assert.doesNotMatch(first.modules[0].slots[0].id, /::/);
+  assert.doesNotMatch(first.lectures[0].id, /::/);
+  assert.equal(new Set(first.modules.map(mod => mod.id)).size, first.modules.length);
+  assert.equal(new Set(first.modules[0].slots.map(slot => slot.id)).size, first.modules[0].slots.length);
+  assert.equal(new Set(first.lectures.map(lecture => lecture.id)).size, first.lectures.length);
+  assert.notEqual(first.modules[0].id, 'module--legacy');
+  assert.notEqual(first.modules[0].slots[0].id, 'slot--legacy');
+  assert.notEqual(first.lectures[0].id, 'lecture--legacy');
+  assert.equal(first.todos[0].title, 'Legacy Todo Text');
+  assert.equal(first.todos[0].due, '2026-10-18');
+  assert.equal(first.todos[0].subject, 'Legacy Exam');
+  assert.equal(first.todos[0].moduleId, first.modules[0].id);
+  assert.equal(first.lectures[0].moduleId, first.modules[0].id);
+
+  await api(app, auth, 'post', '/api/v1/backup/import', { data: raw }).expect(200)
+    .expect(({ body }) => {
+      assert.equal(body.success, true);
+      assert.ok(body.warnings.some(warning => warning.includes('module ID')));
+      assert.ok(body.warnings.some(warning => warning.includes('slot ID')));
+      assert.ok(body.warnings.some(warning => warning.includes('lecture ID')));
+    });
+  const modules = await api(app, auth, 'get', '/api/v1/modules').expect(200);
+  const todos = await api(app, auth, 'get', '/api/v1/todos').expect(200);
+  const lectures = await api(app, auth, 'get', '/api/v1/lectures').expect(200);
+  const logs = await api(app, auth, 'get', '/api/v1/study-logs?todoId=todo-legacy').expect(200);
+  const legacyModule = modules.body.find(mod => mod.name === 'Legacy Module');
+  assert.equal(todos.body[0].moduleId, legacyModule.id);
+  assert.equal(lectures.body.find(row => row.name === 'Legacy One-Off').moduleId, legacyModule.id);
+  assert.equal(lectures.body.some(row => row.id === `${legacyModule.id}::${legacyModule.slots[0].id}`), true);
+  assert.equal(logs.body[0].todo_id, 'todo-legacy');
+});
+
 test('backup retention, import quotas and import rate limits are enforced', async (t) => {
   const { app, root } = await fixture(t);
   const auth = await login(app);
@@ -506,6 +572,8 @@ test('atomic restore validates, migrates and preserves a uniquely named previous
   const backupDir = path.join(root, 'backups');
   const database = new StudyDatabase(destination);
   database.saveEntity('exams', { id: 'from-backup', name: 'Backup', date: '' }, 'insert');
+  database.db.prepare('INSERT INTO sessions(id_hash,created_at,last_seen_at,expires_at) VALUES(?,?,?,?)')
+    .run('restored-session', new Date().toISOString(), new Date().toISOString(), '2099-01-01T00:00:00.000Z');
   const backup = new BackupService(database, {
     backupDir, backupKey: KEY, backupRetention: 2,
   }, new SecurityService(database, {}, 'unused'));
@@ -514,13 +582,77 @@ test('atomic restore validates, migrates and preserves a uniquely named previous
   database.saveEntity('exams', { id: 'before-restore', name: 'Current', date: '' }, 'insert');
   database.close();
 
-  const outcome = restoreBackup({ source, destination, key: KEY });
+  const operations = [];
+  const filesystem = Object.create(fs);
+  filesystem.linkSync = (from, to) => {
+    operations.push(['link', from, to]);
+    return fs.linkSync(from, to);
+  };
+  filesystem.renameSync = (from, to) => {
+    operations.push(['rename', from, to, fs.existsSync(destination)]);
+    return fs.renameSync(from, to);
+  };
+  filesystem.fsyncSync = (descriptor) => {
+    operations.push(['fsync']);
+    return fs.fsyncSync(descriptor);
+  };
+  const outcome = restoreBackup({ source, destination, key: KEY, filesystem });
   assert.match(outcome.previous, /\.before-restore-/);
   assert.equal(fs.existsSync(outcome.previous), true);
+  const installRename = operations.filter(operation => operation[0] === 'rename');
+  assert.equal(installRename.length, 1);
+  assert.equal(installRename[0][2], destination);
+  assert.equal(installRename[0][3], true);
+  assert.ok(operations.findIndex(operation => operation[0] === 'link')
+    < operations.findIndex(operation => operation[0] === 'rename'));
+  assert.ok(operations.findIndex(operation => operation[0] === 'fsync')
+    < operations.findIndex(operation => operation[0] === 'rename'));
+  assert.equal(fs.existsSync(`${destination}-wal`), false);
+  assert.equal(fs.existsSync(`${destination}-shm`), false);
+  const previousDb = new StudyDatabase(outcome.previous);
+  assert.deepEqual(previousDb.listEntities('exams').map(exam => exam.id), ['before-restore']);
+  previousDb.close();
   const restored = new StudyDatabase(destination);
   assert.deepEqual(restored.listEntities('exams').map(exam => exam.id), ['from-backup']);
   assert.equal(restored.db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
   restored.close();
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('restore rename failure leaves DATABASE_PATH and verified Previous copy intact', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'study-restore-failure-'));
+  const destination = path.join(root, 'study.sqlite');
+  const backupDir = path.join(root, 'backups');
+  const database = new StudyDatabase(destination);
+  database.saveEntity('exams', { id: 'from-backup', name: 'Backup', date: '' }, 'insert');
+  const backup = new BackupService(database, {
+    backupDir, backupKey: KEY, backupRetention: 2,
+  }, new SecurityService(database, {}, 'unused'));
+  const source = await backup.safetyBackup();
+  database.deleteEntity('exams', 'from-backup');
+  database.saveEntity('exams', { id: 'must-survive', name: 'Current', date: '' }, 'insert');
+  database.close();
+
+  const fixedNow = new Date('2026-08-23T03:00:00.000Z');
+  const previous = `${destination}.before-restore-2026-08-23T03-00-00-000Z`;
+  const filesystem = Object.create(fs);
+  filesystem.renameSync = (from, to) => {
+    if (to === destination) {
+      assert.equal(fs.existsSync(destination), true);
+      throw new Error('injected atomic rename failure');
+    }
+    return fs.renameSync(from, to);
+  };
+  assert.throws(() => restoreBackup({
+    source, destination, key: KEY, filesystem, now: () => fixedNow,
+  }), /injected atomic rename failure/);
+  assert.equal(fs.existsSync(destination), true);
+  assert.equal(fs.existsSync(previous), true);
+  for (const filename of [destination, previous]) {
+    const checked = new StudyDatabase(filename);
+    assert.deepEqual(checked.listEntities('exams').map(exam => exam.id), ['must-survive']);
+    checked.close();
+  }
   fs.rmSync(root, { recursive: true, force: true });
 });
 

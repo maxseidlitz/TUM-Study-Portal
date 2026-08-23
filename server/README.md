@@ -76,10 +76,13 @@ assets are immutable.
 uses foreign keys, WAL mode and a busy timeout.
 
 The JSON backup endpoint remains compatible with the desktop export. It never
-exports sessions, password material or Gemini keys. Import validates every
-entity, writes a safety backup first, migrates pre-module desktop exports, and
-replaces domain data transactionally. Per-entity quotas, a dedicated hourly
-rate limit and `MAX_IMPORT_BYTES` bound this destructive operation.
+exports sessions, password material or Gemini keys. Before strict validation,
+import normalizes legacy `text`/`dueDate`/`examId` Todos and migrates pre-module
+desktop exports. Legacy module, slot and standalone-lecture IDs containing the
+reserved `::` composite separator are deterministically remapped; module
+references are rewritten to the same IDs. The validated data then replaces the
+domain transactionally. Per-entity quotas, a dedicated hourly rate limit and
+`MAX_IMPORT_BYTES` bound this destructive operation.
 
 Safety backups are SQLite online backups encrypted with AES-256-GCM. Restore
 while the server is stopped:
@@ -92,8 +95,12 @@ Restore verifies SQLite integrity and foreign keys and invalidates all restored
 sessions. The previous database is retained with a timestamped
 `.before-restore-*` suffix.
 Backups are pruned to `BACKUP_RETENTION` newest encrypted files. Restore first
-migrates and validates the temporary database, checkpoints WAL, then replaces
-the database with rollback handling and uniquely named previous/failed copies.
+migrates and validates the temporary database and checkpoints both restored and
+current WAL state. It fsyncs the prepared database and a verified hard-linked
+(or copied) Previous file, removes checkpointed WAL/SHM sidecars, and performs
+one same-directory atomic rename-over-existing. `DATABASE_PATH` therefore never
+passes through an intentionally missing state. Run restore only while the
+server is stopped and on a filesystem providing atomic same-directory rename.
 
 ## Network security
 
@@ -113,6 +120,8 @@ setup checks and inference always use the same `OLLAMA_MODEL`.
 prior iCal-owned lectures/modules and inserts the replacement in one SQLite
 transaction. Browser refresh uses this route. Electron retains its sequential
 fail-fast JSON-store workflow.
+Lecture PUT/DELETE validates the optional third composite-ID segment as a real
+ISO calendar date before touching a slot override.
 
 ## Tests
 
@@ -124,7 +133,8 @@ npm run build
 
 Server tests use a temporary SQLite database and cover authentication, CSRF,
 CRUD, nested modules, lecture overrides, settings secrets, chats, result
-envelopes, atomic calendar replacement, backup/import rollback, migration
+envelopes, atomic calendar replacement, current/legacy desktop backup fixtures,
+reference-safe ID migration, crash-atomic restore ordering/failures, migration
 repair, DNS/redirect policy and private-address rejection.
 
 ## Deliberate fail-closed limitations

@@ -1,0 +1,87 @@
+{
+  "modules_migration_v1": true,
+  "exams": [
+    {
+      "id": "exam-legacy",
+      "name": "Legacy Exam",
+      "date": "2026-10-20"
+    }
+  ],
+  "modules": [
+    {
+      "id": "module::legacy",
+      "name": "Legacy Module",
+      "color": "#8B5CF6",
+      "slots": [
+        {
+          "id": "slot::legacy",
+          "day": "Mi",
+          "time": "09:00",
+          "end_time": "10:00",
+          "overrides": {
+            "2026-10-14": {
+              "time": "11:00",
+              "end_time": "12:00",
+              "room": "Legacy Room"
+            }
+          }
+        },
+        {
+          "id": "slot--legacy",
+          "day": "Fr",
+          "time": "15:00",
+          "end_time": "16:00"
+        }
+      ]
+    },
+    {
+      "id": "module--legacy",
+      "name": "Collision Guard Module",
+      "color": "#3B82F6",
+      "slots": []
+    }
+  ],
+  "lectures": [
+    {
+      "id": "lecture::legacy",
+      "name": "Legacy One-Off",
+      "moduleId": "module::legacy",
+      "day": "Do",
+      "time": "13:00",
+      "end_time": "14:00",
+      "eventDate": "2026-10-15"
+    },
+    {
+      "id": "lecture--legacy",
+      "name": "Collision Guard Lecture",
+      "moduleId": "module--legacy",
+      "day": "Fr",
+      "time": "16:00",
+      "end_time": "17:00",
+      "eventDate": "2026-10-16"
+    }
+  ],
+  "todos": [
+    {
+      "id": "todo-legacy",
+      "text": "Legacy Todo Text",
+      "dueDate": "2026-10-18",
+      "examId": "exam-legacy",
+      "moduleId": "module::legacy",
+      "done": false
+    }
+  ],
+  "moodle_courses": [],
+  "study_logs": [
+    {
+      "id": "log-legacy",
+      "todo_id": "todo-legacy",
+      "date": "2026-10-01",
+      "duration_min": 45
+    }
+  ],
+  "settings": {
+    "locale": "en"
+  },
+  "chat_sessions": []
+}
