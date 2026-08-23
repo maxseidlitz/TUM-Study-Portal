@@ -59,6 +59,7 @@ export function LocaleProvider({ children }) {
 
   useEffect(() => {
     document.documentElement.lang = locale;
+    document.documentElement.dataset.uiLocale = locale;
   }, [locale]);
 
   const intlLocale = LOCALE_TO_INTL[locale] || 'de-DE';
@@ -81,6 +82,7 @@ export function LocaleProvider({ children }) {
       apply: value => {
         setLocaleState(value);
         document.documentElement.lang = value;
+        document.documentElement.dataset.uiLocale = value;
       },
       persist: value => api.settings.save({ locale: value }),
     });

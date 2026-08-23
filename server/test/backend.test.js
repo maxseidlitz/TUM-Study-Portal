@@ -8,7 +8,7 @@ const { EventEmitter } = require('node:events');
 const { PassThrough } = require('node:stream');
 const BetterSqlite3 = require('better-sqlite3');
 const request = require('supertest');
-const { createApp } = require('../app');
+const { createApp, loginPage, selectLocale } = require('../app');
 const { loadConfig } = require('../config');
 const { StudyDatabase } = require('../db/database');
 const { restoreBackup } = require('../restore');
@@ -29,6 +29,7 @@ async function fixture(t, configOverrides = {}) {
   fs.writeFileSync(path.join(buildDir, 'static', 'main.abc123.js'), 'console.log("static");');
   fs.writeFileSync(path.join(buildDir, 'service-worker.js'), 'self.addEventListener("fetch", () => {});');
   fs.writeFileSync(path.join(buildDir, 'offline.html'), '<!doctype html><title>Offline</title>');
+  fs.writeFileSync(path.join(buildDir, 'offline-locale.js'), 'document.documentElement.lang = "de";');
   const config = {
     nodeEnv: 'test',
     publicOrigin: ORIGIN,
@@ -125,6 +126,53 @@ test('local HTTP development uses unprefixed cookies browsers accept', async (t)
   await request(app).get('/api/v1/exams').set('Cookie', auth.session).expect(200);
 });
 
+test('login selects and safely renders German, English, and Turkish', async (t) => {
+  const { app } = await fixture(t);
+  const cases = [
+    ['de-DE,de;q=0.9', 'de', 'Anmeldung', 'Passwort', 'Anmelden', 'Ungültige oder abgelaufene Anfrage.', 'Anmeldung fehlgeschlagen.'],
+    ['en-US,en;q=0.9,de;q=0.5', 'en', 'Sign in', 'Password', 'Sign in', 'Invalid or expired request.', 'Sign-in failed.'],
+    ['fr;q=0.8,tr-TR;q=0.9,en;q=0.7', 'tr', 'Giriş', 'Parola', 'Giriş yap', 'Geçersiz veya süresi dolmuş istek.', 'Giriş başarısız.'],
+  ];
+
+  for (const [header, locale, title, password, submit, invalid, failed] of cases) {
+    const page = await request(app).get('/login').set('Accept-Language', header).expect(200);
+    assert.match(page.headers.vary, /Accept-Language/);
+    assert.match(page.text, new RegExp(`<html lang="${locale}"`));
+    assert.ok(page.text.includes(`<title>TUM Study Portal – ${title}</title>`));
+    assert.ok(page.text.includes(`<label for="password">${password}</label><input id="password"`));
+    assert.ok(page.text.includes(`<button type="submit">${submit}</button>`));
+    assert.doesNotMatch(page.text, /<script(?:\s|>)/i);
+
+    const failure = await request(app).post('/login')
+      .set('Accept-Language', header)
+      .set('Origin', ORIGIN)
+      .type('form')
+      .send({ _csrf: 'invalid', password: 'wrong' })
+      .expect(403);
+    assert.ok(failure.text.includes(invalid));
+    assert.ok(loginPage('token', locale, 'failed').includes(failed));
+  }
+
+  assert.equal(selectLocale('en;q=0.5,tr;q=0.9'), 'tr');
+  assert.equal(selectLocale('fr-FR,*;q=0.8'), 'de');
+  const escaped = loginPage('"><script>alert(1)</script>', 'en');
+  assert.doesNotMatch(escaped, /<script>alert/);
+  assert.match(escaped, /&quot;&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+
+  const login = loginPage('token', 'en', 'failed');
+  assert.match(login, /name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/);
+  assert.match(login, /<section class="login-card" aria-labelledby="login-title">/);
+  assert.match(login, /<img src="\/icons\/apple-touch-icon\.png" alt="">/);
+  assert.match(login, /<h1 id="login-title">TUM Study Portal<\/h1>/);
+  assert.match(login, /<p class="alert" role="alert">Sign-in failed\.<\/p>/);
+  assert.match(login, /input,button\{width:100%;min-height:44px/);
+  assert.match(login, /env\(safe-area-inset-(?:top|right|bottom|left)\)/);
+  assert.match(login, /input:focus-visible,button:focus-visible\{outline:/);
+  assert.match(login, /@media\(prefers-color-scheme:dark\)/);
+  assert.doesNotMatch(login, /<(?:link|script)(?:\s|>)/i);
+  assert.doesNotMatch(login, /@import|https?:\/\//i);
+});
+
 function api(app, auth, method, url, body) {
   const call = request(app)[method](url).set('Cookie', auth.session).set('Origin', ORIGIN);
   if (!['get', 'head'].includes(method)) call.set('X-CSRF-Token', auth.csrf);
@@ -139,6 +187,7 @@ test('health, login, session, CSRF and origin enforcement', async (t) => {
     .expect('Cache-Control', 'no-store')
     .expect('Service-Worker-Allowed', '/');
   await request(app).get('/offline.html').expect(200).expect('Cache-Control', 'no-store');
+  await request(app).get('/offline-locale.js').expect(200).expect('Cache-Control', 'no-store');
   await request(app).get('/static/main.abc123.js').expect(200)
     .expect('Cache-Control', 'public, max-age=31536000, immutable');
   await request(app).get('/api/v1/exams').expect(401);

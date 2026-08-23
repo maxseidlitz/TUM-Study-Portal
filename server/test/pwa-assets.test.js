@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '../..');
 
@@ -50,4 +51,33 @@ test('PWA document assets are relative and do not load external fonts', () => {
   assert.match(source, /rel="apple-touch-icon"[^>]+href="\.\/icons\/apple-touch-icon\.png"/);
   assert.doesNotMatch(source, /fonts\.googleapis\.com|fonts\.gstatic\.com/);
   assert.doesNotMatch(source, /rel="(?:manifest|apple-touch-icon)"[^>]+href="\//);
+});
+
+test('offline page uses a CSP-compatible cached locale script for de/en/tr', () => {
+  const html = fs.readFileSync(path.join(root, 'public/offline.html'), 'utf8');
+  const script = fs.readFileSync(path.join(root, 'public/offline-locale.js'), 'utf8');
+  assert.match(html, /<script src="\.\/offline-locale\.js" defer><\/script>/);
+  assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)[^>]*>/i);
+  for (const [language, expectedTitle] of [
+    ['de-DE', 'Du bist offline'],
+    ['en-US', 'You are offline'],
+    ['tr-TR', 'Çevrimdışısınız'],
+  ]) {
+    const elements = {
+      'offline-title': { textContent: '' },
+      'offline-body': { textContent: '' },
+      'offline-retry': { textContent: '' },
+    };
+    const document = {
+      documentElement: { lang: '' },
+      title: '',
+      getElementById: id => elements[id],
+    };
+    vm.runInNewContext(script, {
+      document,
+      navigator: { language, languages: [language] },
+    });
+    assert.equal(document.documentElement.lang, language.slice(0, 2));
+    assert.equal(elements['offline-title'].textContent, expectedTitle);
+  }
 });

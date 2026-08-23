@@ -30,12 +30,24 @@ test('build ID is deterministic and changes with fingerprinted JavaScript or CSS
   const jsChanged = renderServiceWorker({ manifest: manifest('code2'), template });
   const cssChanged = renderServiceWorker({ manifest: manifest('code1', 'styles2'), template });
   const workerChanged = renderServiceWorker({ manifest: manifest('code1'), template: `${template}\n// policy change` });
+  const offlineScript = renderServiceWorker({
+    manifest: manifest('code1'),
+    template,
+    stableContent: { 'offline-locale.js': 'first' },
+  });
+  const offlineScriptChanged = renderServiceWorker({
+    manifest: manifest('code1'),
+    template,
+    stableContent: { 'offline-locale.js': 'second' },
+  });
 
   assert.equal(first.buildId, repeated.buildId);
   assert.notEqual(first.buildId, jsChanged.buildId);
   assert.notEqual(first.buildId, cssChanged.buildId);
   assert.notEqual(first.buildId, workerChanged.buildId);
+  assert.notEqual(offlineScript.buildId, offlineScriptChanged.buildId);
   assert.match(first.source, new RegExp(`const BUILD_ID = '${first.buildId}'`));
+  assert.match(first.source, /'\/offline-locale\.js'/);
   assert.doesNotMatch(first.source, /__BUILD_(?:ID|ASSETS)__/);
   assert.deepEqual(buildAssets(manifest('code1')), [
     '/static/css/main.styles1.css',

@@ -529,6 +529,7 @@
     "sug4": "Hilf mir, meine offenen Aufgaben sinnvoll zu sortieren.",
     "placeholder": "Frag mich etwas zu deinem Studium…"
     ,"send": "Nachricht senden",
+    "inputLabel": "Nachricht an den KI-Assistenten",
     "openFloating": "Chat öffnen",
     "minimizeFloating": "Chat minimieren",
     "closeFloating": "Chatfenster schließen"
@@ -538,7 +539,9 @@
     "labelLocal": "💡 Empfehlung",
     "badgeLocal": "Lokal",
     "badgeLocalTitle": "KI nicht erreichbar – lokale Heuristik",
-    "refreshTitle": "Empfehlung aktualisieren"
+    "refreshTitle": "Empfehlung aktualisieren",
+    "refine": "✨ Mit KI verfeinern",
+    "errorHint": "KI nicht verfügbar – lokale Empfehlung wird angezeigt. Modell in den Einstellungen prüfen."
   },
   "aiFallback": {
     "examUrgentOne": "Prüfung „{name}\" ist in 1 Tag! Fokussiere heute auf Wiederholung.",
@@ -599,6 +602,11 @@
     "targetBody": "Für einen Schnitt von {target} wird in den verbleibenden {remaining} ECTS folgender Durchschnitt benötigt:",
     "betterThanOne": "Besser als 1,0 🚀",
     "impossible": "Nicht mehr möglich 😅"
+  },
+  "errorBoundary": {
+    "title": "Etwas ist schiefgelaufen",
+    "body": "Die App ist auf einen unerwarteten Fehler gestoßen. Deine Daten sind lokal gespeichert und nicht betroffen.",
+    "reload": "App neu laden"
   },
   "setupWizard": {
     "stepWelcome": "Willkommen",

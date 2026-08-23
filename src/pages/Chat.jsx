@@ -202,6 +202,8 @@ export default function Chat() {
           <div className="chat-input-bar" style={styles.inputBar}>
             <textarea
               ref={inputRef}
+              aria-label={t('chat.inputLabel')}
+              className="chat-message-input"
               style={styles.input}
               placeholder={t('chat.placeholder')}
               value={input}
@@ -323,7 +325,7 @@ const styles = {
   input: {
     flex: 1, background: 'transparent', border: 'none', outline: 'none',
     color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: 13,
-    resize: 'none', maxHeight: 120, lineHeight: 1.5, padding: '6px 8px',
+    resize: 'none', minHeight: 44, maxHeight: 120, lineHeight: 1.5, padding: '11px 8px',
   },
   sendBtn: {
     width: 44, height: 44, borderRadius: 9, border: 'none',

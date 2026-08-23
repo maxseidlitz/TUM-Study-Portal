@@ -530,6 +530,7 @@
     "sug4": "Help me sort my open tasks sensibly.",
     "placeholder": "Ask me about your studies…",
     "send": "Send message",
+    "inputLabel": "Message the AI assistant",
     "openFloating": "Open chat",
     "minimizeFloating": "Minimize chat",
     "closeFloating": "Close chat window"
@@ -586,7 +587,9 @@
     "labelLocal": "💡 Recommendation",
     "badgeLocal": "Local",
     "badgeLocalTitle": "AI unavailable — local heuristic",
-    "refreshTitle": "Refresh recommendation"
+    "refreshTitle": "Refresh recommendation",
+    "refine": "✨ Refine with AI",
+    "errorHint": "AI is unavailable — showing the local recommendation. Check the model in Settings."
   },
   "aiFallback": {
     "examUrgentOne": "Exam “{name}” is in 1 day! Focus on review today.",
@@ -600,6 +603,11 @@
     "lectureOne": "1 lecture today — do not forget to review notes!",
     "lectureMany": "{count} lectures today — do not forget to review notes!",
     "relaxed": "All relaxed today! Use the time for proactive exam prep."
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "body": "The app encountered an unexpected error. Your locally stored data is not affected.",
+    "reload": "Reload app"
   },
   "setupWizard": {
     "stepWelcome": "Welcome",

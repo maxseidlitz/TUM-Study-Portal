@@ -98,14 +98,13 @@ export default function AiRecommendation() {
 
       {/* Opt-in: the LLM only runs on explicit click */}
       {kiAvailable && status !== 'loading' && !isKi && (
-        <button style={styles.kiButton} onClick={runKi}>
-          ✨ Mit KI verfeinern
+        <button type="button" className="ai-refine-button" style={styles.kiButton} onClick={runKi}>
+          {t('ai.refine')}
         </button>
       )}
       {status === 'error' && (
         <div style={styles.errorHint}>
-          KI nicht verfügbar – lokale Empfehlung wird angezeigt. Modell in den
-          Einstellungen prüfen.
+          {t('ai.errorHint')}
         </div>
       )}
     </div>
@@ -150,6 +149,7 @@ const styles = {
   kiButton: {
     marginTop: 12,
     width: '100%',
+    minHeight: 44,
     padding: '7px 12px',
     background: 'transparent',
     border: '1px dashed var(--accent-light)',

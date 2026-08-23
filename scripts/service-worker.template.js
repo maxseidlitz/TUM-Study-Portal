@@ -5,6 +5,7 @@ const OFFLINE_URL = '/offline.html';
 const BUILD_ASSETS = __BUILD_ASSETS__;
 const PRECACHE_URLS = [
   OFFLINE_URL,
+  '/offline-locale.js',
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',

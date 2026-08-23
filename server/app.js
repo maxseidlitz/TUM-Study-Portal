@@ -19,13 +19,67 @@ function html(value) {
   }[character]));
 }
 
-function loginPage(token, error = '') {
-  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TUM Study Portal – Anmeldung</title></head><body><main>
-<h1>TUM Study Portal</h1>${error ? `<p role="alert">${html(error)}</p>` : ''}
+const LOGIN_MESSAGES = {
+  de: {
+    title: 'Anmeldung', password: 'Passwort', submit: 'Anmelden',
+    invalid: 'Ungültige oder abgelaufene Anfrage.', failed: 'Anmeldung fehlgeschlagen.',
+  },
+  en: {
+    title: 'Sign in', password: 'Password', submit: 'Sign in',
+    invalid: 'Invalid or expired request.', failed: 'Sign-in failed.',
+  },
+  tr: {
+    title: 'Giriş', password: 'Parola', submit: 'Giriş yap',
+    invalid: 'Geçersiz veya süresi dolmuş istek.', failed: 'Giriş başarısız.',
+  },
+};
+
+function selectLocale(acceptLanguage = '') {
+  const supported = new Set(Object.keys(LOGIN_MESSAGES));
+  const candidates = String(acceptLanguage).split(',').map((entry, index) => {
+    const [tag, ...parameters] = entry.trim().split(';');
+    const qParameter = parameters.find(parameter => parameter.trim().toLowerCase().startsWith('q='));
+    const parsedQuality = qParameter ? Number(qParameter.trim().slice(2)) : 1;
+    return {
+      locale: tag.toLowerCase().split('-')[0],
+      quality: Number.isFinite(parsedQuality) ? parsedQuality : 0,
+      index,
+    };
+  }).filter(candidate => candidate.quality > 0 && supported.has(candidate.locale));
+  candidates.sort((a, b) => b.quality - a.quality || a.index - b.index);
+  return candidates[0]?.locale || 'de';
+}
+
+function loginPage(token, locale = 'de', errorKey = '') {
+  const selectedLocale = LOGIN_MESSAGES[locale] ? locale : 'de';
+  const messages = LOGIN_MESSAGES[selectedLocale];
+  const error = errorKey ? messages[errorKey] : '';
+  return `<!doctype html><html lang="${html(selectedLocale)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>${html(`TUM Study Portal – ${messages.title}`)}</title>
+<style>
+:root{color-scheme:light dark;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--bg:#f3f6fa;--card:#fff;--text:#172033;--muted:#5f6b7a;--border:#d8dee8;--input:#fff;--accent:#3070b3;--accent-hover:#245b91;--button-text:#fff;--alert-bg:#fff0f0;--alert-text:#b42318;--alert-border:#f1aeb5}
+*{box-sizing:border-box}
+body{min-height:100vh;min-height:100dvh;margin:0;background:var(--bg);color:var(--text)}
+main{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:max(24px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+.login-card{width:min(100%,28rem);padding:28px 24px;border:1px solid var(--border);border-radius:18px;background:var(--card);box-shadow:0 16px 40px rgba(20,40,70,.12)}
+.brand{text-align:center;margin-bottom:24px}
+.brand img{display:block;width:64px;height:64px;margin:0 auto 14px;border-radius:14px}
+h1{margin:0;font-size:1.45rem;line-height:1.25}
+.subtitle{margin:6px 0 0;color:var(--muted);font-size:.95rem}
+.alert{margin:0 0 18px;padding:12px 14px;border:1px solid var(--alert-border);border-radius:10px;background:var(--alert-bg);color:var(--alert-text);font-size:.9rem;line-height:1.4}
+label{display:block;margin-bottom:8px;color:var(--muted);font-size:.9rem;font-weight:600}
+input,button{width:100%;min-height:44px;border-radius:10px;font:inherit}
+input{padding:10px 12px;border:1px solid var(--border);background:var(--input);color:var(--text);font-size:16px}
+button{margin-top:16px;padding:10px 16px;border:1px solid var(--accent);background:var(--accent);color:var(--button-text);font-weight:700;cursor:pointer}
+button:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+input:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1117;--card:#1a1d27;--text:#f2f4f8;--muted:#aeb6c5;--border:#343a4a;--input:#11141c;--accent:#5aa2e8;--accent-hover:#78b5ef;--button-text:#071525;--alert-bg:#35191d;--alert-text:#ffb4b8;--alert-border:#7d3038}.login-card{box-shadow:0 18px 44px rgba(0,0,0,.35)}}
+</style></head><body><main><section class="login-card" aria-labelledby="login-title">
+<div class="brand"><img src="/icons/apple-touch-icon.png" alt=""><h1 id="login-title">TUM Study Portal</h1><p class="subtitle">${html(messages.title)}</p></div>
+${error ? `<p class="alert" role="alert">${html(error)}</p>` : ''}
 <form method="post" action="/login"><input type="hidden" name="_csrf" value="${html(token)}">
-<label>Passwort <input name="password" type="password" autocomplete="current-password" required autofocus></label>
-<button type="submit">Anmelden</button></form></main></body></html>`;
+<label for="password">${html(messages.password)}</label><input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+<button type="submit">${html(messages.submit)}</button></form></section></main></body></html>`;
 }
 
 function command(handler) {
@@ -113,19 +167,23 @@ async function createApp({ config, db: suppliedDb, logger: suppliedLogger } = {}
   });
   app.get('/login', (req, res) => {
     if (security.session(req, { touch: false })) return res.redirect('/');
+    const locale = selectLocale(req.get('accept-language'));
     const challenge = security.loginChallenge();
-    res.set('Set-Cookie', challenge.cookie).type('html').send(loginPage(challenge.token));
+    res.vary('Accept-Language').set('Set-Cookie', challenge.cookie).type('html')
+      .send(loginPage(challenge.token, locale));
   });
   app.post('/login', loginLimiter, async (req, res) => {
+    const locale = selectLocale(req.get('accept-language'));
+    res.vary('Accept-Language');
     if (!security.verifyOrigin(req) || !security.verifyLoginChallenge(req, req.body._csrf)) {
       const challenge = security.loginChallenge();
       return res.status(403).set('Set-Cookie', challenge.cookie).type('html')
-        .send(loginPage(challenge.token, 'Ungültige oder abgelaufene Anfrage.'));
+        .send(loginPage(challenge.token, locale, 'invalid'));
     }
     if (!await security.verifyPassword(req.body.password)) {
       const challenge = security.loginChallenge();
       return res.status(401).set('Set-Cookie', challenge.cookie).type('html')
-        .send(loginPage(challenge.token, 'Anmeldung fehlgeschlagen.'));
+        .send(loginPage(challenge.token, locale, 'failed'));
     }
     const session = security.createSession();
     return res.set('Set-Cookie', [
@@ -285,7 +343,7 @@ async function createApp({ config, db: suppliedDb, logger: suppliedLogger } = {}
   app.use('/api/v1', api);
   app.use('/static', express.static(path.join(config.buildDir, 'static'), { index: false, immutable: true, maxAge: '1y' }));
   app.use('/icons', express.static(path.join(config.buildDir, 'icons'), { index: false, fallthrough: true }));
-  for (const asset of ['manifest.json', 'offline.html', 'service-worker.js', 'favicon.ico', 'asset-manifest.json']) {
+  for (const asset of ['manifest.json', 'offline.html', 'offline-locale.js', 'service-worker.js', 'favicon.ico', 'asset-manifest.json']) {
     app.get(`/${asset}`, (req, res, next) => {
       const target = path.join(config.buildDir, asset);
       if (!fs.existsSync(target)) return next();
@@ -321,4 +379,4 @@ async function createApp({ config, db: suppliedDb, logger: suppliedLogger } = {}
   return app;
 }
 
-module.exports = { createApp };
+module.exports = { createApp, loginPage, selectLocale };

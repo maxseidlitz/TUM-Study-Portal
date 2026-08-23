@@ -18,6 +18,11 @@ async function login(page) {
     contentType: 'application/json',
     body: JSON.stringify({ success: true, meals: [] }),
   }));
+  await page.route('**/api/v1/ai/models', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ success: true, models: [] }),
+  }));
   await page.goto('/login');
   await page.getByLabel('Passwort').fill('playwright-password');
   await Promise.all([
@@ -36,6 +41,18 @@ async function login(page) {
   });
   await page.reload();
   await expect(page.locator('.main-content')).toBeVisible();
+}
+
+function isIphoneProject(testInfo) {
+  return testInfo.project.name.startsWith('iphone-');
+}
+
+async function expectMinTouchTarget(locator) {
+  await expect(locator).toBeVisible();
+  const box = await locator.boundingBox();
+  expect(box, 'touch target must have a bounding box').not.toBeNull();
+  expect(box.width).toBeGreaterThanOrEqual(44);
+  expect(box.height).toBeGreaterThanOrEqual(44);
 }
 
 async function expectNoHorizontalOverflow(page) {
@@ -58,7 +75,7 @@ test('all application routes fit the viewport', async ({ page }) => {
 });
 
 test('mobile bottom navigation, More menu, and browser history work', async ({ page }, testInfo) => {
-  test.skip(!testInfo.project.name.startsWith('iphone-375'));
+  test.skip(!isIphoneProject(testInfo));
   await page.getByRole('button', { name: 'Heute', exact: true }).click();
   await expect(page).toHaveURL(/\/today$/);
   await page.getByRole('button', { name: 'Aufgaben', exact: true }).click();
@@ -74,7 +91,7 @@ test('mobile bottom navigation, More menu, and browser history work', async ({ p
 });
 
 test('mobile dialog focuses content, closes on Escape, and restores focus', async ({ page }, testInfo) => {
-  test.skip(!testInfo.project.name.startsWith('iphone-375'));
+  test.skip(!isIphoneProject(testInfo));
   const more = page.getByRole('button', { name: 'Mehr', exact: true });
   await more.focus();
   await more.click();
@@ -86,22 +103,24 @@ test('mobile dialog focuses content, closes on Escape, and restores focus', asyn
 });
 
 test('Todo core flow creates and completes a task', async ({ page }, testInfo) => {
-  test.skip(!testInfo.project.name.startsWith('iphone-375'));
+  test.skip(!isIphoneProject(testInfo));
   await page.goto('/todos');
   const title = `Playwright Aufgabe ${Date.now()}`;
   await page.getByRole('button', { name: 'Aufgabe hinzufügen' }).first().click();
   const input = page.getByPlaceholder('Aufgabentitel eingeben, Enter zum Speichern…');
   await input.fill(title);
   await input.press('Enter');
-  await expect(page.getByRole('button', { name: title })).toBeVisible();
-  await page.getByRole('button', { name: 'Erledigen' }).first().click();
-  await expect(page.getByText(title)).toHaveCSS('text-decoration-line', 'line-through');
+  const todoButton = page.getByRole('button', { name: title });
+  const todoRow = todoButton.locator('..');
+  await expect(todoButton).toBeVisible();
+  await todoRow.getByRole('button', { name: 'Erledigen' }).click();
+  await expect(todoButton.getByText(title)).toHaveCSS('text-decoration-line', 'line-through');
   await page.reload();
   await expect(page.getByText(title)).toBeVisible();
 });
 
 test('Chat, exams, lectures, modules, and settings render without external services', async ({ page }, testInfo) => {
-  test.skip(!testInfo.project.name.startsWith('iphone-375'));
+  test.skip(!isIphoneProject(testInfo));
   for (const route of ['chat', 'exams', 'lectures', 'modules', 'settings']) {
     await page.goto(`/${route}`);
     await expect(page.locator(`.page-${route}`)).toBeVisible();
@@ -158,4 +177,33 @@ test('theme follows the system until the user makes an explicit choice', async (
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect(page.locator('html')).not.toHaveAttribute('data-theme', '');
+});
+
+test('reviewed mobile controls expose 44px touch targets and a named chat input', async ({ page }, testInfo) => {
+  test.skip(!isIphoneProject(testInfo));
+
+  await page.goto('/dashboard');
+  await expectMinTouchTarget(page.getByRole('button', { name: '✨ Mit KI verfeinern', exact: true }));
+  await page.getByRole('button', { name: 'Pomodoro-Timer öffnen oder schließen' }).click();
+  for (const mode of ['Fokus', 'Pause', 'Lange Pause']) {
+    await expectMinTouchTarget(page.locator('.pomodoro-mode-button').getByText(mode, { exact: true }));
+  }
+
+  await page.goto('/todos');
+  for (const header of await page.locator('.todo-section-toggle').all()) {
+    await expectMinTouchTarget(header);
+  }
+
+  await page.goto('/chat');
+  const chatInput = page.getByRole('textbox', { name: 'Nachricht an den KI-Assistenten' });
+  await expectMinTouchTarget(chatInput);
+
+  await page.goto('/settings');
+  await expectMinTouchTarget(page.getByRole('button', { name: 'Ollama installieren →', exact: true }));
+
+  for (const route of ['todos', 'chat', 'settings']) {
+    await page.goto(`/${route}`);
+    const controls = page.locator('.btn-primary:visible, button.btn-icon:visible, .form-input:visible, .form-select:visible, .form-textarea:visible');
+    for (const control of await controls.all()) await expectMinTouchTarget(control);
+  }
 });

@@ -238,7 +238,7 @@ export default function Todos() {
 function Section({ section, count, collapsed, onToggleCollapse, children }) {
   return (
     <div style={styles.section}>
-      <button type="button" style={styles.sectionHeader} onClick={onToggleCollapse} aria-expanded={!collapsed}>
+      <button type="button" className="todo-section-toggle" style={styles.sectionHeader} onClick={onToggleCollapse} aria-expanded={!collapsed}>
         <Chevron collapsed={collapsed} />
         <span style={{ ...styles.sectionDot, background: section.color }} />
         <span style={styles.sectionLabel}>{section.label}</span>
@@ -375,7 +375,7 @@ const styles = {
   section: { marginBottom: 18 },
   sectionHeader: {
     display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-    padding: '6px 12px', background: 'transparent', border: 'none',
+    minHeight: 44, padding: '6px 12px', background: 'transparent', border: 'none',
     cursor: 'pointer', color: 'var(--text-muted)',
   },
   sectionDot: { width: 8, height: 8, borderRadius: '50%', flexShrink: 0 },

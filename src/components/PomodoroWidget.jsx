@@ -114,6 +114,8 @@ export default function PomodoroWidget() {
             {Object.keys(configs).map(m => (
               <button
                 key={m}
+                type="button"
+                className="pomodoro-mode-button"
                 onClick={() => switchMode(m)}
                 style={{
                   ...styles.modeBtn,
@@ -248,8 +250,14 @@ const styles = {
     alignItems: 'center',
     gap: 12,
   },
-  modes: { display: 'flex', gap: 8, fontSize: 11 },
-  modeBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: 0 },
+  modes: {
+    display: 'grid', gridTemplateColumns: 'repeat(3, minmax(44px, 1fr))',
+    gap: 2, width: '100%', fontSize: 11,
+  },
+  modeBtn: {
+    minWidth: 44, minHeight: 44, background: 'none', border: 'none',
+    cursor: 'pointer', padding: 2, lineHeight: 1.2,
+  },
   timer: { fontSize: 32, fontWeight: 800, fontVariantNumeric: 'tabular-nums', lineHeight: 1 },
   controls: { display: 'flex', gap: 8, width: '100%' },
   logError: { padding: '9px 11px', marginBottom: 12, borderRadius: 8, background: 'var(--danger-subtle)', color: 'var(--danger)', fontSize: 12 },

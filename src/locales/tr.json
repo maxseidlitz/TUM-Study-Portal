@@ -529,6 +529,7 @@
     "sug4": "Açık görevleri mantıklı sıralamama yardım et.",
     "placeholder": "Çalışmaların hakkında sor…",
     "send": "Mesaj gönder",
+    "inputLabel": "YZ asistanına mesaj gönder",
     "openFloating": "Sohbeti aç",
     "minimizeFloating": "Sohbeti küçült",
     "closeFloating": "Sohbet penceresini kapat"
@@ -538,7 +539,9 @@
     "labelLocal": "💡 Öneri",
     "badgeLocal": "Yerel",
     "badgeLocalTitle": "YZ erişilemez — yerel kural",
-    "refreshTitle": "Öneriyi yenile"
+    "refreshTitle": "Öneriyi yenile",
+    "refine": "✨ YZ ile geliştir",
+    "errorHint": "YZ kullanılamıyor — yerel öneri gösteriliyor. Ayarlar'da modeli kontrol edin."
   },
   "aiFallback": {
     "examUrgentOne": "“{name}” sınavına 1 gün kaldı! Bugün tekrara odaklan.",
@@ -599,6 +602,11 @@
     "targetBody": "{target} ortalamaya ulaşmak için kalan {remaining} AKTS boyunca gereken ortalama:",
     "betterThanOne": "1,0’dan daha iyi 🚀",
     "impossible": "Artık mümkün değil 😅"
+  },
+  "errorBoundary": {
+    "title": "Bir sorun oluştu",
+    "body": "Uygulama beklenmeyen bir hatayla karşılaştı. Yerel olarak kaydedilen verileriniz etkilenmedi.",
+    "reload": "Uygulamayı yeniden yükle"
   },
   "setupWizard": {
     "stepWelcome": "Hoş geldiniz",

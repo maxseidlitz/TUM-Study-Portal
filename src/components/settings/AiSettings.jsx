@@ -166,8 +166,9 @@ export default function AiSettings({ settings, setSettings }) {
                   {t('settings.ollamaSub')}{' '}
                   <button
                     type="button"
+                    className="ollama-help-link"
                     onClick={() => api.openExternal('https://ollama.ai')}
-                    style={styles.link}
+                    style={{ ...styles.link, ...styles.touchLink }}
                   >
                     {t('settings.ollamaInstall')}
                   </button>
@@ -462,6 +463,10 @@ const styles = {
   sectionTitle: { fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' },
   sectionSub: { fontSize: 12, color: 'var(--text-muted)', marginTop: 3, lineHeight: 1.5 },
   link: { background: 'none', border: 'none', color: 'var(--accent-hover)', cursor: 'pointer', padding: 0, fontSize: 'inherit' },
+  touchLink: {
+    display: 'inline-flex', minWidth: 44, minHeight: 44, alignItems: 'center',
+    marginBlock: -12, paddingBlock: 12,
+  },
   code: { fontFamily: 'monospace', background: 'var(--bg-primary)', padding: '1px 5px', borderRadius: 3, fontSize: 11 },
   countTag: {
     fontSize: 10, fontWeight: 600, color: 'var(--success)',
