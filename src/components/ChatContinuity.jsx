@@ -21,7 +21,8 @@ export default function ChatContinuity({ activePage }) {
 
   if (activePage === 'chat' || !activeAiChat.sessionId) return null;
 
-  const shouldShow = activeAiChat.thinking || activeAiChat.hasUnread || isOpen;
+  const hasConversation = activeAiChat.messages.length > 0;
+  const shouldShow = hasConversation || activeAiChat.thinking || activeAiChat.hasUnread || isOpen;
   if (!shouldShow) return null;
 
   const toggleOpen = () => {
