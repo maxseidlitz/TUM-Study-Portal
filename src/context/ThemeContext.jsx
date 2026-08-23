@@ -27,6 +27,10 @@ export function ThemeProvider({ children }) {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    const color = theme === 'light' ? '#f4f6fb' : '#0f1117';
+    for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+      meta.setAttribute('content', color);
+    }
   }, [theme]);
 
   useEffect(() => {
