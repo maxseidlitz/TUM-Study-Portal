@@ -28,6 +28,37 @@ Prüfungen, Stundenplan, Aufgaben und ein privater KI-Assistent – als lokale D
 | 🍽️ | **TUM-Alltag** | Mensa, Moodle und wichtige Hochschul-Links direkt erreichbar. |
 | 🌍 | **Mehrsprachig** | Deutsche, englische und türkische Oberfläche. |
 
+## 🖼️ Einblicke in die App
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <img src="docs/screenshots/setup-wizard.webp" alt="Setup-Wizard mit integriertem Stundenplan-Import" />
+      <br /><sub><strong>Geführtes Setup</strong> – Stundenplan und Prüfungen direkt per iCal importieren.</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="docs/screenshots/dashboard.webp" alt="Dashboard des TUM Study Portal" />
+      <br /><sub><strong>Dashboard</strong> – Prüfungen, Aufgaben, Vorlesungen und Empfehlungen im Blick.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="docs/screenshots/lectures.webp" alt="Vorlesungsverwaltung mit iCal-Import" />
+      <br /><sub><strong>Stundenplan</strong> – automatisch importieren oder einzelne Termine anlegen.</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="docs/screenshots/ai-assistant.webp" alt="Lokaler KI-Assistent mit Fragevorschlägen" />
+      <br /><sub><strong>KI-Assistent</strong> – persönliche Unterstützung mit gezieltem Kontextabruf.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">
+      <img src="docs/screenshots/ollama-settings.webp" alt="Ollama-Einstellungen und empfohlene lokale Modelle" width="50%" />
+      <br /><sub><strong>Lokale Modelle</strong> – Ollama konfigurieren und ein toolfähiges Modell auswählen.</sub>
+    </td>
+  </tr>
+</table>
+
 ## 🚀 In drei Schritten startklar
 
 ### 1. App installieren
