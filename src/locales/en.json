@@ -40,6 +40,16 @@
     "openTodosOne": "1 to-do",
     "openTodosMany": "{count} to-dos"
   },
+  "mobileShell": {
+    "appName": "TUM Study Portal",
+    "primaryNavigation": "Primary navigation",
+    "tabToday": "Today",
+    "tabTodos": "Tasks",
+    "tabLectures": "Schedule",
+    "tabChat": "Chat",
+    "more": "More",
+    "closeMore": "Close menu"
+  },
   "dashboard": {
     "greetingMorning": "Good morning",
     "greetingDay": "Good afternoon",

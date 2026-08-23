@@ -38,6 +38,16 @@
     "openTodosOne": "1 görev",
     "openTodosMany": "{count} görev"
   },
+  "mobileShell": {
+    "appName": "TUM Study Portal",
+    "primaryNavigation": "Ana menü",
+    "tabToday": "Bugün",
+    "tabTodos": "Görevler",
+    "tabLectures": "Program",
+    "tabChat": "Sohbet",
+    "more": "Daha fazla",
+    "closeMore": "Menüyü kapat"
+  },
   "dashboard": {
     "greetingMorning": "Günaydın",
     "greetingDay": "İyi günler",
