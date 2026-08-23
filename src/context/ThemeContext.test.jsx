@@ -19,6 +19,11 @@ describe('ThemeProvider', () => {
     global.IS_REACT_ACT_ENVIRONMENT = true;
     localStorage.clear();
     document.documentElement.removeAttribute('data-theme');
+    document.head.querySelectorAll('meta[name="theme-color"]').forEach(node => node.remove());
+    const meta = document.createElement('meta');
+    meta.setAttribute('name', 'theme-color');
+    meta.setAttribute('content', '#0f1117');
+    document.head.appendChild(meta);
     listeners = new Set();
     systemDark = false;
     window.matchMedia = vi.fn(() => ({
@@ -47,11 +52,13 @@ describe('ThemeProvider', () => {
     const button = render();
     expect(button.textContent).toBe('dark');
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#0f1117');
 
     systemDark = false;
     act(() => listeners.forEach(listener => listener({ matches: false })));
     expect(button.textContent).toBe('light');
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#f4f6fb');
 
     act(() => button.click());
     act(() => listeners.forEach(listener => listener({ matches: false })));

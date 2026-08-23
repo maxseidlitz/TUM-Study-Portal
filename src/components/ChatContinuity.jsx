@@ -3,6 +3,7 @@ import { useData } from '../context/DataContext';
 import { useLocale } from '../context/LocaleContext';
 import ChatMessage from './chat/ChatMessage';
 import ChatThinking from './chat/ChatThinking';
+import { SendIcon } from './icons/Icons';
 
 export default function ChatContinuity({ activePage }) {
   const { activeAiChat, setActiveAiChat, sendAiMessage } = useData();
@@ -58,16 +59,31 @@ export default function ChatContinuity({ activePage }) {
             ))}
             {activeAiChat.thinking && <ChatThinking variant="compact" />}
           </div>
-          <div style={styles.inputBar}>
+          <div className="chat-continuity-input-bar" style={styles.inputBar}>
             <input
               ref={inputRef}
-              aria-label={t('chat.placeholder')}
+              className="chat-continuity-input"
+              aria-label={t('chat.inputLabel')}
               style={styles.input}
               placeholder={t('chat.placeholder')}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
             />
+            <button
+              type="button"
+              className="chat-send-button"
+              aria-label={t('chat.send')}
+              style={{
+                ...styles.sendBtn,
+                opacity: input.trim() && !activeAiChat.thinking ? 1 : 0.4,
+                cursor: input.trim() && !activeAiChat.thinking ? 'pointer' : 'default',
+              }}
+              onClick={handleSend}
+              disabled={!input.trim() || activeAiChat.thinking}
+            >
+              <SendIcon />
+            </button>
           </div>
         </div>
       )}
@@ -131,7 +147,7 @@ const styles = {
     border: '2px solid var(--accent)',
   },
   popup: {
-    width: 320,
+    width: 'min(320px, calc(100vw - 32px))',
     height: 400,
     background: 'var(--bg-card)',
     border: '1px solid var(--border-color)',
@@ -171,17 +187,34 @@ const styles = {
     gap: 10,
   },
   inputBar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
     padding: 10,
     borderTop: '1px solid var(--border-color)',
   },
   input: {
-    width: '100%',
+    flex: 1,
+    minWidth: 0,
+    minHeight: 44,
     background: 'var(--bg-tertiary)',
     border: '1px solid var(--border-color)',
     borderRadius: 8,
-    padding: '6px 10px',
-    fontSize: 12,
+    padding: '11px 10px',
+    fontSize: 16,
     color: 'var(--text-primary)',
     outline: 'none',
+  },
+  sendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 9,
+    border: 'none',
+    background: 'var(--accent)',
+    color: '#fff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
 };

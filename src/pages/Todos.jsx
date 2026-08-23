@@ -390,8 +390,8 @@ const styles = {
   dueTag: { fontSize: 11, fontWeight: 500 },
   priorityDot: { width: 8, height: 8, borderRadius: '50%' },
   addInput: {
-    flex: 1, background: 'transparent', border: 'none', outline: 'none',
-    color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: 13,
+    flex: 1, minHeight: 44, background: 'transparent', border: 'none', outline: 'none',
+    color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: 16,
   },
   addPlus: { fontSize: 15, fontWeight: 400, width: 20, textAlign: 'center' },
 };

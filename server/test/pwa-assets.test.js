@@ -47,6 +47,8 @@ test('service worker cache policy excludes dynamic HTML, auth, APIs and writes',
 
 test('PWA document assets are relative and do not load external fonts', () => {
   const source = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  assert.match(source, /name="theme-color"[^>]+media="\(prefers-color-scheme: light\)"/);
+  assert.match(source, /name="theme-color"[^>]+media="\(prefers-color-scheme: dark\)"/);
   assert.match(source, /rel="manifest" href="\.\/manifest\.json"/);
   assert.match(source, /rel="apple-touch-icon"[^>]+href="\.\/icons\/apple-touch-icon\.png"/);
   assert.doesNotMatch(source, /fonts\.googleapis\.com|fonts\.gstatic\.com/);
@@ -56,6 +58,8 @@ test('PWA document assets are relative and do not load external fonts', () => {
 test('offline page uses a CSP-compatible cached locale script for de/en/tr', () => {
   const html = fs.readFileSync(path.join(root, 'public/offline.html'), 'utf8');
   const script = fs.readFileSync(path.join(root, 'public/offline-locale.js'), 'utf8');
+  assert.match(html, /prefers-color-scheme: light/);
+  assert.match(html, /prefers-color-scheme: dark/);
   assert.match(html, /<script src="\.\/offline-locale\.js" defer><\/script>/);
   assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)[^>]*>/i);
   for (const [language, expectedTitle] of [
