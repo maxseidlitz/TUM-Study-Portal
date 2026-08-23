@@ -36,7 +36,14 @@ function requestJson(urlValue, { method = 'GET', body, headers = {}, timeoutMs =
           return;
         }
         if (response.statusCode < 200 || response.statusCode >= 300 || parsed.error) {
-          reject(safeExternalError('AI provider rejected the request', 'AI_PROVIDER_REJECTED'));
+          const providerMessage = String(parsed.error?.message || parsed.error || parsed.message || '');
+          const toolsUnsupported = /(?:tool|function)(?: calling|s)? (?:is |are )?(?:not supported|unsupported)/i
+            .test(providerMessage)
+            || /does not support (?:tool|function)/i.test(providerMessage);
+          reject(safeExternalError(
+            'AI provider rejected the request',
+            toolsUnsupported ? 'AI_TOOLS_UNSUPPORTED' : 'AI_PROVIDER_REJECTED',
+          ));
           return;
         }
         resolve(parsed);
@@ -75,10 +82,83 @@ function compactContext(store, maxBytes = 64 * 1024) {
   return encoded;
 }
 
+const MAX_TOOL_TURNS = 5;
+const MAX_TOOL_CALLS = 8;
+const MAX_TODO_ACTIONS = 4;
+
+const CREATE_TODO_DECLARATION = {
+  name: 'create_todo',
+  description: 'Creates a Todo only when the user explicitly asks to save one.',
+  parameters: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      title: { type: 'string', minLength: 1, maxLength: 240 },
+      priority: { type: 'string', enum: ['high', 'medium', 'low'] },
+      due: {
+        type: 'string',
+        pattern: '^$|^\\d{4}-\\d{2}-\\d{2}$',
+        description: 'Empty or a calendar date in YYYY-MM-DD format.',
+      },
+      notes: { type: 'string', maxLength: 10000 },
+      moduleId: {
+        type: 'string',
+        minLength: 1,
+        maxLength: 240,
+        description: 'Only an exact module ID from the server-provided snapshot.',
+      },
+    },
+    required: ['title'],
+  },
+};
+
+const OLLAMA_TOOLS = [{ type: 'function', function: CREATE_TODO_DECLARATION }];
+const GEMINI_TOOLS = [{ functionDeclarations: [CREATE_TODO_DECLARATION] }];
+
+function parseToolArguments(raw) {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) return { ok: true, value: raw };
+  if (typeof raw !== 'string') return { ok: false, error: 'Tool arguments must be a JSON object.' };
+  try {
+    const value = JSON.parse(raw);
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? { ok: true, value }
+      : { ok: false, error: 'Tool arguments must be a JSON object.' };
+  } catch {
+    return { ok: false, error: 'Tool arguments are not valid JSON.' };
+  }
+}
+
+function canonicalCall(name, args) {
+  const sorted = Object.keys(args).sort().reduce((result, key) => {
+    result[key] = args[key];
+    return result;
+  }, {});
+  return `${name}:${JSON.stringify(sorted)}`;
+}
+
+function finalTextAfterWrites(actions, language) {
+  const titles = actions.map(action => `„${action.title}“`).join(', ');
+  if (language === 'English') return `Saved ${actions.length === 1 ? 'the Todo' : 'the Todos'} ${titles}. The model could not complete its final response.`;
+  if (language === 'Turkish') return `${titles} ${actions.length === 1 ? 'görevi' : 'görevleri'} kaydedildi. Model son yanıtını tamamlayamadı.`;
+  return `${actions.length === 1 ? 'Das Todo' : 'Die Todos'} ${titles} wurde${actions.length === 1 ? '' : 'n'} gespeichert. Das Modell konnte die abschließende Antwort nicht vervollständigen.`;
+}
+
+function partialFailureText(actions, failures, language) {
+  const titles = actions.map(action => `„${action.title}“`).join(', ');
+  if (language === 'English') {
+    return `${actions.length ? `Confirmed writes: ${titles}.` : 'No Todo was saved.'} ${failures} tool action(s) failed or were rejected.`;
+  }
+  if (language === 'Turkish') {
+    return `${actions.length ? `Onaylanan kayıtlar: ${titles}.` : 'Hiçbir görev kaydedilmedi.'} ${failures} araç işlemi başarısız oldu veya reddedildi.`;
+  }
+  return `${actions.length ? `Bestätigt gespeichert: ${titles}.` : 'Es wurde kein Todo gespeichert.'} ${failures} Tool-Aktion(en) sind fehlgeschlagen oder wurden abgelehnt.`;
+}
+
 class AiService {
   constructor(domain, config) {
     this.domain = domain;
     this.config = config;
+    this.request = requestJson;
   }
 
   settings() {
@@ -105,7 +185,7 @@ class AiService {
       const custom = String(options?.geminiModel || this.settings().geminiModel || '').replace(/^models\//, '');
       return [...new Set([custom, ...GEMINI_MODELS].filter(Boolean))];
     }
-    const response = await requestJson(`${this.config.ollamaUrl.replace(/\/+$/, '')}/api/tags`, { timeoutMs: 5000 });
+    const response = await this.request(`${this.config.ollamaUrl.replace(/\/+$/, '')}/api/tags`, { timeoutMs: 5000 });
     return (response.models || []).map((model) => model.name).filter(Boolean);
   }
 
@@ -125,7 +205,7 @@ class AiService {
         role: message.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: message.content }],
       }));
-      const response = await requestJson(
+      const response = await this.request(
         `https://${GEMINI_HOST}/v1beta/models/${encodeURIComponent(model)}:generateContent`,
         {
           method: 'POST',
@@ -140,7 +220,7 @@ class AiService {
       return { content, model };
     }
     const settings = this.settings();
-    const response = await requestJson(`${this.config.ollamaUrl.replace(/\/+$/, '')}/api/chat`, {
+    const response = await this.request(`${this.config.ollamaUrl.replace(/\/+$/, '')}/api/chat`, {
       method: 'POST',
       body: {
         model,
@@ -172,17 +252,192 @@ class AiService {
       'Du bist der persönliche Studienassistent im TUM Study Portal.',
       `Antworte ausschließlich in ${language}.`,
       'Erfinde keine persönlichen Fakten. Nutze nur die beigefügten Studiendaten.',
+      'Nutze create_todo nur auf ausdrücklichen Wunsch des Nutzers und nie mehrfach mit identischen Argumenten.',
+      'Melde eine Speicherung nur dann als erfolgreich, wenn das Tool-Ergebnis success=true enthält.',
+      'Wenn ein Tool-Aufruf fehlschlägt, erkläre den Fehler; behaupte nicht, dass dieses Todo gespeichert wurde.',
       `Studiendaten: ${compactContext(this.snapshot(), this.config.maxAiContextBytes)}`,
     ].join('\n');
-    const result = await this.generate(provider, payload.messages, system);
+    const messages = payload.messages.map(message => ({
+      role: message.role,
+      content: message.content,
+    }));
+    try {
+      return provider === 'gemini'
+        ? await this.chatGemini(messages, system, language)
+        : await this.chatOllama(messages, system, language);
+    } catch (error) {
+      if (error.code !== 'AI_TOOLS_UNSUPPORTED') throw error;
+      const result = await this.generate(provider, messages, system);
+      return {
+        ...result,
+        activeModel: result.model,
+        fallbackUsed: true,
+        fallbackReason: 'tools_unsupported',
+        retrievalMode: 'full_context_fallback',
+        todoActions: [],
+      };
+    }
+  }
+
+  executeTool(name, rawArgs, state) {
+    state.callCount += 1;
+    if (state.callCount > MAX_TOOL_CALLS) {
+      state.failures += 1;
+      return { success: false, error: 'Tool call limit exceeded.' };
+    }
+    if (name !== 'create_todo') {
+      state.failures += 1;
+      return { success: false, error: `Unknown tool: ${String(name || '').slice(0, 80)}` };
+    }
+    const parsed = parseToolArguments(rawArgs);
+    if (!parsed.ok) {
+      state.failures += 1;
+      return { success: false, error: parsed.error };
+    }
+    const signature = canonicalCall(name, parsed.value);
+    if (state.seen.has(signature)) {
+      state.failures += 1;
+      return { success: false, error: 'Duplicate tool call blocked within this chat.' };
+    }
+    state.seen.add(signature);
+    if (state.actions.length >= MAX_TODO_ACTIONS) {
+      state.failures += 1;
+      return { success: false, error: 'Todo action limit exceeded.' };
+    }
+    try {
+      const todo = this.domain.createAiTodo(parsed.value);
+      const confirmed = { id: todo.id, title: todo.title, priority: todo.priority };
+      state.actions.push(confirmed);
+      return { success: true, ...confirmed, message: 'Todo was saved.' };
+    } catch (error) {
+      state.failures += 1;
+      return {
+        success: false,
+        error: error?.code === 'VALIDATION_FAILED'
+          ? error.message
+          : 'Todo arguments failed validation.',
+      };
+    }
+  }
+
+  completedChat(content, model, state, language) {
+    const safeContent = state.failures
+      ? partialFailureText(state.actions, state.failures, language)
+      : content;
     return {
-      ...result,
-      activeModel: result.model,
-      fallbackUsed: true,
-      fallbackReason: 'server_full_context',
-      retrievalMode: 'full_context',
-      todoActions: [],
+      content: safeContent,
+      model,
+      activeModel: model,
+      fallbackUsed: false,
+      fallbackReason: null,
+      retrievalMode: 'server_snapshot_tools',
+      todoActions: state.actions,
     };
+  }
+
+  async chatOllama(originalMessages, system, language) {
+    const model = this.model('ollama');
+    const settings = this.settings();
+    const messages = [{ role: 'system', content: system }, ...originalMessages];
+    const state = { actions: [], callCount: 0, failures: 0, seen: new Set() };
+    for (let turn = 0; turn < MAX_TOOL_TURNS; turn += 1) {
+      let response;
+      try {
+        response = await this.request(`${this.config.ollamaUrl.replace(/\/+$/, '')}/api/chat`, {
+          method: 'POST',
+          body: {
+            model,
+            ...(settings.ollamaDisableReasoning ? { think: false } : {}),
+            stream: false,
+            messages,
+            tools: OLLAMA_TOOLS,
+          },
+        });
+      } catch (error) {
+        if (!state.actions.length) throw error;
+        return this.completedChat(finalTextAfterWrites(state.actions, language), model, state, language);
+      }
+      const toolCalls = Array.isArray(response.message?.tool_calls) ? response.message.tool_calls : [];
+      if (!toolCalls.length) {
+        const content = String(response.message?.content || response.response || '').trim();
+        if (!content) throw safeExternalError('Ollama returned an empty response', 'AI_EMPTY_RESPONSE');
+        return this.completedChat(content, model, state, language);
+      }
+      messages.push({
+        role: 'assistant',
+        content: String(response.message?.content || ''),
+        tool_calls: toolCalls,
+      });
+      for (const call of toolCalls) {
+        const name = call?.function?.name || '';
+        const result = this.executeTool(name, call?.function?.arguments, state);
+        messages.push({
+          role: 'tool',
+          tool_name: name || 'unknown',
+          content: JSON.stringify(result),
+        });
+      }
+    }
+    if (state.actions.length) {
+      return this.completedChat(finalTextAfterWrites(state.actions, language), model, state, language);
+    }
+    throw safeExternalError('AI tool iteration limit exceeded', 'AI_TOOL_LIMIT');
+  }
+
+  async chatGemini(originalMessages, system, language) {
+    const model = this.model('gemini');
+    const apiKey = this.domain.geminiKey();
+    if (!apiKey) throw safeExternalError('Gemini API key is not configured', 'GEMINI_NOT_CONFIGURED');
+    const contents = originalMessages.map(message => ({
+      role: message.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: message.content }],
+    }));
+    const state = { actions: [], callCount: 0, failures: 0, seen: new Set() };
+    for (let turn = 0; turn < MAX_TOOL_TURNS; turn += 1) {
+      let response;
+      try {
+        response = await this.request(
+          `https://${GEMINI_HOST}/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+          {
+            method: 'POST',
+            headers: { 'X-goog-api-key': apiKey },
+            timeoutMs: 120000,
+            body: {
+              systemInstruction: { parts: [{ text: system }] },
+              contents,
+              tools: GEMINI_TOOLS,
+            },
+          },
+        );
+      } catch (error) {
+        if (!state.actions.length) throw error;
+        return this.completedChat(finalTextAfterWrites(state.actions, language), model, state, language);
+      }
+      const modelContent = response.candidates?.[0]?.content;
+      const parts = Array.isArray(modelContent?.parts) ? modelContent.parts : [];
+      const calls = parts.filter(part => part?.functionCall).map(part => part.functionCall);
+      if (!calls.length) {
+        const content = parts.map(part => part?.text || '').join('').trim();
+        if (!content) throw safeExternalError('Gemini returned an empty response', 'AI_EMPTY_RESPONSE');
+        return this.completedChat(content, model, state, language);
+      }
+      contents.push({ role: 'model', parts });
+      const responseParts = calls.map((call) => ({
+        functionResponse: {
+          name: call.name || 'unknown',
+          response: this.executeTool(
+            call.name || '',
+            call.args === undefined ? call.arguments : call.args,
+            state,
+          ),
+        },
+      }));
+      contents.push({ role: 'user', parts: responseParts });
+    }
+    if (state.actions.length) {
+      return this.completedChat(finalTextAfterWrites(state.actions, language), model, state, language);
+    }
+    throw safeExternalError('AI tool iteration limit exceeded', 'AI_TOOL_LIMIT');
   }
 }
 

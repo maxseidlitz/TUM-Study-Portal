@@ -51,6 +51,14 @@ const todo = z.object({
   moodleCourseId: id.or(z.literal('')).optional().default(''),
 });
 
+const aiCreateTodo = z.object({
+  title: z.string().trim().min(1).max(240),
+  priority: z.enum(['high', 'medium', 'low']).optional().default('medium'),
+  due: date.optional().default(''),
+  notes: z.string().max(10000).optional().default(''),
+  moduleId: id.or(z.literal('')).optional().default(''),
+}).strict();
+
 const moodle = z.object({
   id,
   name: z.string().trim().min(1).max(240),
@@ -217,7 +225,7 @@ const icalItems = z.array(z.object({
 module.exports = {
   schemas: {
     exam, todo, moodle, module: moduleSchema, lecture, standaloneLecture,
-    studyLog, chat, aiChat, aiModels, aiRecommend, icalFetch, icalItems,
+    studyLog, chat, aiChat, aiCreateTodo, aiModels, aiRecommend, icalFetch, icalItems,
   },
   settingsPatch,
   validIsoDate: value => isoDate.safeParse(value).success,

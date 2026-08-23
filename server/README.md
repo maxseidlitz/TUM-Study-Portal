@@ -141,17 +141,22 @@ Server tests use a temporary SQLite database and cover authentication, CSRF,
 CRUD, nested modules, lecture overrides, settings secrets, chats, result
 envelopes, atomic calendar replacement, current/legacy desktop backup fixtures,
 reference-safe ID migration, crash-atomic restore ordering/failures, migration
-repair, DNS/redirect policy and private-address rejection.
+repair, DNS/redirect policy, private-address rejection, and mocked Ollama/Gemini
+Todo tool calls including validation, duplicate/action limits, and fallback.
 
 ## Deliberate fail-closed limitations
 
 - Ollama is externally managed. Retry checks reachability and whether the
   configured model exists; it does not spawn binaries or pull multi-gigabyte
   models.
-- AI chat currently uses the existing data model through a bounded,
-  server-generated full-context snapshot. It does not execute model-requested
-  write tools; consequently `todoActions` is empty. Todo writes remain
-  available through the authenticated Todo API.
+- AI chat sends a bounded, server-generated full-context snapshot and exactly
+  one write tool, `create_todo`, to Ollama or Gemini. Tool arguments are strict,
+  IDs are generated on the server, module references are checked, writes use
+  the Todo domain validation and a SQLite transaction, and only confirmed
+  writes appear in `todoActions`. Duplicate calls, unknown tools, invalid
+  arguments, excessive iterations, and excessive actions fail closed. Models
+  without tool support retain the read-only full-context fallback; free-form
+  text or JSON is never interpreted as a write.
 - Electron iCal replacement remains sequential and fail-fast because the
   desktop JSON store has no transaction primitive. Browser replacement is
   atomic.

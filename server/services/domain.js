@@ -204,6 +204,31 @@ class DomainService {
     return item;
   }
 
+  createAiTodo(raw) {
+    const input = schemas.aiCreateTodo.parse(raw);
+    return this.db.transaction(() => {
+      let subject = '';
+      if (input.moduleId) {
+        const mod = this.db.getModule(input.moduleId);
+        if (!mod) throw new HttpError(422, 'Unknown moduleId', 'VALIDATION_FAILED');
+        subject = mod.name;
+      }
+      const todo = schemas.todo.parse({
+        id: crypto.randomUUID(),
+        title: input.title,
+        priority: input.priority,
+        subject,
+        due: input.due,
+        notes: input.notes,
+        done: false,
+        moduleId: input.moduleId,
+        moodleCourseId: '',
+      });
+      this.db.saveEntity('todos', todo, 'insert');
+      return todo;
+    });
+  }
+
   remove(type, id) {
     const table = { exams: 'exams', todos: 'todos', moodle: 'moodle_courses' }[type];
     if (!table || !this.db.deleteEntity(table, id)) throw new HttpError(404, 'Entity not found');

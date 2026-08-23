@@ -311,6 +311,11 @@ test('study logs, settings secrets, chats and result routes work', async (t) => 
   app.locals.services.ai.generate = async () => ({ content: 'Safe test response', model: 'test-model' });
   await api(app, auth, 'post', '/api/v1/ai/recommend', { today: '2026-08-23' }).expect(200)
     .expect(({ body }) => assert.equal(body.content, 'Safe test response'));
+  app.locals.services.ai.chat = async () => ({
+    content: 'Safe test response',
+    model: 'test-model',
+    todoActions: [],
+  });
   await api(app, auth, 'post', '/api/v1/ai/chat', {
     messages: [{ role: 'user', content: 'What should I study?' }],
     context: { locale: 'en' },
@@ -323,6 +328,230 @@ test('study logs, settings secrets, chats and result routes work', async (t) => 
   app.locals.services.ai.models = async () => ['test-model'];
   await api(app, auth, 'post', '/api/v1/ollama/setup/retry').expect(200)
     .expect(({ body }) => assert.equal(body.phase, 'ready'));
+});
+
+test('Ollama native tool calls persist validated server-ID Todos and return results to the model', async (t) => {
+  const { app } = await fixture(t);
+  const auth = await login(app);
+  await api(app, auth, 'post', '/api/v1/modules', {
+    id: 'module-1', name: 'Algorithms', slots: [],
+  }).expect(200);
+  const ai = app.locals.services.ai;
+  const requests = [];
+  ai.request = async (_url, options) => {
+    requests.push(options.body);
+    if (requests.length === 1) {
+      return {
+        message: {
+          content: '',
+          tool_calls: [{
+            function: {
+              name: 'create_todo',
+              arguments: JSON.stringify({
+                title: 'Übungsblatt lösen',
+                priority: 'high',
+                due: '2026-08-30',
+                notes: 'Aufgaben 1–4',
+                moduleId: 'module-1',
+              }),
+            },
+          }],
+        },
+      };
+    }
+    return { message: { content: 'Das Todo wurde gespeichert.' } };
+  };
+
+  const response = await api(app, auth, 'post', '/api/v1/ai/chat', {
+    messages: [{ role: 'user', content: 'Lege das Übungsblatt als Todo an.' }],
+    context: { locale: 'de', today: '2026-08-23' },
+  }).expect(200);
+  assert.equal(response.body.success, true);
+  assert.equal(response.body.todoActions.length, 1);
+  assert.match(response.body.todoActions[0].id, /^[0-9a-f-]{36}$/);
+  assert.equal(requests[0].tools.length, 1);
+  assert.equal(requests[0].tools[0].function.name, 'create_todo');
+  assert.deepEqual(Object.keys(requests[0].tools[0].function.parameters.properties).sort(), [
+    'due', 'moduleId', 'notes', 'priority', 'title',
+  ]);
+  const toolMessage = requests[1].messages.find(message => message.role === 'tool');
+  assert.equal(JSON.parse(toolMessage.content).success, true);
+  const todos = await api(app, auth, 'get', '/api/v1/todos').expect(200);
+  assert.deepEqual(todos.body[0], {
+    id: response.body.todoActions[0].id,
+    title: 'Übungsblatt lösen',
+    priority: 'high',
+    subject: 'Algorithms',
+    due: '2026-08-30',
+    notes: 'Aufgaben 1–4',
+    done: false,
+    moduleId: 'module-1',
+    moodleCourseId: '',
+  });
+});
+
+test('Gemini function declarations execute create_todo and receive functionResponse confirmation', async (t) => {
+  const { app } = await fixture(t, { geminiApiKey: 'test-gemini-key' });
+  const auth = await login(app);
+  await api(app, auth, 'patch', '/api/v1/settings', { aiProvider: 'gemini' }).expect(200);
+  const ai = app.locals.services.ai;
+  const requests = [];
+  ai.request = async (_url, options) => {
+    requests.push(options.body);
+    if (requests.length === 1) {
+      return {
+        candidates: [{
+          content: {
+            role: 'model',
+            parts: [{
+              functionCall: {
+                name: 'create_todo',
+                args: { title: 'Gemini Todo', priority: 'medium', due: '', notes: '' },
+              },
+            }],
+          },
+        }],
+      };
+    }
+    return { candidates: [{ content: { role: 'model', parts: [{ text: 'Todo gespeichert.' }] } }] };
+  };
+
+  const response = await api(app, auth, 'post', '/api/v1/ai/chat', {
+    messages: [{ role: 'user', content: 'Bitte als Todo speichern.' }],
+  }).expect(200);
+  assert.equal(response.body.todoActions.length, 1);
+  assert.equal(requests[0].tools.length, 1);
+  assert.equal(requests[0].tools[0].functionDeclarations.length, 1);
+  assert.equal(requests[0].tools[0].functionDeclarations[0].name, 'create_todo');
+  const functionResponse = requests[1].contents.at(-1).parts[0].functionResponse;
+  assert.equal(functionResponse.name, 'create_todo');
+  assert.equal(functionResponse.response.success, true);
+  await api(app, auth, 'get', '/api/v1/todos').expect(({ body }) => {
+    assert.equal(body.length, 1);
+    assert.equal(body[0].title, 'Gemini Todo');
+  });
+});
+
+test('tool validation rejects unknown, injected, duplicate and over-limit actions without false confirmations', async (t) => {
+  const { app } = await fixture(t);
+  const auth = await login(app);
+  const ai = app.locals.services.ai;
+  const valid = title => ({ function: { name: 'create_todo', arguments: { title } } });
+  let call = 0;
+  let returnedToolResults;
+  ai.request = async (_url, options) => {
+    call += 1;
+    if (call === 1) {
+      return {
+        message: {
+          tool_calls: [
+            { function: { name: 'delete_todo', arguments: {} } },
+            { function: { name: 'create_todo', arguments: { id: 'browser-id', title: 'Injected' } } },
+            valid('A'), valid('A'), valid('B'), valid('C'), valid('D'), valid('E'),
+          ],
+        },
+      };
+    }
+    returnedToolResults = options.body.messages
+      .filter(message => message.role === 'tool')
+      .map(message => JSON.parse(message.content));
+    return { message: { content: 'Alle angeforderten Todos wurden gespeichert.' } };
+  };
+
+  const response = await api(app, auth, 'post', '/api/v1/ai/chat', {
+    messages: [{ role: 'user', content: 'Erstelle diese Todos.' }],
+  }).expect(200);
+  assert.equal(response.body.todoActions.length, 4);
+  assert.match(response.body.content, /4 Tool-Aktion\(en\).*fehlgeschlagen/);
+  assert.equal(returnedToolResults.filter(result => result.success).length, 4);
+  assert.equal(returnedToolResults.filter(result => !result.success).length, 4);
+  const todos = await api(app, auth, 'get', '/api/v1/todos').expect(200);
+  assert.deepEqual(todos.body.map(todo => todo.title), ['A', 'B', 'C', 'D']);
+  assert.equal(todos.body.some(todo => todo.id === 'browser-id'), false);
+});
+
+test('Gemini tool iteration limit stops repeated invalid calls without writes', async (t) => {
+  const { app } = await fixture(t, { geminiApiKey: 'test-gemini-key' });
+  const auth = await login(app);
+  await api(app, auth, 'patch', '/api/v1/settings', { aiProvider: 'gemini' }).expect(200);
+  const ai = app.locals.services.ai;
+  let calls = 0;
+  ai.request = async () => {
+    calls += 1;
+    return {
+      candidates: [{
+        content: {
+          role: 'model',
+          parts: [{ functionCall: { name: 'unknown_tool', args: {} } }],
+        },
+      }],
+    };
+  };
+  await api(app, auth, 'post', '/api/v1/ai/chat', {
+    messages: [{ role: 'user', content: 'Do something invalid.' }],
+    context: { locale: 'en' },
+  }).expect(200).expect(({ body }) => assert.equal(body.success, false));
+  assert.equal(calls, 5);
+  await api(app, auth, 'get', '/api/v1/todos').expect(200, []);
+});
+
+test('models without tool support use full-context fallback but never write parsed free text', async (t) => {
+  const { app } = await fixture(t);
+  const auth = await login(app);
+  const ai = app.locals.services.ai;
+  let calls = 0;
+  ai.request = async (_url, options) => {
+    calls += 1;
+    if (calls === 1) {
+      const error = new Error('tools unsupported');
+      error.code = 'AI_TOOLS_UNSUPPORTED';
+      throw error;
+    }
+    assert.equal(Object.hasOwn(options.body, 'tools'), false);
+    return {
+      message: {
+        content: '{"tool":"create_todo","title":"Must not be persisted","success":true}',
+      },
+    };
+  };
+  const response = await api(app, auth, 'post', '/api/v1/ai/chat', {
+    messages: [{ role: 'user', content: 'Create a Todo.' }],
+    context: { locale: 'en' },
+  }).expect(200);
+  assert.equal(response.body.fallbackUsed, true);
+  assert.equal(response.body.fallbackReason, 'tools_unsupported');
+  assert.deepEqual(response.body.todoActions, []);
+  await api(app, auth, 'get', '/api/v1/todos').expect(200, []);
+});
+
+test('a provider failure after a confirmed write still reports only the persisted action', async (t) => {
+  const { app } = await fixture(t);
+  const auth = await login(app);
+  const ai = app.locals.services.ai;
+  let calls = 0;
+  ai.request = async () => {
+    calls += 1;
+    if (calls === 1) {
+      return {
+        message: {
+          tool_calls: [{
+            function: { name: 'create_todo', arguments: { title: 'Confirmed before failure' } },
+          }],
+        },
+      };
+    }
+    throw new Error('mocked provider outage');
+  };
+  const response = await api(app, auth, 'post', '/api/v1/ai/chat', {
+    messages: [{ role: 'user', content: 'Save this Todo.' }],
+    context: { locale: 'en' },
+  }).expect(200);
+  assert.equal(response.body.success, true);
+  assert.deepEqual(response.body.todoActions.map(action => action.title), ['Confirmed before failure']);
+  assert.match(response.body.content, /model could not complete its final response/i);
+  await api(app, auth, 'get', '/api/v1/todos').expect(({ body }) => {
+    assert.deepEqual(body.map(todo => todo.title), ['Confirmed before failure']);
+  });
 });
 
 test('ON DELETE SET NULL keeps relational columns and compatibility JSON synchronized', async (t) => {
