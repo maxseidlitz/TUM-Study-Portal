@@ -32,6 +32,7 @@ WORKDIR /app
 COPY --chown=node:node package.json ./
 COPY --chown=node:node --from=production-dependencies /app/node_modules ./node_modules
 COPY --chown=node:node --from=frontend-build /app/build ./build
+COPY --chown=node:node public/ical.js ./public/ical.js
 COPY --chown=node:node server ./server
 RUN mkdir -p /var/lib/tum-study-portal/backups \
  && chown -R node:node /var/lib/tum-study-portal
