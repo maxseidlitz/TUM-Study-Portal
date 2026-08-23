@@ -109,6 +109,16 @@ test('local HTTP development uses unprefixed cookies browsers accept', async (t)
   assert.doesNotMatch(page.headers['set-cookie'].join(';'), /;\s*Secure(?:;|$)/);
   assert.doesNotMatch(page.headers['content-security-policy'], /upgrade-insecure-requests/);
   assert.equal(page.headers['strict-transport-security'], undefined);
+  assert.equal(page.headers['referrer-policy'], 'same-origin');
+
+  const nonce = cookieValue(page.headers['set-cookie'], 'login_nonce');
+  const token = page.text.match(/name="_csrf" value="([^"]+)"/)[1];
+  await request(app).post('/login')
+    .set('Referer', `${origin}/login`)
+    .set('Cookie', nonce)
+    .type('form')
+    .send({ _csrf: token, password: 'correct horse battery staple' })
+    .expect(302);
 
   const auth = await login(app, { origin, cookiePrefix: '', secureCookies: false });
   assert.match(auth.session, /^tum_session=/);

@@ -73,6 +73,7 @@ async function createApp({ config, db: suppliedDb, logger: suppliedLogger } = {}
   if (config.trustProxy) app.set('trust proxy', 1);
   app.disable('x-powered-by');
   app.use(helmet({
+    referrerPolicy: { policy: 'same-origin' },
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
