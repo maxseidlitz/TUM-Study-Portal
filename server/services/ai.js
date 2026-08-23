@@ -152,11 +152,13 @@ function allowsTodoWriteIntent(rawText) {
   const text = String(rawText || '').trim().toLocaleLowerCase('de-DE');
   if (!text || text.length > 12000) return false;
 
+  const metaLanguage = /\b(?:(?:is|are)\s+what|appears?\s+on|(?:is|are)\s+(?:an?\s+)?(?:example|quote|label|documentation|tutorial|button\s+text)|(?:button|label|tutorial|documentation)\s+(?:says?|reads?|shows?|contains?)|(?:ist|sind)\s+(?:ein(?:e|en)?\s+)?(?:beispiel|zitat|beschriftung|buttontext)|(?:steht|erscheint)\s+(?:auf|in)|(?:button|schaltfläche|tutorial|dokumentation)\s+(?:sagt|zeigt|enthält|lautet))\b/u;
   if (/\b(?:wie|how|nasıl)\b/u.test(text)
     || /^(?:(?:kann|könnte|soll|darf)\s+ich|(?:can|could|should|may)\s+i)\b/u.test(text)
     || /\b(?:falls|wenn|if|eğer|erklär\w*|beschreib\w*|explain\w*|describe\w*|tell\s+me|sag\s+mir|açıkla\w*)\b/u.test(text)
     || /\b(?:nicht|keine?|don't|do not|never|oluşturma|ekleme|kaydetme)\b/u.test(text)
-    || /\b(?:ignore|ignoriere|anweisungen|instructions?|system[\s-]?prompt|tool|function|provider|model|talimatları|kuralları)\b/u.test(text)) {
+    || /\b(?:ignore|ignoriere|anweisungen|instructions?|system[\s-]?prompt|tool|function|provider|model|talimatları|kuralları)\b/u.test(text)
+    || metaLanguage.test(text)) {
     return false;
   }
 
