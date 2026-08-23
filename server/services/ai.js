@@ -326,7 +326,8 @@ class AiService {
       content: message.content,
     }));
     const lastUserMessage = [...messages].reverse().find(message => message.role === 'user');
-    const writeIntentAllowed = allowsTodoWriteIntent(lastUserMessage?.content);
+    const writeIntentAllowed = payload.context?.allowTodoWrites === true
+      && allowsTodoWriteIntent(lastUserMessage?.content);
     try {
       return provider === 'gemini'
         ? await this.chatGemini(messages, system, language, writeIntentAllowed)
@@ -370,7 +371,7 @@ class AiService {
       state.failures += 1;
       return {
         success: false,
-        error: 'Todo write rejected: the latest user message contains no explicit create, save, or reminder instruction.',
+        error: 'Todo write rejected: explicit user consent and a direct create, save, or reminder instruction are required.',
       };
     }
     if (state.actions.length >= MAX_TODO_ACTIONS) {

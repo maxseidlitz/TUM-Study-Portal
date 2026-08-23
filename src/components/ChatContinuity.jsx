@@ -33,7 +33,7 @@ export default function ChatContinuity({ activePage }) {
   const handleSend = async () => {
     const text = input.trim();
     if (!text || activeAiChat.thinking) return;
-    await sendAiMessage(text, activeAiChat.sessionId, activeAiChat.messages);
+    await sendAiMessage(text, activeAiChat.sessionId, activeAiChat.messages, false);
     setInput('');
   };
 

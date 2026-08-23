@@ -362,11 +362,35 @@ function registerIpcHandlers() {
     }
   });
 
-  ipcMain.handle('ai:chat', async (_, { messages, context }) => {
+  ipcMain.handle('ai:chat', async (_, payload = {}) => {
     const settings = store.settings || {};
     const provider = settings.aiProvider === 'gemini' ? 'gemini' : 'ollama';
 
     try {
+      const messages = payload?.messages;
+      const rawContext = payload?.context ?? {};
+      if (!rawContext || typeof rawContext !== 'object' || Array.isArray(rawContext)) {
+        throw new Error('Ungültiger KI-Chat-Kontext.');
+      }
+      const allowedContextKeys = ['locale', 'today', 'allowTodoWrites'];
+      if (Object.keys(rawContext).some(key => !allowedContextKeys.includes(key))) {
+        throw new Error('Unbekanntes Feld im KI-Chat-Kontext.');
+      }
+      if (rawContext.allowTodoWrites != null && typeof rawContext.allowTodoWrites !== 'boolean') {
+        throw new Error('allowTodoWrites muss ein Boolean sein.');
+      }
+      if (rawContext.locale != null && !['de', 'en', 'tr'].includes(rawContext.locale)) {
+        throw new Error('Ungültige Sprache im KI-Chat-Kontext.');
+      }
+      if (rawContext.today != null
+        && (typeof rawContext.today !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(rawContext.today))) {
+        throw new Error('Ungültiges Datum im KI-Chat-Kontext.');
+      }
+      const context = {
+        ...(rawContext.locale == null ? {} : { locale: rawContext.locale }),
+        ...(rawContext.today == null ? {} : { today: rawContext.today }),
+        allowTodoWrites: rawContext.allowTodoWrites === true,
+      };
       let result;
       if (provider === 'gemini') {
         result = await aiChatGemini(settings, messages, context);

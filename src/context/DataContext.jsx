@@ -8,7 +8,7 @@ import { api } from '../api';
 const DataContext = createContext(null);
 
 export function DataProvider({ children }) {
-  const { locale, intlLocale, t } = useLocale();
+  const { locale, t } = useLocale();
   const showToast = useToast();
   const [exams, setExams] = useState([]);
   const [lectures, setLectures] = useState([]);
@@ -104,7 +104,12 @@ export function DataProvider({ children }) {
     }
   }, [todos, crudError]);
 
-  const sendAiMessage = useCallback(async (content, sessionId, history) => {
+  const sendAiMessage = useCallback(async (
+    content,
+    sessionId,
+    history,
+    allowTodoWrites = false,
+  ) => {
     const userMsg = { role: 'user', content: content.trim() };
     const newHistory = [...history, userMsg];
 
@@ -116,7 +121,10 @@ export function DataProvider({ children }) {
     });
 
     try {
-      const context = buildAiContext({ exams, lectures, todos, modules, locale, intlLocale });
+      const context = buildAiContext({
+        locale,
+        allowTodoWrites: allowTodoWrites === true,
+      });
 
       const result = await api.ai.chat({
         messages: messagesForApi(newHistory),
@@ -186,7 +194,7 @@ export function DataProvider({ children }) {
         thinking: false,
       }));
     }
-  }, [exams, lectures, todos, modules, locale, intlLocale, loadAll]);
+  }, [exams, lectures, todos, modules, locale, loadAll]);
 
   return (
     <DataContext.Provider value={{

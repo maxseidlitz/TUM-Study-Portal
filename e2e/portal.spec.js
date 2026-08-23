@@ -128,6 +128,47 @@ test('Chat, exams, lectures, modules, and settings render without external servi
   }
 });
 
+test('chat Todo consent is visible, touch-sized, off by default, and resets after send', async ({ page }) => {
+  const payloads = [];
+  await page.route('**/api/v1/ai/chat', async route => {
+    payloads.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        content: 'Mocked provider response',
+        model: 'mocked-model',
+        todoActions: [],
+      }),
+    });
+  });
+
+  await page.goto('/chat');
+  const consent = page.getByRole('checkbox', {
+    name: 'Todo-Erstellung für diese Nachricht erlauben',
+  });
+  await expect(consent).toBeVisible();
+  await expect(consent).not.toBeChecked();
+  await expectMinTouchTarget(consent);
+  await expect(consent).toHaveAttribute('aria-describedby', 'chat-todo-write-help');
+  await expect(page.locator('#chat-todo-write-help')).toContainText('nur für die nächste');
+
+  const input = page.getByRole('textbox', { name: 'Nachricht an den KI-Assistenten' });
+  await consent.check();
+  await input.fill('Bitte erstelle ein Todo.');
+  await page.getByRole('button', { name: 'Nachricht senden' }).click();
+  await expect.poll(() => payloads.length).toBe(1);
+  expect(payloads[0].context.allowTodoWrites).toBe(true);
+  await expect(consent).not.toBeChecked();
+  await expect(page.getByText('Mocked provider response').last()).toBeVisible();
+
+  await input.fill('Bitte erstelle noch ein Todo.');
+  await page.getByRole('button', { name: 'Nachricht senden' }).click();
+  await expect.poll(() => payloads.length).toBe(2);
+  expect(payloads[1].context.allowTodoWrites).toBe(false);
+});
+
 test('desktop sidebar exposes every primary route', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop');
   const sidebar = page.locator('.desktop-sidebar');

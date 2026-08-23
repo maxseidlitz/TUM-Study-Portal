@@ -203,7 +203,8 @@ const aiChat = z.object({
   context: z.object({
     locale: z.enum(['de', 'en', 'tr']).optional(),
     today: isoDate.optional(),
-  }).optional().default({}),
+    allowTodoWrites: z.boolean().optional().default(false),
+  }).strict().optional().default({}),
 }).refine(value => Buffer.byteLength(JSON.stringify(value), 'utf8') <= 256 * 1024, {
   message: 'AI request exceeds 256 KiB',
 });

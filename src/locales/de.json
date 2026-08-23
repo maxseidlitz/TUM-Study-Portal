@@ -530,6 +530,8 @@
     "placeholder": "Frag mich etwas zu deinem Studium…"
     ,"send": "Nachricht senden",
     "inputLabel": "Nachricht an den KI-Assistenten",
+    "allowTodoWrites": "Todo-Erstellung für diese Nachricht erlauben",
+    "allowTodoWritesHelp": "Das Modell darf höchstens validierte Todos vorschlagen oder anlegen. Die Freigabe gilt nur für die nächste gesendete Nachricht.",
     "openFloating": "Chat öffnen",
     "minimizeFloating": "Chat minimieren",
     "closeFloating": "Chatfenster schließen"

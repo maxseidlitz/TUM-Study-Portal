@@ -551,7 +551,7 @@ function executeChatTool(name, rawArgs, todayIso, todoActionResults, writeIntent
       ? executeCreateTodo(parsed.value)
       : {
         success: false,
-        error: 'Todo write rejected: the latest user message contains no explicit create, save, or reminder instruction.',
+        error: 'Todo write rejected: explicit user consent and a direct create, save, or reminder instruction are required.',
       };
     todoActionResults.push(result);
     return result;
@@ -833,7 +833,8 @@ async function aiChatGemini(settings, messagesFromRenderer, context, dependencie
 
   const tools = geminiToolsBody();
   const requestGenerate = dependencies.requestGeminiGenerateContent || requestGeminiGenerateContent;
-  const writeIntentAllowed = latestUserAllowsTodoWrite(messagesFromRenderer);
+  const writeIntentAllowed = context?.allowTodoWrites === true
+    && latestUserAllowsTodoWrite(messagesFromRenderer);
 
   const todoActionResults = [];
   const seenToolCalls = new Set();
@@ -948,7 +949,8 @@ async function aiChatOllama(settings, messagesFromRenderer, context, dependencie
   ];
 
   const tools = [...RETRIEVAL_OLLAMA_TOOLS, CREATE_TODO_OLLAMA_TOOL];
-  const writeIntentAllowed = latestUserAllowsTodoWrite(originalMessages);
+  const writeIntentAllowed = context?.allowTodoWrites === true
+    && latestUserAllowsTodoWrite(originalMessages);
   const todoActionResults = [];
   const seenToolCalls = new Set();
   let toolCallCount = 0;

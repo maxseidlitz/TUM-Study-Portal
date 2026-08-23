@@ -530,6 +530,8 @@
     "placeholder": "Çalışmaların hakkında sor…",
     "send": "Mesaj gönder",
     "inputLabel": "YZ asistanına mesaj gönder",
+    "allowTodoWrites": "Bu mesaj için görev oluşturmaya izin ver",
+    "allowTodoWritesHelp": "Model yalnızca doğrulanmış görevler önerebilir veya oluşturabilir. İzin yalnızca göndereceğiniz bir sonraki mesaj için geçerlidir.",
     "openFloating": "Sohbeti aç",
     "minimizeFloating": "Sohbeti küçült",
     "closeFloating": "Sohbet penceresini kapat"

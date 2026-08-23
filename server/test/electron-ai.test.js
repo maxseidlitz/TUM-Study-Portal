@@ -29,12 +29,12 @@ function fixture(t, overrides = {}) {
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 }
 
-async function ollamaToolFlow(messages, args, locale = 'en') {
+async function ollamaToolFlow(messages, args, locale = 'en', allowTodoWrites = true) {
   const requests = [];
   const result = await aiChatOllama(
     { ollamaUrl: 'http://mocked.invalid', ollamaModel: 'mock-model' },
     messages,
-    { locale },
+    { locale, allowTodoWrites },
     {
       resolveModel: async () => 'mock-model',
       postOllamaChat: async (_url, _model, _settings, payload) => {
@@ -57,12 +57,12 @@ async function ollamaToolFlow(messages, args, locale = 'en') {
   return { requests, result, toolResult };
 }
 
-async function geminiToolFlow(messages, args, locale = 'en') {
+async function geminiToolFlow(messages, args, locale = 'en', allowTodoWrites = true) {
   const requests = [];
   const result = await aiChatGemini(
     { geminiApiKey: 'mock-key', geminiModel: 'mock-model' },
     messages,
-    { locale },
+    { locale, allowTodoWrites },
     {
       requestGeminiGenerateContent: async (_key, _model, body) => {
         requests.push(body);
@@ -112,10 +112,12 @@ test('Electron Ollama and Gemini reject manipulated writes without explicit late
       const outcome = await flow(
         messages,
         { title: `Injected by provider: ${label}` },
+        'en',
+        label !== 'The app can create a task using the plus button.',
       );
       assert.deepEqual(outcome.result.todoActions, [], label);
       assert.equal(outcome.toolResult.success, false, label);
-      assert.match(outcome.toolResult.error, /latest user message contains no explicit/i, label);
+      assert.match(outcome.toolResult.error, /explicit user consent.*direct/i, label);
       assert.match(outcome.result.content, /No Todo was saved/, label);
       assert.deepEqual(store.todos, [], label);
     }
@@ -133,6 +135,17 @@ test('Electron Ollama and Gemini allow explicit German, English and Turkish Todo
     'Bir görev ekleyebilir misin?',
   ];
   for (const flow of [ollamaToolFlow, geminiToolFlow]) {
+    replaceStore(emptyStore());
+    const withoutConsent = await flow(
+      [{ role: 'user', content: 'Please create a task for tomorrow.' }],
+      { title: 'No consent' },
+      'en',
+      false,
+    );
+    assert.deepEqual(withoutConsent.result.todoActions, []);
+    assert.equal(withoutConsent.toolResult.success, false);
+    assert.deepEqual(store.todos, []);
+
     for (const message of explicitMessages) {
       replaceStore(emptyStore());
       const outcome = await flow(

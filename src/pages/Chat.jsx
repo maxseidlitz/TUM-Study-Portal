@@ -20,6 +20,7 @@ export default function Chat() {
   } = useData();
 
   const [input, setInput] = useState('');
+  const [allowTodoWrites, setAllowTodoWrites] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const isMobile = useIsMobile();
   const scrollRef = useRef(null);
@@ -46,9 +47,14 @@ export default function Chat() {
   const send = async (text) => {
     const content = text.trim();
     if (!content || isThinking) return;
-    await sendAiMessage(content, activeSessionId, messages);
+    const todoWriteConsent = allowTodoWrites;
+    setAllowTodoWrites(false);
     setInput('');
-    inputRef.current?.focus();
+    try {
+      await sendAiMessage(content, activeSessionId, messages, todoWriteConsent);
+    } finally {
+      inputRef.current?.focus();
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -61,6 +67,7 @@ export default function Chat() {
   const handleStartNewChat = async () => {
     await startNewChat();
     setInput('');
+    setAllowTodoWrites(false);
     inputRef.current?.focus();
   };
 
@@ -68,6 +75,7 @@ export default function Chat() {
     await selectSession(id);
     setSessionsOpen(false);
     setInput('');
+    setAllowTodoWrites(false);
     inputRef.current?.focus();
   };
 
@@ -199,32 +207,51 @@ export default function Chat() {
             )}
           </div>
 
-          <div className="chat-input-bar" style={styles.inputBar}>
-            <textarea
-              ref={inputRef}
-              aria-label={t('chat.inputLabel')}
-              className="chat-message-input"
-              style={styles.input}
-              placeholder={t('chat.placeholder')}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              rows={1}
-            />
-            <button
-              type="button"
-              className="chat-send-button"
-              aria-label={t('chat.send')}
-              style={{
-                ...styles.sendBtn,
-                opacity: input.trim() && !isThinking ? 1 : 0.4,
-                cursor: input.trim() && !isThinking ? 'pointer' : 'default',
-              }}
-              onClick={() => send(input)}
-              disabled={!input.trim() || isThinking}
-            >
-              <SendIcon />
-            </button>
+          <div style={styles.composer}>
+            <div style={styles.consentPanel}>
+              <label htmlFor="chat-todo-write-consent" style={styles.consentLabel}>
+                <input
+                  id="chat-todo-write-consent"
+                  type="checkbox"
+                  checked={allowTodoWrites}
+                  disabled={isThinking}
+                  aria-describedby="chat-todo-write-help"
+                  onChange={event => setAllowTodoWrites(event.target.checked)}
+                  style={styles.consentCheckbox}
+                />
+                <span>{t('chat.allowTodoWrites')}</span>
+              </label>
+              <div id="chat-todo-write-help" style={styles.consentHelp}>
+                {t('chat.allowTodoWritesHelp')}
+              </div>
+            </div>
+            <div className="chat-input-bar" style={styles.inputBar}>
+              <textarea
+                ref={inputRef}
+                aria-label={t('chat.inputLabel')}
+                className="chat-message-input"
+                style={styles.input}
+                placeholder={t('chat.placeholder')}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                rows={1}
+              />
+              <button
+                type="button"
+                className="chat-send-button"
+                aria-label={t('chat.send')}
+                style={{
+                  ...styles.sendBtn,
+                  opacity: input.trim() && !isThinking ? 1 : 0.4,
+                  cursor: input.trim() && !isThinking ? 'pointer' : 'default',
+                }}
+                onClick={() => send(input)}
+                disabled={!input.trim() || isThinking}
+              >
+                <SendIcon />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -317,9 +344,40 @@ const styles = {
     fontSize: 12, fontFamily: 'var(--font-sans)', transition: 'all var(--transition)',
   },
   messages: { display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 8 },
+  composer: { flexShrink: 0, marginTop: 12 },
+  consentPanel: {
+    padding: '8px 10px',
+    border: '1px solid var(--border-color)',
+    borderRadius: 12,
+    background: 'var(--bg-card)',
+  },
+  consentLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 44,
+    color: 'var(--text-primary)',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  consentCheckbox: {
+    width: 44,
+    height: 44,
+    margin: 0,
+    flexShrink: 0,
+    accentColor: 'var(--accent)',
+    cursor: 'pointer',
+  },
+  consentHelp: {
+    marginLeft: 54,
+    color: 'var(--text-secondary)',
+    fontSize: 11,
+    lineHeight: 1.4,
+  },
   inputBar: {
     display: 'flex', gap: 10, alignItems: 'flex-end', flexShrink: 0,
-    marginTop: 16, padding: 10, background: 'var(--bg-card)',
+    marginTop: 8, padding: 10, background: 'var(--bg-card)',
     border: '1px solid var(--border-color)', borderRadius: 14,
   },
   input: {

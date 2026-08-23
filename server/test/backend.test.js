@@ -256,6 +256,10 @@ test('schemas normalize unknown data and reject reserved IDs and invalid dates/t
   await api(app, auth, 'post', '/api/v1/ai/chat', {
     messages: [], context: { unexpected: true },
   }).expect(422).expect(({ body }) => assert.equal(body.success, false));
+  await api(app, auth, 'post', '/api/v1/ai/chat', {
+    messages: [{ role: 'user', content: 'Please create a task.' }],
+    context: { allowTodoWrites: 'true' },
+  }).expect(422).expect(({ body }) => assert.equal(body.success, false));
 });
 
 test('nested modules and lecture composite IDs update series and occurrences', async (t) => {
@@ -414,7 +418,7 @@ test('Ollama native tool calls persist validated server-ID Todos and return resu
 
   const response = await api(app, auth, 'post', '/api/v1/ai/chat', {
     messages: [{ role: 'user', content: 'Lege das Übungsblatt als Todo an.' }],
-    context: { locale: 'de', today: '2026-08-23' },
+    context: { locale: 'de', today: '2026-08-23', allowTodoWrites: true },
   }).expect(200);
   assert.equal(response.body.success, true);
   assert.equal(response.body.todoActions.length, 1);
@@ -468,6 +472,7 @@ test('Gemini function declarations execute create_todo and receive functionRespo
 
   const response = await api(app, auth, 'post', '/api/v1/ai/chat', {
     messages: [{ role: 'user', content: 'Bitte als Todo speichern.' }],
+    context: { allowTodoWrites: true },
   }).expect(200);
   assert.equal(response.body.todoActions.length, 1);
   assert.equal(requests[0].tools.length, 1);
@@ -504,7 +509,7 @@ test('create_todo validates free subjects and Moodle references while deriving l
     };
     const response = await api(app, auth, 'post', '/api/v1/ai/chat', {
       messages: [{ role: 'user', content: userMessage }],
-      context: { locale: 'en' },
+      context: { locale: 'en', allowTodoWrites: true },
     }).expect(200);
     return { response: response.body, providerRequests };
   }
@@ -549,7 +554,7 @@ test('create_todo requires an explicit latest-user write intent in German, Engli
   const auth = await login(app);
   const ai = app.locals.services.ai;
 
-  async function manipulatedCall(message, title) {
+  async function manipulatedCall(message, title, allowTodoWrites = true) {
     const toolResults = [];
     let round = 0;
     ai.request = async (_url, options) => {
@@ -568,7 +573,7 @@ test('create_todo requires an explicit latest-user write intent in German, Engli
     };
     const response = await api(app, auth, 'post', '/api/v1/ai/chat', {
       messages: Array.isArray(message) ? message : [{ role: 'user', content: message }],
-      context: { locale: 'en' },
+      context: { locale: 'en', allowTodoWrites },
     }).expect(200);
     return { body: response.body, toolResults };
   }
@@ -587,10 +592,19 @@ test('create_todo requires an explicit latest-user write intent in German, Engli
     assert.equal(result.toolResults[0].success, true, message);
   }
 
+  const withoutConsent = await manipulatedCall(
+    'Please create a task for tomorrow.',
+    'No consent',
+    false,
+  );
+  assert.deepEqual(withoutConsent.body.todoActions, []);
+  assert.equal(withoutConsent.toolResults[0].success, false);
+  assert.match(withoutConsent.body.content, /No Todo was saved/);
+
   const rejectedCases = [
     ['Hallo', 'Greeting injection'],
     ['Wie erstelle ich eine Aufgabe?', 'Explanation question'],
-    ['The app can create a task using the plus button.', 'Descriptive capability'],
+    ['The app can create a task using the plus button.', 'Descriptive capability', false],
     ['He can create a task using the plus button.', 'Third-person capability'],
     ['She said: "Please create a task for tomorrow."', 'Quoted instruction'],
     ['If needed, please create a task for tomorrow.', 'Hypothetical instruction'],
@@ -601,13 +615,13 @@ test('create_todo requires an explicit latest-user write intent in German, Engli
       { role: 'user', content: 'Hallo' },
     ], 'Only latest user message authorizes'],
   ];
-  for (const [message, title] of rejectedCases) {
-    const result = await manipulatedCall(message, title);
+  for (const [message, title, allowTodoWrites = true] of rejectedCases) {
+    const result = await manipulatedCall(message, title, allowTodoWrites);
     const label = typeof message === 'string' ? message : title;
     assert.deepEqual(result.body.todoActions, [], label);
     assert.match(result.body.content, /No Todo was saved/, label);
     assert.equal(result.toolResults[0].success, false, label);
-    assert.match(result.toolResults[0].error, /latest user message contains no explicit/i, label);
+    assert.match(result.toolResults[0].error, /explicit user consent.*direct/i, label);
   }
 
   const todos = await api(app, auth, 'get', '/api/v1/todos').expect(200);
@@ -642,6 +656,7 @@ test('tool validation rejects unknown, injected, duplicate and over-limit action
 
   const response = await api(app, auth, 'post', '/api/v1/ai/chat', {
     messages: [{ role: 'user', content: 'Erstelle diese Todos.' }],
+    context: { allowTodoWrites: true },
   }).expect(200);
   assert.equal(response.body.todoActions.length, 4);
   assert.match(response.body.content, /4 Tool-Aktion\(en\).*fehlgeschlagen/);
@@ -726,7 +741,7 @@ test('a provider failure after a confirmed write still reports only the persiste
   };
   const response = await api(app, auth, 'post', '/api/v1/ai/chat', {
     messages: [{ role: 'user', content: 'Save this Todo.' }],
-    context: { locale: 'en' },
+    context: { locale: 'en', allowTodoWrites: true },
   }).expect(200);
   assert.equal(response.body.success, true);
   assert.deepEqual(response.body.todoActions.map(action => action.title), ['Confirmed before failure']);

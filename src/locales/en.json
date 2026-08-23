@@ -531,6 +531,8 @@
     "placeholder": "Ask me about your studies…",
     "send": "Send message",
     "inputLabel": "Message the AI assistant",
+    "allowTodoWrites": "Allow Todo creation for this message",
+    "allowTodoWritesHelp": "The model may only suggest or create validated Todos. Permission applies only to the next message you send.",
     "openFloating": "Open chat",
     "minimizeFloating": "Minimize chat",
     "closeFloating": "Close chat window"
