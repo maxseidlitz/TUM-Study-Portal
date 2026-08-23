@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { api } from '../../api';
 import { useData } from '../../context/DataContext';
 import { useLocale } from '../../context/LocaleContext';
 import { formatDate, generateId } from '../../utils/helpers';
@@ -36,7 +37,7 @@ export default function ICalImportForm({
   const [lastSync, setLastSync] = useState(null);
 
   useEffect(() => {
-    window.api.settings.get().then((s) => {
+    api.settings.get().then((s) => {
       if (s?.icalUrl) { setUrl(s.icalUrl); setSavedUrl(s.icalUrl); }
       if (s?.icalLastSync) setLastSync(s.icalLastSync);
     });
@@ -48,7 +49,7 @@ export default function ICalImportForm({
     setErrorMsg('');
     setPreview([]);
 
-    const result = await window.api.ical.fetch(url.trim());
+    const result = await api.ical.fetch(url.trim());
     if (!result.success) {
       setStatus('error');
       setErrorMsg(result.error || t('ical.errUnknown'));
@@ -84,7 +85,7 @@ export default function ICalImportForm({
     const result = await persistGrouped(toImport);
 
     const now = new Date().toISOString();
-    await window.api.settings.save({ icalUrl: url.trim(), icalLastSync: now });
+    await api.settings.save({ icalUrl: url.trim(), icalLastSync: now });
     setSavedUrl(url.trim());
     setLastSync(now);
 
@@ -97,7 +98,7 @@ export default function ICalImportForm({
     setStatus('loading');
     setErrorMsg('');
 
-    const result = await window.api.ical.fetch(savedUrl);
+    const result = await api.ical.fetch(savedUrl);
     if (!result.success) {
       setStatus('error');
       setErrorMsg(result.error || t('common.unknownError'));
@@ -123,7 +124,7 @@ export default function ICalImportForm({
     const importResult = await persistGrouped(withColors);
 
     const now = new Date().toISOString();
-    await window.api.settings.save({ icalLastSync: now });
+    await api.settings.save({ icalLastSync: now });
     setLastSync(now);
     await finishImport(importResult);
   };

@@ -12,6 +12,7 @@ import {
 } from '../utils/helpers';
 import AiRecommendation from '../components/AiRecommendation';
 import MensaWidget from '../components/dashboard/MensaWidget';
+import { api } from '../api';
 
 export default function Dashboard({ onNavigate }) {
   const { t, intlLocale } = useLocale();
@@ -19,7 +20,7 @@ export default function Dashboard({ onNavigate }) {
   const [onboardingDone, setOnboardingDone] = useState(false);
 
   useEffect(() => {
-    window.api?.settings?.get().then((s) => {
+    api.settings.get().then((s) => {
       setOnboardingDone(Boolean(s?.onboardingCompleted));
     });
   }, []);

@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { useData } from '../context/DataContext';
 import { useLocale } from '../context/LocaleContext';
 import { getAiRecommendation, lectureMatchesCalendarDay } from '../utils/helpers';
+import { api } from '../api';
 
 /**
  * Study recommendation card.
@@ -28,13 +29,13 @@ export default function AiRecommendation() {
     [exams, todos, lectures, t],
   );
 
-  const kiAvailable = !!window.api?.ai?.recommend;
+  const kiAvailable = true;
 
   const runKi = useCallback(async () => {
     if (!kiAvailable) return;
     setStatus('loading');
     try {
-      const result = await window.api.ai.recommend({
+      const result = await api.ai.recommend({
         exams,
         todos,
         lectures: todayLectures,

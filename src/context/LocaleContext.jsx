@@ -9,6 +9,7 @@ import React, {
 import de from '../locales/de.json';
 import en from '../locales/en.json';
 import tr from '../locales/tr.json';
+import { api } from '../api';
 
 const MESSAGES = { de, en, tr };
 export const LOCALE_TO_INTL = { de: 'de-DE', en: 'en-US', tr: 'tr-TR' };
@@ -42,9 +43,7 @@ export function LocaleProvider({ children }) {
     let cancelled = false;
     (async () => {
       try {
-        const get = window.api?.settings?.get;
-        if (typeof get !== 'function') return;
-        const s = await get();
+        const s = await api.settings.get();
         if (!cancelled && s?.locale && VALID_LOCALES.has(s.locale)) {
           setLocaleState(s.locale);
         }
@@ -78,8 +77,7 @@ export function LocaleProvider({ children }) {
     setLocaleState(code);
     document.documentElement.lang = code;
     try {
-      const save = window.api?.settings?.save;
-      if (typeof save === 'function') await save({ locale: code });
+      await api.settings.save({ locale: code });
     } catch {
       /* ignore */
     }

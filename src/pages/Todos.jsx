@@ -3,6 +3,7 @@ import { useData } from '../context/DataContext';
 import { useLocale } from '../context/LocaleContext';
 import { formatDate, getDaysUntil, resolveTodoCourseLabel } from '../utils/helpers';
 import TodoDetail from '../components/todos/TodoDetail';
+import { api } from '../api';
 
 const SECTION_KEYS = ['high', 'medium', 'low'];
 const SECTION_COLORS = { high: 'var(--danger)', medium: 'var(--warning)', low: 'var(--success)' };
@@ -25,7 +26,7 @@ export default function Todos() {
     let cancelled = false;
     (async () => {
       try {
-        const s = await window.api.settings.get();
+        const s = await api.settings.get();
         if (!cancelled) setHideCompleted(Boolean(s?.todosHideCompleted));
       } catch {
         if (!cancelled) setHideCompleted(false);
@@ -39,8 +40,8 @@ export default function Todos() {
   const persistHideCompleted = async (next) => {
     setHideCompleted(next);
     try {
-      const prev = await window.api.settings.get();
-      await window.api.settings.save({ ...prev, todosHideCompleted: next });
+      const prev = await api.settings.get();
+      await api.settings.save({ ...prev, todosHideCompleted: next });
     } catch (e) {
       console.error(e);
     }

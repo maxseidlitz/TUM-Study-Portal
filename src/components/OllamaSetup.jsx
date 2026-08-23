@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocale } from '../context/LocaleContext';
 import { useOllamaSetup } from '../hooks/useOllamaSetup';
+import { api } from '../api';
 
 export default function OllamaSetup({ suppressOverlay = false }) {
   const { t } = useLocale();
@@ -9,21 +10,20 @@ export default function OllamaSetup({ suppressOverlay = false }) {
   const [retrying, setRetrying] = useState(false);
 
   useEffect(() => {
-    window.api?.settings?.get().then((s) => {
+    api.settings.get().then((s) => {
       if (s?.ollamaSetupDismissed) setDismissed(true);
     });
   }, []);
 
   const handleDismiss = useCallback(async () => {
     setDismissed(true);
-    await window.api?.settings?.save({ ollamaSetupDismissed: true });
+    await api.settings.save({ ollamaSetupDismissed: true });
   }, []);
 
   const handleRetry = useCallback(async () => {
-    if (!window.api?.ollama) return;
     setRetrying(true);
     try {
-      await window.api.ollama.retrySetup();
+      await api.ollama.retrySetup();
     } finally {
       setRetrying(false);
     }

@@ -9,6 +9,7 @@ import ExamCard from '../components/exams/ExamCard';
 import ExamFormModal from '../components/exams/ExamFormModal';
 import GradeAnalytics from '../components/exams/GradeAnalytics';
 import ExamICalImport from '../components/exams/ExamICalImport';
+import { api } from '../api';
 
 const EMPTY_FORM = { name: '', date: '', time: '', room: '', credits: '', notes: '' };
 const GRADES = ['1.0', '1.3', '1.7', '2.0', '2.3', '2.7', '3.0', '3.3', '3.7', '4.0', '5.0'];
@@ -30,7 +31,7 @@ export default function Exams() {
   const [showAnalytics] = useState(true);
 
   useEffect(() => {
-    window.api.settings.get().then(s => {
+    api.settings.get().then(s => {
       if (s) setSettings({ 
         targetGpa: s.targetGpa ?? 1.0, 
         targetEcts: s.targetEcts ?? 180 
@@ -336,7 +337,7 @@ function StudyLogModal({ exam, onClose, intlLocale, t }) {
 
   const loadLogs = useCallback(async () => {
     if (!exam) return;
-    const result = await window.api.studyLogs.getByExam(exam.id);
+    const result = await api.studyLogs.getByExam(exam.id);
     setLogs(result || []);
     setLoading(false);
   }, [exam]);
@@ -346,13 +347,13 @@ function StudyLogModal({ exam, onClose, intlLocale, t }) {
   const handleAdd = async (e) => {
     e.preventDefault();
     const log = { id: generateId(), exam_id: exam.id, ...form, duration_min: parseInt(form.duration_min) || 0 };
-    await window.api.studyLogs.create(log);
+    await api.studyLogs.create(log);
     setLogs(prev => [log, ...prev]);
     setForm({ date: new Date().toISOString().split('T')[0], duration_min: '', topics: '' });
   };
 
   const handleDelete = async (id) => {
-    await window.api.studyLogs.delete(id);
+    await api.studyLogs.delete(id);
     setLogs(prev => prev.filter(l => l.id !== id));
   };
 

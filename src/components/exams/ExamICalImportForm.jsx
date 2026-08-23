@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLocale } from '../../context/LocaleContext';
 import { formatDate } from '../../utils/helpers';
 import { CheckIcon } from '../icons/Icons';
+import { api } from '../../api';
 
 export default function ExamICalImportForm({
   existingExams,
@@ -22,7 +23,7 @@ export default function ExamICalImportForm({
     setErrorMsg('');
     setPreview([]);
 
-    const result = await window.api.ical.fetch(url.trim());
+    const result = await api.ical.fetch(url.trim());
     if (!result.success) {
       setStatus('error');
       setErrorMsg(result.error || t('common.unknownError'));

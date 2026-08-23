@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useData } from '../context/DataContext';
 import { useLocale } from '../context/LocaleContext';
+import { api } from '../api';
 
 export default function PomodoroWidget() {
   const { exams, todos, refreshData } = useData();
@@ -73,9 +74,9 @@ export default function PomodoroWidget() {
       topics: t('pomodoro.workLabel'),
     };
     if (logTarget === 'exam' && selectedExamId) {
-      await window.api.studyLogs.create({ ...base, exam_id: selectedExamId });
+      await api.studyLogs.create({ ...base, exam_id: selectedExamId });
     } else if (logTarget === 'todo' && selectedTodoId) {
-      await window.api.studyLogs.create({ ...base, todo_id: selectedTodoId });
+      await api.studyLogs.create({ ...base, todo_id: selectedTodoId });
     }
     await refreshData();
     setShowModal(false);

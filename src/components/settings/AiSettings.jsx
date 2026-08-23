@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocale } from '../../context/LocaleContext';
 import { OLLAMA_TOOL_MODEL_RECOMMENDATIONS } from '../../utils/ollamaModels';
+import { api } from '../../api';
 
 /**
  * KI-Anbieter-Einstellungen (Ollama / Google Gemini) — aus Settings.jsx
@@ -31,7 +32,7 @@ export default function AiSettings({ settings, setSettings }) {
     setModelsStatus('loading');
     setModelsError('');
     try {
-      const result = await window.api.ai.models({
+      const result = await api.ai.models({
         aiProvider: s.aiProvider,
         ollamaUrl: s.ollamaUrl,
         geminiModel: s.geminiModel,
@@ -60,7 +61,7 @@ export default function AiSettings({ settings, setSettings }) {
   }, [settings.aiProvider, settings.ollamaUrl, settings.geminiModel, fetchModelList]);
 
   const handleSave = async () => {
-    await window.api.settings.save({ ...settings, locale });
+    await api.settings.save({ ...settings, locale });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -68,9 +69,9 @@ export default function AiSettings({ settings, setSettings }) {
   const handleTestAi = async () => {
     setTestStatus('loading');
     setTestMsg('');
-    await window.api.settings.save({ ...settings, locale });
+    await api.settings.save({ ...settings, locale });
     try {
-      const result = await window.api.ai.recommend({
+      const result = await api.ai.recommend({
         exams: [],
         todos: [],
         lectures: [],
@@ -152,7 +153,7 @@ export default function AiSettings({ settings, setSettings }) {
                   {t('settings.ollamaSub')}{' '}
                   <button
                     type="button"
-                    onClick={() => window.api.openExternal('https://ollama.ai')}
+                    onClick={() => api.openExternal('https://ollama.ai')}
                     style={styles.link}
                   >
                     {t('settings.ollamaInstall')}
@@ -191,7 +192,7 @@ export default function AiSettings({ settings, setSettings }) {
                     const checked = e.target.checked;
                     setSettings(s => ({ ...s, ollamaDisableReasoning: checked }));
                     try {
-                      await window.api.settings.save({ ollamaDisableReasoning: checked });
+                      await api.settings.save({ ollamaDisableReasoning: checked });
                     } catch {
                       setSettings(s => ({ ...s, ollamaDisableReasoning: !checked }));
                     }
@@ -297,7 +298,7 @@ export default function AiSettings({ settings, setSettings }) {
                 <div style={styles.sectionTitle}>{t('settings.geminiTitle')}</div>
                 <div style={styles.sectionSub}>
                   {t('settings.geminiSub')}{' '}
-                  <button type="button" onClick={() => window.api.openExternal('https://aistudio.google.com/apikey')} style={styles.link}>
+                  <button type="button" onClick={() => api.openExternal('https://aistudio.google.com/apikey')} style={styles.link}>
                     {t('settings.geminiConsole')}
                   </button>{' '}
                   {t('settings.geminiSub2')}

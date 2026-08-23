@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { generateId } from '../utils/helpers';
 
 /**
- * Generische CRUD-Callbacks für window.api-Entitäten mit lokalem State-Update.
+ * Generische CRUD-Callbacks für Entitäten des gemeinsamen API-Vertrags.
  */
 export function useEntityCrud(api, setState, options = {}) {
   const {

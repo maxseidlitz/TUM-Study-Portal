@@ -5,6 +5,7 @@ import { generateId } from '../utils/helpers';
 import ICalImportForm from './lectures/ICalImportForm';
 import ExamICalImportForm from './exams/ExamICalImportForm';
 import { useOllamaSetup, isOllamaSetupActive } from '../hooks/useOllamaSetup';
+import { api } from '../api';
 
 const TOTAL_STEPS = 4;
 
@@ -21,11 +22,11 @@ export default function SetupWizard({ onComplete, onVisibilityChange, onNavigate
 
   const saveStep = useCallback(async (nextStep) => {
     setStep(nextStep);
-    await window.api.settings.save({ onboardingStep: nextStep });
+    await api.settings.save({ onboardingStep: nextStep });
   }, []);
 
   const completeOnboarding = useCallback(async () => {
-    await window.api.settings.save({ onboardingCompleted: true, onboardingStep: TOTAL_STEPS });
+    await api.settings.save({ onboardingCompleted: true, onboardingStep: TOTAL_STEPS });
     setVisible(false);
     onVisibilityChange?.(false);
     onComplete?.();
@@ -47,18 +48,18 @@ export default function SetupWizard({ onComplete, onVisibilityChange, onNavigate
     if (dataLoading || initDone) return;
 
     const init = async () => {
-      const settings = await window.api.settings.get();
+      const settings = await api.settings.get();
       let completed = Boolean(settings?.onboardingCompleted);
 
       if (localStorage.getItem('tourCompleted')) {
         completed = true;
         localStorage.removeItem('tourCompleted');
-        await window.api.settings.save({ onboardingCompleted: true });
+        await api.settings.save({ onboardingCompleted: true });
       }
 
       if (!completed && lectures.length > 0) {
         completed = true;
-        await window.api.settings.save({ onboardingCompleted: true });
+        await api.settings.save({ onboardingCompleted: true });
       }
 
       if (completed) {
@@ -264,7 +265,7 @@ export default function SetupWizard({ onComplete, onVisibilityChange, onNavigate
 }
 
 function OllamaStatusBar({ state, t }) {
-  if (!window.api?.ollama || !state) return null;
+  if (!state) return null;
   if (!isOllamaSetupActive(state)) return null;
 
   const { phase, percent = 0, model } = state;

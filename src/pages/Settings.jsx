@@ -3,6 +3,7 @@ import { useLocale } from '../context/LocaleContext';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
 import AiSettings from '../components/settings/AiSettings';
+import { api } from '../api';
 
 export default function Settings() {
   const { theme, toggleTheme } = useTheme();
@@ -29,7 +30,7 @@ export default function Settings() {
   const [gpaError, setGpaError] = useState('');
 
   useEffect(() => {
-    window.api.settings.get().then((s) => {
+    api.settings.get().then((s) => {
       setSettings({ ...defaultState(), ...s });
       setLoading(false);
     });
@@ -38,7 +39,7 @@ export default function Settings() {
   const saveSettings = async (next) => {
     setSaving(true);
     setSettings(next);
-    await window.api.settings.save(next);
+    await api.settings.save(next);
     setTimeout(() => setSaving(false), 800);
   };
 
@@ -65,8 +66,7 @@ export default function Settings() {
   };
 
   const handleExport = async () => {
-    if (!window.api?.backup) return;
-    const result = await window.api.backup.export();
+    const result = await api.backup.export();
     if (!result.success) {
       showToast(result.error || t('common.unknownError'), 'error');
       return;
@@ -90,8 +90,7 @@ export default function Settings() {
     }
     const reader = new FileReader();
     reader.onload = async (ev) => {
-      if (!window.api?.backup) return;
-      const result = await window.api.backup.import(ev.target.result);
+      const result = await api.backup.import(ev.target.result);
       if (result.success) {
         showToast(t('settings.importSuccess'), 'success');
         setTimeout(() => window.location.reload(), 1200);
@@ -104,7 +103,7 @@ export default function Settings() {
   };
 
   const handleRestartTour = async () => {
-    await window.api.settings.save({ onboardingCompleted: false, onboardingStep: 0 });
+    await api.settings.save({ onboardingCompleted: false, onboardingStep: 0 });
     window.dispatchEvent(new CustomEvent('restart-setup-wizard'));
   };
 
