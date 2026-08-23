@@ -50,8 +50,11 @@ npm run server
 For direct TLS, configure `TLS_CERT_PATH` and `TLS_KEY_PATH`. In the usual
 deployment, bind the Node process to loopback and terminate HTTPS at a reverse
 proxy. The proxy must preserve `Host` and `Origin`; set `TRUST_PROXY=true` only
-for a trusted, directly connected proxy. Session cookies are Secure, HttpOnly,
-SameSite=Strict and use the `__Host-` prefix.
+for a trusted, directly connected proxy. Production session cookies are Secure,
+HttpOnly, SameSite=Strict and use the `__Host-` prefix. When
+`SECURE_COOKIES=false` is explicitly selected for local HTTP development, the
+server uses unprefixed cookies because browsers reject `__Host-` cookies without
+HTTPS. Never use that setting for a deployed instance.
 
 The server provides:
 

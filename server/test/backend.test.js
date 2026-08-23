@@ -20,7 +20,7 @@ const { isPrivateIp, resolvePublic, safeFetchText } = require('../services/safeF
 const ORIGIN = 'https://portal.test';
 const KEY = Buffer.alloc(32, 7);
 
-async function fixture(t) {
+async function fixture(t, configOverrides = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'study-backend-'));
   const buildDir = path.join(root, 'build');
   fs.mkdirSync(buildDir);
@@ -59,6 +59,7 @@ async function fixture(t) {
       exams: 3, lectures: 10, todos: 10, moodleCourses: 10,
       modules: 10, studyLogs: 10, chats: 10,
     },
+    ...configOverrides,
   };
   const app = await createApp({
     config,
@@ -76,24 +77,41 @@ function cookieValue(setCookies, name) {
   return row && row.split(';')[0];
 }
 
-async function login(app) {
+async function login(app, {
+  origin = ORIGIN,
+  cookiePrefix = '__Host-',
+  secureCookies = true,
+} = {}) {
   const page = await request(app).get('/login').expect(200);
-  const nonce = cookieValue(page.headers['set-cookie'], '__Host-login_nonce');
+  const nonce = cookieValue(page.headers['set-cookie'], `${cookiePrefix}login_nonce`);
   const token = page.text.match(/name="_csrf" value="([^"]+)"/)[1];
   const response = await request(app).post('/login')
-    .set('Origin', ORIGIN)
+    .set('Origin', origin)
     .set('Cookie', nonce)
     .type('form')
     .send({ _csrf: token, password: 'correct horse battery staple' })
     .expect(302);
-  const session = cookieValue(response.headers['set-cookie'], '__Host-tum_session');
+  const session = cookieValue(response.headers['set-cookie'], `${cookiePrefix}tum_session`);
   assert.match(response.headers['set-cookie'].join(';'), /HttpOnly/);
-  assert.match(response.headers['set-cookie'].join(';'), /Secure/);
+  if (secureCookies) assert.match(response.headers['set-cookie'].join(';'), /Secure/);
+  else assert.doesNotMatch(response.headers['set-cookie'].join(';'), /;\s*Secure(?:;|$)/);
   assert.match(response.headers['set-cookie'].join(';'), /SameSite=Strict/);
   const shell = await request(app).get('/').set('Cookie', session).expect(200);
   const csrf = shell.text.match(/name="csrf-token" content="([^"]+)"/)[1];
   return { session, csrf };
 }
+
+test('local HTTP development uses unprefixed cookies browsers accept', async (t) => {
+  const origin = 'http://127.0.0.1:3443';
+  const { app } = await fixture(t, { publicOrigin: origin, secureCookies: false });
+  const page = await request(app).get('/login').expect(200);
+  assert.match(page.headers['set-cookie'].join(';'), /^login_nonce=/);
+  assert.doesNotMatch(page.headers['set-cookie'].join(';'), /;\s*Secure(?:;|$)/);
+
+  const auth = await login(app, { origin, cookiePrefix: '', secureCookies: false });
+  assert.match(auth.session, /^tum_session=/);
+  await request(app).get('/api/v1/exams').set('Cookie', auth.session).expect(200);
+});
 
 function api(app, auth, method, url, body) {
   const call = request(app)[method](url).set('Cookie', auth.session).set('Origin', ORIGIN);

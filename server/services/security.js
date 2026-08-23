@@ -42,8 +42,12 @@ class SecurityService {
     this.db = db;
     this.config = config;
     this.passwordHash = passwordHash;
-    this.sessionCookie = '__Host-tum_session';
-    this.loginCookie = '__Host-login_nonce';
+    // The __Host- prefix is mandatory in production because it prevents
+    // Domain/Path cookie shadowing, but browsers reject prefixed cookies on
+    // intentionally insecure local HTTP development origins.
+    const prefix = config.secureCookies ? '__Host-' : '';
+    this.sessionCookie = `${prefix}tum_session`;
+    this.loginCookie = `${prefix}login_nonce`;
   }
 
   cookie(name, value, { maxAge, httpOnly = true } = {}) {

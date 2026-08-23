@@ -56,7 +56,7 @@ remove `APP_PASSWORD`. Alternatively, use the documented Node command in
 | `SESSION_SECRET` | required, at least 32 chars | Session-cookie signing secret. |
 | `CSRF_SECRET` | required, at least 32 chars | Independent CSRF signing secret. |
 | `SESSION_TTL_MS` | `604800000` | Session lifetime in milliseconds. |
-| `SECURE_COOKIES` | `true` | Keep true outside HTTP-only local tests. |
+| `SECURE_COOKIES` | `true` | Keep true in every deployment. `false` enables unprefixed cookies solely for HTTP-only local testing. |
 | `TRUST_PROXY` | `false` | Set true only behind the directly connected trusted proxy. |
 | `SETTINGS_ENCRYPTION_KEY` | required, base64 32 bytes | Encrypts stored provider settings. |
 | `BACKUP_KEY` | required, base64 32 bytes | Encrypts and authenticates `.enc` safety backups. Losing it makes them unrestorable. |
