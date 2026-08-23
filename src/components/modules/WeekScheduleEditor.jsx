@@ -13,7 +13,6 @@ import { DISPLAY_START_MIN, DISPLAY_END_MIN } from '../../utils/weekGridLayout';
 
 const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 const GRID_DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
-const DAY_NAMES = { Mo: 'Montag', Di: 'Dienstag', Mi: 'Mittwoch', Do: 'Donnerstag', Fr: 'Freitag', Sa: 'Samstag', So: 'Sonntag' };
 const SPAN = DISPLAY_END_MIN - DISPLAY_START_MIN;
 const BODY_HEIGHT = 380;
 
@@ -63,7 +62,8 @@ export default function WeekScheduleEditor({ slots = [], color = '#3B82F6', onCh
 
   return (
     <div>
-      <div style={{ ...styles.grid, gridTemplateColumns: `44px repeat(${GRID_DAYS.length}, 1fr)` }}>
+      <div className="module-week-grid-scroll" tabIndex={0} role="region" aria-label={t('modules.weekGridScrollLabel')}>
+      <div className="module-week-grid" style={{ ...styles.grid, gridTemplateColumns: `44px repeat(${GRID_DAYS.length}, 1fr)` }}>
         {/* Time gutter */}
         <div>
           <div style={styles.colHead} />
@@ -83,7 +83,7 @@ export default function WeekScheduleEditor({ slots = [], color = '#3B82F6', onCh
             <div
               style={{ ...styles.colBody, height: BODY_HEIGHT }}
               onClick={(e) => handleColumnClick(day, e)}
-              title="Klicken zum Anlegen"
+              title={t('modules.clickGridToAdd')}
             >
               {hours.map((m, i) => (i === 0 ? null : (
                 <div key={m} style={{ ...styles.hourLine, top: `${((m - DISPLAY_START_MIN) / SPAN) * 100}%` }} />
@@ -116,43 +116,44 @@ export default function WeekScheduleEditor({ slots = [], color = '#3B82F6', onCh
           </div>
         ))}
       </div>
+      </div>
 
-      <p style={styles.hint}>Klicke ins Raster, um einen Termin anzulegen. Klicke auf einen Termin, um ihn zu bearbeiten.</p>
+      <p style={styles.hint}>{t('modules.scheduleEditorHint')}</p>
 
       {/* Inline editor for selected slot */}
       {selected && (
-        <div style={styles.editPanel}>
+        <div className="module-slot-editor" style={styles.editPanel}>
           <div style={styles.editHead}>
-            <span style={styles.editTitle}>Termin bearbeiten</span>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSelectedId(null)}>✕</button>
+            <span style={styles.editTitle}>{t('modules.editSlot')}</span>
+            <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => setSelectedId(null)} aria-label={t('common.close')}>✕</button>
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">{t('lectures.fieldDay')}</label>
-              <select className="form-select" value={selected.day} onChange={(e) => patchSlot(selected.id, { day: e.target.value })}>
-                {DAYS.map((d) => <option key={d} value={d}>{DAY_NAMES[d]}</option>)}
+              <label className="form-label" htmlFor="slot-day">{t('lectures.fieldDay')}</label>
+              <select id="slot-day" className="form-select" value={selected.day} onChange={(e) => patchSlot(selected.id, { day: e.target.value })}>
+                {DAYS.map((d) => <option key={d} value={d}>{t(`lectures.daysLong.${d}`)}</option>)}
               </select>
             </div>
             <div className="form-group">
-              <label className="form-label">{t('lectures.fieldFrom')}</label>
-              <input className="form-input" type="time" disabled={selected.allDay}
+              <label className="form-label" htmlFor="slot-from">{t('lectures.fieldFrom')}</label>
+              <input id="slot-from" className="form-input" type="time" disabled={selected.allDay}
                 value={selected.time} onChange={(e) => patchSlot(selected.id, { time: e.target.value })} />
             </div>
             <div className="form-group">
-              <label className="form-label">{t('lectures.fieldTo')}</label>
-              <input className="form-input" type="time" disabled={selected.allDay}
+              <label className="form-label" htmlFor="slot-to">{t('lectures.fieldTo')}</label>
+              <input id="slot-to" className="form-input" type="time" disabled={selected.allDay}
                 value={selected.end_time} onChange={(e) => patchSlot(selected.id, { end_time: e.target.value })} />
             </div>
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">{t('lectures.fieldRoom')}</label>
-              <input className="form-input" placeholder={t('lectures.placeholderRoom')}
+              <label className="form-label" htmlFor="slot-room">{t('lectures.fieldRoom')}</label>
+              <input id="slot-room" className="form-input" placeholder={t('lectures.placeholderRoom')}
                 value={selected.room} onChange={(e) => patchSlot(selected.id, { room: e.target.value })} />
             </div>
             <div className="form-group">
-              <label className="form-label">{t('lectures.fieldLecturer')}</label>
-              <input className="form-input" placeholder={t('lectures.placeholderLecturer')}
+              <label className="form-label" htmlFor="slot-lecturer">{t('lectures.fieldLecturer')}</label>
+              <input id="slot-lecturer" className="form-input" placeholder={t('lectures.placeholderLecturer')}
                 value={selected.lecturer} onChange={(e) => patchSlot(selected.id, { lecturer: e.target.value })} />
             </div>
           </div>

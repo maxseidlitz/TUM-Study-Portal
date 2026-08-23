@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocale } from '../../context/LocaleContext';
+import { api } from '../../api';
 
 export default function MensaWidget() {
   const { t } = useLocale();
@@ -13,11 +14,11 @@ export default function MensaWidget() {
       setLoading(true);
       setError(null);
       
-      const settings = await window.api.settings.get();
+      const settings = await api.settings.get();
       const mid = settings.preferredMensaId || '422';
       setCanteenId(mid);
 
-      const result = await window.api.mensa.fetch(mid);
+      const result = await api.mensa.fetch(mid);
       
       if (result.success) {
         setMeals(result.meals || []);
@@ -55,7 +56,7 @@ export default function MensaWidget() {
           <span style={{ fontSize: 18 }}>🍕</span>
           <span style={styles.title}>{canteenNames[canteenId] || 'Mensa'}</span>
         </div>
-        <button className="btn btn-ghost btn-icon btn-sm" onClick={fetchMeals} title={t('common.refresh') || 'Aktualisieren'}>
+        <button className="btn btn-ghost btn-icon btn-sm" onClick={fetchMeals} title={t('common.refresh')} aria-label={t('common.refresh')}>
           <RefreshIcon size={14} />
         </button>
       </div>

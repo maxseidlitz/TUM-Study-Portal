@@ -1,0 +1,94 @@
+name: Web and Server CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 22.14.0
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Check tracked secrets and environment files
+        run: node scripts/check-repository-secrets.js
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Test client
+        run: npm test
+      - name: Test server
+        run: npm run test:server
+      - name: Build web application
+        run: npm run build
+        env:
+          CI: true
+      - name: Install Playwright Chromium
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Browser end-to-end acceptance
+        run: npm run test:e2e
+      - name: Upload Playwright failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: playwright-failure-artifacts
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Audit all dependencies
+        run: npm audit
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Create ephemeral CI configuration
+        run: |
+          {
+            echo 'PUBLIC_ORIGIN=https://portal.test'
+            echo 'APP_PASSWORD=ci-only-password'
+            echo 'SESSION_SECRET=ci-session-secret-at-least-32-characters'
+            echo 'CSRF_SECRET=ci-csrf-secret-at-least-32-characters'
+            echo "SETTINGS_ENCRYPTION_KEY=$(openssl rand -base64 32)"
+            echo "BACKUP_KEY=$(openssl rand -base64 32)"
+            echo 'ICAL_ALLOWED_HOSTS=calendar.test'
+          } > .env.server
+          chmod 600 .env.server
+      - name: Validate Compose and Caddy configuration
+        run: |
+          docker compose config --quiet
+          docker run --rm \
+            -e APP_DOMAIN=study.example.com \
+            -e APP_UPSTREAM=127.0.0.1:3443 \
+            -e ACME_EMAIL=admin@example.com \
+            -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2.10.0-alpine@sha256:ae4458638da8e1a91aafffb231c5f8778e964bca650c8a8cb23a7e8ac557aa3c \
+            caddy validate --config /etc/caddy/Caddyfile
+      - name: Build production image from pinned base
+        run: docker compose build --pull app
+      - name: Verify non-root runtime, health, and volume writes
+        run: |
+          trap 'docker compose down --volumes' EXIT
+          docker compose up -d app
+          for attempt in $(seq 1 30); do
+            status=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' tum-study-portal-app-1)
+            [ "$status" = healthy ] && break
+            [ "$status" = unhealthy ] && docker compose logs app && exit 1
+            sleep 2
+          done
+          [ "$(docker inspect --format '{{.State.Health.Status}}' tum-study-portal-app-1)" = healthy ]
+          test "$(docker compose exec -T app id -u)" != 0
+          docker compose exec -T app sh -c 'touch /var/lib/tum-study-portal/.ci-write-test && test -w /var/lib/tum-study-portal/study-portal.sqlite'
+          curl --fail --retry 5 --retry-delay 1 http://127.0.0.1:3443/readyz

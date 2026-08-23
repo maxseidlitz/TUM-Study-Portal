@@ -28,14 +28,19 @@ describe('chat API payload', () => {
       todos: [{ id: 't1' }],
       modules: [{ id: 'm1' }],
       locale: 'de',
-      intlLocale: 'de-DE',
+      allowTodoWrites: true,
     });
     expect(context.locale).toBe('de');
-    expect(context.today).toEqual(expect.any(String));
-    expect(context.todayIso).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(context.today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(context.allowTodoWrites).toBe(true);
+    expect(context).not.toHaveProperty('todayIso');
     expect(context).not.toHaveProperty('exams');
     expect(context).not.toHaveProperty('lectures');
     expect(context).not.toHaveProperty('todos');
     expect(context).not.toHaveProperty('modules');
+  });
+
+  test('Todo-Schreibfreigabe ist standardmäßig deaktiviert', () => {
+    expect(buildAiContext({ locale: 'de' }).allowTodoWrites).toBe(false);
   });
 });

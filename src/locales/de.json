@@ -17,6 +17,17 @@
     "light": "Hell",
     "dark": "Dunkel"
   },
+  "pwa": {
+    "online": "Online",
+    "offlineTitle": "Offline",
+    "offlineBody": "Lesen ist eingeschränkt; Änderungen werden nicht gespeichert.",
+    "updateAvailable": "Eine neue App-Version ist verfügbar.",
+    "updateNow": "Jetzt aktualisieren",
+    "updating": "Aktualisiere…",
+    "installTitle": "Auf dem iPhone installieren.",
+    "installBody": "Tippe in Safari auf „Teilen“ und dann auf „Zum Home-Bildschirm“.",
+    "dismiss": "Nicht jetzt"
+  },
   "priority": {
     "high": "Hoch",
     "medium": "Mittel",
@@ -39,6 +50,16 @@
     "daysToExam": "{days}d bis Prüfung",
     "openTodosOne": "1 To-Do",
     "openTodosMany": "{count} To-Dos"
+  },
+  "mobileShell": {
+    "appName": "TUM Study Portal",
+    "primaryNavigation": "Hauptnavigation",
+    "tabToday": "Heute",
+    "tabTodos": "Aufgaben",
+    "tabLectures": "Stundenplan",
+    "tabChat": "Chat",
+    "more": "Mehr",
+    "closeMore": "Menü schließen"
   },
   "dashboard": {
     "greetingMorning": "Guten Morgen",
@@ -124,6 +145,9 @@
     "logPlaceholderTopics": "z.B. Kapitel 3-5, Übungsblätter",
     "logAdd": "Hinzufügen",
     "logEmpty": "Noch keine Lerneinträge. Füge deine erste Sitzung hinzu!",
+    "logLoadError": "Lerneinträge konnten nicht geladen werden. Bitte versuche es erneut.",
+    "logCreateError": "Der Lerneintrag konnte nicht gespeichert werden.",
+    "logDeleteError": "Der Lerneintrag konnte nicht gelöscht werden.",
     "gradeModalTitle": "Note eintragen",
     "gradeNotPassed": "Nicht best.",
     "gradeSave": "Note speichern",
@@ -205,6 +229,8 @@
     "nowLine": "Jetzt {time}",
     "overlapTitle": "Zeitlich überlappende Termine nebeneinander",
     "viewToggleAria": "Ansicht",
+    "weekGridScrollLabel": "Horizontal scrollbarer Wochenstundenplan",
+    "colorChoice": "Farbe {color}",
     "daysLong": {
       "Mo": "Montag",
       "Di": "Dienstag",
@@ -315,6 +341,16 @@
     "moodleSync": "Moodle-Sync",
     "moodleInfoTitle": "Moodle-Sync nicht verfügbar",
     "moodleInfoBody": "Eine automatische Synchronisation mit Moodle ist derzeit nicht möglich, da TUM keinen öffentlichen API-Zugang bereitstellt. Du kannst deine Module manuell anlegen und jeweils den Moodle-Link hinterlegen, um schnell zum Kurs zu navigieren."
+    ,"moodleSyncModalTitle": "Moodle-API-Zugang",
+    "moodleSyncModalBody": "Ein automatischer Moodle-Abgleich ist derzeit nicht verfügbar.",
+    "moodleSyncEmailPlaceholder": "deine.email@tum.de",
+    "moodleSyncSubmit": "Unterstützen",
+    "moodleSyncSuccess": "Danke für deine Unterstützung!",
+    "colorChoice": "Farbe {color}",
+    "weekGridScrollLabel": "Horizontal scrollbarer Wochenplan-Editor",
+    "clickGridToAdd": "Zum Anlegen in den Wochenplan tippen",
+    "scheduleEditorHint": "Tippe in den Wochenplan, um einen Termin anzulegen. Tippe auf einen Termin, um ihn zu bearbeiten.",
+    "editSlot": "Termin bearbeiten"
   },
   "links": {
     "title": "TUM Links",
@@ -370,7 +406,10 @@
     "deselectAll": "Alle abwählen",
     "selectAll": "Alle auswählen",
     "importOne": "1 Termin importieren",
-    "importMany": "{count} Termine importieren"
+    "importMany": "{count} Termine importieren",
+    "importFailed": "Der Kalenderimport wurde abgebrochen: {error}",
+    "replaceFailed": "Die Kalenderaktualisierung wurde beim ersten Fehler abgebrochen. Bereits bestätigte Änderungen bleiben erhalten: {error}",
+    "groupSummary": "Wird angelegt als {modules} Modul(e) · {lectures} Einzeltermin(e)"
   },
   "settings": {
     "pageTitle": "Einstellungen",
@@ -392,6 +431,7 @@
     "ollamaSub": "Lokales Sprachmodell für Empfehlungen und den Chat-Assistenten.",
     "ollamaInstall": "Ollama installieren →",
     "ollamaUrl": "Ollama Server-URL",
+    "ollamaServerManaged": "Self-hosted: URL und Modell werden vom Server über OLLAMA_BASE_URL und OLLAMA_MODEL verwaltet.",
     "ollamaDisableReasoningLabel": "Internes Reasoning/Thinking deaktivieren (schneller, weniger Rechenzeit)",
     "ollamaDisableReasoningHint": "Wird beim Umschalten sofort gespeichert (ohne „Speichern“). Entspricht der Ollama-API (0.20+): Top-Level `think: false` direkt nach `model`. Zusätzlich wird der System-Prompt ergänzt. Wirkt bei thinking-fähigen Modellen; einige Builds ignorieren die Option teilweise. Bei gpt-oss nur low/medium/high, nicht vollständig abschaltbar.",
     "loadModels": "Modelle laden",
@@ -419,6 +459,9 @@
     "geminiSub2": "rotieren.",
     "apiKey": "API-Schlüssel",
     "apiKeyPlaceholder": "Aus Google AI Studio (oder GEMINI_API_KEY in der Umgebung)",
+    "apiKeySelfHostedPlaceholder": "Neuen Schlüssel sicher hinterlegen",
+    "apiKeyConfiguredPlaceholder": "Schlüssel ist auf dem Server hinterlegt",
+    "apiKeySelfHostedHint": "Self-hosted: Der Schlüssel wird nur beim Speichern an den Server gesendet und nie wieder an diesen Browser ausgeliefert. Ein leeres Feld behält den vorhandenen Schlüssel.",
     "apiKeyHint": "Alternative: Schlüssel nur per Umgebungsvariable",
     "apiKeyHint2": "beim Start von Electron setzen – dann Feld leer lassen.",
     "modelId": "Modell-ID",
@@ -454,7 +497,10 @@
     "importConfirm": "Bestehende Daten werden überschrieben. Fortfahren?",
     "importSuccess": "Daten importiert. App wird neu geladen…",
     "importError": "Import fehlgeschlagen: {error}",
-    "restartTour": "Setup-Assistent neu starten"
+    "restartTour": "Setup-Assistent neu starten",
+    "sessionTitle": "Sitzung",
+    "sessionSub": "Beendet die aktuelle Server-Sitzung auf diesem Gerät.",
+    "logout": "Abmelden"
   },
   "chat": {
     "loading": "Lade Daten…",
@@ -482,13 +528,22 @@
     "sug3": "Wie viel Zeit habe ich bis zur nächsten Prüfung?",
     "sug4": "Hilf mir, meine offenen Aufgaben sinnvoll zu sortieren.",
     "placeholder": "Frag mich etwas zu deinem Studium…"
+    ,"send": "Nachricht senden",
+    "inputLabel": "Nachricht an den KI-Assistenten",
+    "allowTodoWrites": "Todo-Erstellung für diese Nachricht erlauben",
+    "allowTodoWritesHelp": "Das Modell darf höchstens validierte Todos vorschlagen oder anlegen. Die Freigabe gilt nur für die nächste gesendete Nachricht.",
+    "openFloating": "Chat öffnen",
+    "minimizeFloating": "Chat minimieren",
+    "closeFloating": "Chatfenster schließen"
   },
   "ai": {
     "labelKi": "🤖 KI-Empfehlung",
     "labelLocal": "💡 Empfehlung",
     "badgeLocal": "Lokal",
     "badgeLocalTitle": "KI nicht erreichbar – lokale Heuristik",
-    "refreshTitle": "Empfehlung aktualisieren"
+    "refreshTitle": "Empfehlung aktualisieren",
+    "refine": "✨ Mit KI verfeinern",
+    "errorHint": "KI nicht verfügbar – lokale Empfehlung wird angezeigt. Modell in den Einstellungen prüfen."
   },
   "aiFallback": {
     "examUrgentOne": "Prüfung „{name}\" ist in 1 Tag! Fokussiere heute auf Wiederholung.",
@@ -531,7 +586,29 @@
     "logDurationLabel": "Dauer",
     "logDurationMinutes": "{min} Minuten",
     "logSave": "Speichern",
-    "logSkip": "Überspringen"
+    "logSkip": "Überspringen",
+    "logSaveError": "Die Lernsitzung konnte nicht gespeichert werden. Bitte versuche es erneut."
+    ,"toggle": "Pomodoro-Timer öffnen oder schließen",
+    "start": "Start",
+    "pause": "Pause",
+    "reset": "Zurücksetzen"
+  },
+  "gradeAnalytics": {
+    "completed": "Abgeschlossen",
+    "remaining": "Verbleibend",
+    "ectsProgress": "ECTS-Fortschritt",
+    "ofTarget": "von {target}",
+    "timeline": "Notenverlauf",
+    "notEnoughData": "Noch nicht genug Daten für den Verlauf.",
+    "targetAnalysis": "Ziel-Schnitt-Analyse",
+    "targetBody": "Für einen Schnitt von {target} wird in den verbleibenden {remaining} ECTS folgender Durchschnitt benötigt:",
+    "betterThanOne": "Besser als 1,0 🚀",
+    "impossible": "Nicht mehr möglich 😅"
+  },
+  "errorBoundary": {
+    "title": "Etwas ist schiefgelaufen",
+    "body": "Die App ist auf einen unerwarteten Fehler gestoßen. Deine Daten sind lokal gespeichert und nicht betroffen.",
+    "reload": "App neu laden"
   },
   "setupWizard": {
     "stepWelcome": "Willkommen",

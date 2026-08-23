@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useData } from '../context/DataContext';
 import { useLocale } from '../context/LocaleContext';
+import { useToast } from '../context/ToastContext';
+import { api } from '../api';
+import { createStudyLog } from '../utils/studyLogPersistence';
+import AccessibleDialog from './ui/AccessibleDialog';
 
 export default function PomodoroWidget() {
   const { exams, todos, refreshData } = useData();
   const { t } = useLocale();
+  const showToast = useToast();
 
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState('work');
@@ -14,6 +19,8 @@ export default function PomodoroWidget() {
   const [logTarget, setLogTarget] = useState('exam'); // 'exam' | 'todo'
   const [selectedExamId, setSelectedExamId] = useState('');
   const [selectedTodoId, setSelectedTodoId] = useState('');
+  const [logSaving, setLogSaving] = useState(false);
+  const [logError, setLogError] = useState('');
 
   const timerRef = useRef(null);
 
@@ -29,22 +36,16 @@ export default function PomodoroWidget() {
         setTimeLeft(prev => prev - 1);
       }, 1000);
     } else if (timeLeft === 0) {
-      handleSessionEnd();
+      setIsActive(false);
+      if (mode === 'work') setShowModal(true);
+      const nextMode = mode === 'work' ? 'break' : 'work';
+      setMode(nextMode);
+      setTimeLeft(nextMode === 'break' ? 5 * 60 : 25 * 60);
     } else {
       clearInterval(timerRef.current);
     }
     return () => clearInterval(timerRef.current);
-  }, [isActive, timeLeft]);
-
-  const handleSessionEnd = () => {
-    setIsActive(false);
-    if (mode === 'work') {
-      setShowModal(true);
-    }
-    if (mode === 'work') setMode('break');
-    else setMode('work');
-    setTimeLeft(configs[mode === 'work' ? 'break' : 'work'].time);
-  };
+  }, [isActive, mode, timeLeft]);
 
   const toggleTimer = () => setIsActive(!isActive);
   const resetTimer = () => {
@@ -72,15 +73,24 @@ export default function PomodoroWidget() {
       duration_min: duration,
       topics: t('pomodoro.workLabel'),
     };
-    if (logTarget === 'exam' && selectedExamId) {
-      await window.api.studyLogs.create({ ...base, exam_id: selectedExamId });
-    } else if (logTarget === 'todo' && selectedTodoId) {
-      await window.api.studyLogs.create({ ...base, todo_id: selectedTodoId });
+    const log = logTarget === 'exam'
+      ? { ...base, exam_id: selectedExamId }
+      : { ...base, todo_id: selectedTodoId };
+    setLogSaving(true);
+    setLogError('');
+    try {
+      await createStudyLog(api.studyLogs, log);
+      await refreshData();
+      setShowModal(false);
+      setSelectedExamId('');
+      setSelectedTodoId('');
+    } catch {
+      const message = t('pomodoro.logSaveError');
+      setLogError(message);
+      showToast(message, 'error');
+    } finally {
+      setLogSaving(false);
     }
-    await refreshData();
-    setShowModal(false);
-    setSelectedExamId('');
-    setSelectedTodoId('');
   };
 
   const upcomingExams = exams.filter(e => {
@@ -94,8 +104,8 @@ export default function PomodoroWidget() {
 
   return (
     <>
-      <div style={{ ...styles.container, transform: isOpen ? 'translateX(0)' : 'translateX(calc(100% - 40px))' }}>
-        <button style={styles.toggleHandle} onClick={() => setIsOpen(!isOpen)}>
+      <div className="pomodoro-widget" style={{ ...styles.container, transform: isOpen ? 'translateX(0)' : 'translateX(calc(100% - 44px))' }}>
+        <button type="button" style={styles.toggleHandle} onClick={() => setIsOpen(!isOpen)} aria-expanded={isOpen} aria-label={t('pomodoro.toggle')}>
           {isOpen ? '→' : '⏱️'}
         </button>
 
@@ -104,6 +114,8 @@ export default function PomodoroWidget() {
             {Object.keys(configs).map(m => (
               <button
                 key={m}
+                type="button"
+                className="pomodoro-mode-button"
                 onClick={() => switchMode(m)}
                 style={{
                   ...styles.modeBtn,
@@ -122,26 +134,26 @@ export default function PomodoroWidget() {
 
           <div style={styles.controls}>
             <button className="btn btn-primary btn-sm" onClick={toggleTimer} style={{ flex: 1 }}>
-              {isActive ? t('pomodoro.breakLabel') : 'Start'}
+              {isActive ? t('pomodoro.pause') : t('pomodoro.start')}
             </button>
-            <button className="btn btn-ghost btn-sm" onClick={resetTimer}>Reset</button>
+            <button className="btn btn-ghost btn-sm" onClick={resetTimer}>{t('pomodoro.reset')}</button>
           </div>
         </div>
       </div>
 
       {showLogModal && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: 400 }}>
+        <AccessibleDialog onClose={() => setShowModal(false)} labelledBy="pomodoro-log-title" className="modal" style={{ maxWidth: 400 }}>
             <div className="modal-header">
-              <h2>{t('pomodoro.logTitle')}</h2>
+              <h2 id="pomodoro-log-title">{t('pomodoro.logTitle')}</h2>
             </div>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 16 }}>
               {t('pomodoro.logDurationLabel')}: {t('pomodoro.logDurationMinutes', { min: Math.floor(configs.work.time / 60) })}
             </p>
+            {logError && <div style={styles.logError}>{logError}</div>}
 
             <div className="form-group">
-              <label className="form-label">{t('pomodoro.logTypeLabel')}</label>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <span id="pomodoro-log-type-label" className="form-label">{t('pomodoro.logTypeLabel')}</span>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }} role="group" aria-labelledby="pomodoro-log-type-label">
                 {['exam', 'todo'].map(type => (
                   <button
                     key={type}
@@ -158,8 +170,9 @@ export default function PomodoroWidget() {
 
             {logTarget === 'exam' ? (
               <div className="form-group">
-                <label className="form-label">{t('pomodoro.logExamLabel')}</label>
+                <label className="form-label" htmlFor="pomodoro-log-exam">{t('pomodoro.logExamLabel')}</label>
                 <select
+                  id="pomodoro-log-exam"
                   className="form-input"
                   value={selectedExamId}
                   onChange={e => setSelectedExamId(e.target.value)}
@@ -172,8 +185,9 @@ export default function PomodoroWidget() {
               </div>
             ) : (
               <div className="form-group">
-                <label className="form-label">{t('pomodoro.logTodoLabel')}</label>
+                <label className="form-label" htmlFor="pomodoro-log-todo">{t('pomodoro.logTodoLabel')}</label>
                 <select
+                  id="pomodoro-log-todo"
                   className="form-input"
                   value={selectedTodoId}
                   onChange={e => setSelectedTodoId(e.target.value)}
@@ -187,15 +201,14 @@ export default function PomodoroWidget() {
             )}
 
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowModal(false)}>
+              <button className="btn btn-secondary" onClick={() => setShowModal(false)} disabled={logSaving}>
                 {t('pomodoro.logSkip')}
               </button>
-              <button className="btn btn-primary" onClick={handleSaveLog} disabled={!canSave}>
+              <button className="btn btn-primary" onClick={handleSaveLog} disabled={!canSave || logSaving}>
                 {t('pomodoro.logSave')}
               </button>
             </div>
-          </div>
-        </div>
+        </AccessibleDialog>
       )}
     </>
   );
@@ -218,7 +231,7 @@ const styles = {
     boxShadow: 'var(--shadow-lg)',
   },
   toggleHandle: {
-    width: 40,
+    width: 44,
     height: 100,
     background: 'none',
     border: 'none',
@@ -237,10 +250,17 @@ const styles = {
     alignItems: 'center',
     gap: 12,
   },
-  modes: { display: 'flex', gap: 8, fontSize: 11 },
-  modeBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: 0 },
+  modes: {
+    display: 'grid', gridTemplateColumns: 'repeat(3, minmax(44px, 1fr))',
+    gap: 2, width: '100%', fontSize: 11,
+  },
+  modeBtn: {
+    minWidth: 44, minHeight: 44, background: 'none', border: 'none',
+    cursor: 'pointer', padding: 2, lineHeight: 1.2,
+  },
   timer: { fontSize: 32, fontWeight: 800, fontVariantNumeric: 'tabular-nums', lineHeight: 1 },
   controls: { display: 'flex', gap: 8, width: '100%' },
+  logError: { padding: '9px 11px', marginBottom: 12, borderRadius: 8, background: 'var(--danger-subtle)', color: 'var(--danger)', fontSize: 12 },
   activeTab: {
     borderColor: 'var(--accent)',
     boxShadow: '0 0 0 1px var(--accent)',

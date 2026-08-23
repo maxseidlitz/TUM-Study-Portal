@@ -17,6 +17,17 @@
     "light": "Light",
     "dark": "Dark"
   },
+  "pwa": {
+    "online": "Online",
+    "offlineTitle": "Offline",
+    "offlineBody": "Reading is limited; changes will not be saved.",
+    "updateAvailable": "A new app version is available.",
+    "updateNow": "Update now",
+    "updating": "Updating…",
+    "installTitle": "Install on iPhone.",
+    "installBody": "In Safari, tap Share, then “Add to Home Screen”.",
+    "dismiss": "Not now"
+  },
   "priority": {
     "high": "High",
     "medium": "Medium",
@@ -39,6 +50,16 @@
     "daysToExam": "{days}d to exam",
     "openTodosOne": "1 to-do",
     "openTodosMany": "{count} to-dos"
+  },
+  "mobileShell": {
+    "appName": "TUM Study Portal",
+    "primaryNavigation": "Primary navigation",
+    "tabToday": "Today",
+    "tabTodos": "Tasks",
+    "tabLectures": "Schedule",
+    "tabChat": "Chat",
+    "more": "More",
+    "closeMore": "Close menu"
   },
   "dashboard": {
     "greetingMorning": "Good morning",
@@ -63,7 +84,9 @@
     "examToday": "Today!",
     "examDays": "{days}d",
     "dueWithDate": " · due {date}",
-    "dueDate": "due {date}"
+    "dueDate": "due {date}",
+    "mensaError": "Could not load the menu.",
+    "mensaClosed": "No menu is available today (closed)."
   },
   "today": {
     "title": "Today",
@@ -122,6 +145,9 @@
     "logPlaceholderTopics": "e.g. chapters 3–5, problem sets",
     "logAdd": "Add",
     "logEmpty": "No study entries yet. Add your first session!",
+    "logLoadError": "Study entries could not be loaded. Please try again.",
+    "logCreateError": "The study entry could not be saved.",
+    "logDeleteError": "The study entry could not be deleted.",
     "gradeModalTitle": "Enter grade",
     "gradeNotPassed": "Failed",
     "gradeSave": "Save grade",
@@ -203,6 +229,8 @@
     "nowLine": "Now {time}",
     "overlapTitle": "Overlapping sessions side by side",
     "viewToggleAria": "View",
+    "weekGridScrollLabel": "Horizontally scrollable weekly schedule",
+    "colorChoice": "Color {color}",
     "daysLong": {
       "Mo": "Monday",
       "Di": "Tuesday",
@@ -318,7 +346,12 @@
     "deleteWithLecturesBody": "\"{name}\" and all {count} associated lecture slots will be permanently deleted.",
     "moodleSync": "Moodle Sync",
     "moodleInfoTitle": "Moodle sync not available",
-    "moodleInfoBody": "Automatic Moodle synchronisation is not possible because TUM does not provide a public API. You can add modules manually and save the Moodle link for quick course access."
+    "moodleInfoBody": "Automatic Moodle synchronisation is not possible because TUM does not provide a public API. You can add modules manually and save the Moodle link for quick course access.",
+    "colorChoice": "Color {color}",
+    "weekGridScrollLabel": "Horizontally scrollable weekly schedule editor",
+    "clickGridToAdd": "Tap the schedule to add a session",
+    "scheduleEditorHint": "Tap the schedule to add a session. Tap a session to edit it.",
+    "editSlot": "Edit session"
   },
   "links": {
     "title": "TUM links",
@@ -374,7 +407,10 @@
     "deselectAll": "Deselect all",
     "selectAll": "Select all",
     "importOne": "Import 1 event",
-    "importMany": "Import {count} events"
+    "importMany": "Import {count} events",
+    "importFailed": "The calendar import was stopped: {error}",
+    "replaceFailed": "The calendar refresh stopped at the first error. Already confirmed changes remain applied: {error}",
+    "groupSummary": "Creates {modules} module(s) · {lectures} individual event(s)"
   },
   "settings": {
     "pageTitle": "Settings",
@@ -396,6 +432,7 @@
     "ollamaSub": "Local language model for recommendations and the chat assistant.",
     "ollamaInstall": "Install Ollama →",
     "ollamaUrl": "Ollama server URL",
+    "ollamaServerManaged": "Self-hosted: URL and model are managed by the server through OLLAMA_BASE_URL and OLLAMA_MODEL.",
     "ollamaDisableReasoningLabel": "Disable internal reasoning/thinking (faster, less compute)",
     "ollamaDisableReasoningHint": "Saved immediately when toggled. Matches Ollama API (0.20+): top-level think: false right after model. Also augments the system prompt. Some builds still ignore the flag. For gpt-oss, only low/medium/high.",
     "loadModels": "Load models",
@@ -423,6 +460,9 @@
     "geminiSub2": ".",
     "apiKey": "API key",
     "apiKeyPlaceholder": "From Google AI Studio (or GEMINI_API_KEY in environment)",
+    "apiKeySelfHostedPlaceholder": "Store a new key securely",
+    "apiKeyConfiguredPlaceholder": "A key is stored on the server",
+    "apiKeySelfHostedHint": "Self-hosted: The key is sent to the server only when saving and is never returned to this browser. An empty field keeps the existing key.",
     "apiKeyHint": "Alternative: set key only via env var",
     "apiKeyHint2": "when starting Electron — leave field empty.",
     "modelId": "Model ID",
@@ -458,7 +498,10 @@
     "importConfirm": "Existing data will be overwritten. Continue?",
     "importSuccess": "Data imported. App will reload…",
     "importError": "Import failed: {error}",
-    "restartTour": "Restart setup wizard"
+    "restartTour": "Restart setup wizard",
+    "sessionTitle": "Session",
+    "sessionSub": "Ends the current server session on this device.",
+    "logout": "Sign out"
   },
   "chat": {
     "loading": "Loading data…",
@@ -485,7 +528,14 @@
     "sug2": "Create a study plan for my next exam.",
     "sug3": "How much time do I have until the next exam?",
     "sug4": "Help me sort my open tasks sensibly.",
-    "placeholder": "Ask me about your studies…"
+    "placeholder": "Ask me about your studies…",
+    "send": "Send message",
+    "inputLabel": "Message the AI assistant",
+    "allowTodoWrites": "Allow Todo creation for this message",
+    "allowTodoWritesHelp": "The model may only suggest or create validated Todos. Permission applies only to the next message you send.",
+    "openFloating": "Open chat",
+    "minimizeFloating": "Minimize chat",
+    "closeFloating": "Close chat window"
   },
   "ollama": {
     "setupFailed": "AI setup failed",
@@ -515,14 +565,33 @@
     "logDurationLabel": "Duration",
     "logDurationMinutes": "{min} minutes",
     "logSave": "Save",
-    "logSkip": "Skip"
+    "logSkip": "Skip",
+    "logSaveError": "The study session could not be saved. Please try again.",
+    "toggle": "Open or close Pomodoro timer",
+    "start": "Start",
+    "pause": "Pause",
+    "reset": "Reset"
+  },
+  "gradeAnalytics": {
+    "completed": "Completed",
+    "remaining": "Remaining",
+    "ectsProgress": "ECTS progress",
+    "ofTarget": "of {target}",
+    "timeline": "Grade history",
+    "notEnoughData": "Not enough data for a grade history yet.",
+    "targetAnalysis": "Target GPA analysis",
+    "targetBody": "To reach a GPA of {target}, the required average across the remaining {remaining} ECTS is:",
+    "betterThanOne": "Better than 1.0 🚀",
+    "impossible": "No longer possible 😅"
   },
   "ai": {
     "labelKi": "🤖 AI recommendation",
     "labelLocal": "💡 Recommendation",
     "badgeLocal": "Local",
     "badgeLocalTitle": "AI unavailable — local heuristic",
-    "refreshTitle": "Refresh recommendation"
+    "refreshTitle": "Refresh recommendation",
+    "refine": "✨ Refine with AI",
+    "errorHint": "AI is unavailable — showing the local recommendation. Check the model in Settings."
   },
   "aiFallback": {
     "examUrgentOne": "Exam “{name}” is in 1 day! Focus on review today.",
@@ -536,6 +605,11 @@
     "lectureOne": "1 lecture today — do not forget to review notes!",
     "lectureMany": "{count} lectures today — do not forget to review notes!",
     "relaxed": "All relaxed today! Use the time for proactive exam prep."
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "body": "The app encountered an unexpected error. Your locally stored data is not affected.",
+    "reload": "Reload app"
   },
   "setupWizard": {
     "stepWelcome": "Welcome",

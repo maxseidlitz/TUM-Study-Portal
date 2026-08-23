@@ -7,7 +7,7 @@ import { CloseIcon, CheckIcon, TrashIcon } from '../icons/Icons';
 const PRIORITY_KEYS = ['high', 'medium', 'low'];
 const PRIORITY_COLORS = { high: 'var(--danger)', medium: 'var(--warning)', low: 'var(--success)' };
 
-export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose }) {
+export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose, titleId }) {
   const { t, intlLocale } = useLocale();
   const { modules, moodleCourses } = useData();
   const priorities = useMemo(
@@ -31,10 +31,10 @@ export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose
   const prioKey = draft.priority || 'medium';
 
   return (
-    <aside style={styles.panel}>
+    <aside className="todo-detail-panel" style={styles.panel}>
       <div style={styles.header}>
-        <span style={styles.headerLabel}>{t('todoDetail.header')}</span>
-        <button className="btn btn-ghost btn-icon btn-sm" onClick={onClose} title={t('todoDetail.closeTitle')}>
+        <span id={titleId} style={styles.headerLabel}>{t('todoDetail.header')}</span>
+        <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={onClose} title={t('todoDetail.closeTitle')} aria-label={t('todoDetail.closeTitle')}>
           <CloseIcon />
         </button>
       </div>
@@ -44,13 +44,16 @@ export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose
         <div style={styles.titleRow}>
           <button
             className={`todo-check ${draft.done ? 'done' : ''}`}
+            type="button"
             onClick={() => onToggle(draft.id)}
             title={draft.done ? t('todoDetail.markOpen') : t('todoDetail.complete')}
-            style={{ width: 24, height: 24 }}
+            aria-label={draft.done ? t('todoDetail.markOpen') : t('todoDetail.complete')}
+            style={{ width: 44, height: 44 }}
           >
             <CheckIcon />
           </button>
           <textarea
+            aria-label={t('todoDetail.placeholderTitle')}
             style={{ ...styles.titleInput, textDecoration: draft.done ? 'line-through' : 'none' }}
             value={draft.title}
             onChange={e => setDraft(d => ({ ...d, title: e.target.value }))}
@@ -66,12 +69,14 @@ export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose
 
         {/* Priority */}
         <div style={styles.field}>
-          <label style={styles.label}>{t('todoDetail.priority')}</label>
-          <div style={styles.segmented}>
+          <span id="todo-priority-label" style={styles.label}>{t('todoDetail.priority')}</span>
+          <div style={styles.segmented} role="group" aria-labelledby="todo-priority-label">
             {priorities.map(p => (
               <button
                 key={p.key}
+                type="button"
                 onClick={() => commit({ priority: p.key })}
+                aria-pressed={draft.priority === p.key}
                 style={{
                   ...styles.segment,
                   background: draft.priority === p.key ? p.color : 'transparent',
@@ -86,8 +91,9 @@ export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose
 
         {/* Modul (Kurs) */}
         <div style={styles.field}>
-          <label style={styles.label}>{t('todoDetail.module')}</label>
+          <label htmlFor="todo-module" style={styles.label}>{t('todoDetail.module')}</label>
           <select
+            id="todo-module"
             className="form-input"
             value={draft.moduleId || ''}
             onChange={(e) => {
@@ -115,8 +121,9 @@ export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose
 
         {moodleCourses.length > 0 && (
           <div style={styles.field}>
-            <label style={styles.label}>{t('todoDetail.moodleCourse')}</label>
+            <label htmlFor="todo-moodle-course" style={styles.label}>{t('todoDetail.moodleCourse')}</label>
             <select
+              id="todo-moodle-course"
               className="form-input"
               value={draft.moodleCourseId || ''}
               onChange={(e) => {
@@ -142,8 +149,9 @@ export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose
 
         {/* Subject */}
         <div style={styles.field}>
-          <label style={styles.label}>{t('todoDetail.subject')}</label>
+          <label htmlFor="todo-subject" style={styles.label}>{t('todoDetail.subject')}</label>
           <input
+            id="todo-subject"
             className="form-input"
             placeholder={t('todoDetail.placeholderSubject')}
             value={draft.subject || ''}
@@ -154,8 +162,9 @@ export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose
 
         {/* Due date */}
         <div style={styles.field}>
-          <label style={styles.label}>{t('todoDetail.due')}</label>
+          <label htmlFor="todo-due" style={styles.label}>{t('todoDetail.due')}</label>
           <input
+            id="todo-due"
             className="form-input"
             type="date"
             value={draft.due || ''}
@@ -175,8 +184,9 @@ export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose
 
         {/* Notes */}
         <div style={styles.field}>
-          <label style={styles.label}>{t('todoDetail.notes')}</label>
+          <label htmlFor="todo-notes" style={styles.label}>{t('todoDetail.notes')}</label>
           <textarea
+            id="todo-notes"
             className="form-textarea"
             placeholder={t('todoDetail.placeholderNotes')}
             value={draft.notes || ''}
@@ -188,7 +198,7 @@ export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose
 
       <div style={styles.footer}>
         <span style={styles.meta}>{t('todoDetail.priorityMeta', { prio: t(`priority.${prioKey}`) })}</span>
-        <button className="btn btn-danger btn-sm" onClick={() => onDelete(draft.id)}>
+        <button type="button" className="btn btn-danger btn-sm" onClick={() => onDelete(draft.id)}>
           <TrashIcon /> {t('todoDetail.deleteTask')}
         </button>
       </div>

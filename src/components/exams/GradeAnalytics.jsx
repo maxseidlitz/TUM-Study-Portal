@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Cell, PieChart, Pie
+  Cell, PieChart, Pie
 } from 'recharts';
 import { useLocale } from '../../context/LocaleContext';
 
@@ -14,8 +14,8 @@ export default function GradeAnalytics({ exams, targetGpa, targetEcts }) {
     .reduce((sum, e) => sum + (e.credits || 0), 0);
   
   const ectsData = [
-    { name: 'Abgeschlossen', value: completedEcts, fill: 'var(--accent)' },
-    { name: 'Verbleibend', value: Math.max(0, targetEcts - completedEcts), fill: 'var(--bg-tertiary)' }
+    { name: t('gradeAnalytics.completed'), value: completedEcts, fill: 'var(--accent)' },
+    { name: t('gradeAnalytics.remaining'), value: Math.max(0, targetEcts - completedEcts), fill: 'var(--bg-tertiary)' }
   ];
 
   // GPA Timeline
@@ -34,10 +34,6 @@ export default function GradeAnalytics({ exams, targetGpa, targetEcts }) {
     .filter(e => e.grade != null)
     .reduce((sum, e) => sum + (parseFloat(e.grade) * (e.credits || 0)), 0);
   
-  const currentTotalCredits = exams
-    .filter(e => e.grade != null)
-    .reduce((sum, e) => sum + (e.credits || 0), 0);
-
   // (currentWeightedSum + requiredGrade * remainingEcts) / targetEcts = targetGpa
   // requiredGrade = (targetGpa * targetEcts - currentWeightedSum) / remainingEcts
   const requiredGrade = remainingEcts > 0 
@@ -45,11 +41,11 @@ export default function GradeAnalytics({ exams, targetGpa, targetEcts }) {
     : null;
 
   return (
-    <div style={styles.container}>
-      <div className="grid-3" style={{ gap: 20 }}>
+    <div className="grade-analytics" style={styles.container}>
+      <div className="grid-3 grade-analytics-grid" style={{ gap: 20 }}>
         {/* ECTS Fortschritt */}
         <div className="card" style={styles.card}>
-          <div style={styles.cardTitle}>ECTS Fortschritt</div>
+          <div style={styles.cardTitle}>{t('gradeAnalytics.ectsProgress')}</div>
           <div style={{ height: 160 }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -71,14 +67,14 @@ export default function GradeAnalytics({ exams, targetGpa, targetEcts }) {
             </ResponsiveContainer>
             <div style={styles.pieLabel}>
               <div style={{ fontSize: 20, fontWeight: 800 }}>{completedEcts}</div>
-              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>von {targetEcts}</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{t('gradeAnalytics.ofTarget', { target: targetEcts })}</div>
             </div>
           </div>
         </div>
 
         {/* Notenverlauf */}
-        <div className="card" style={{ ...styles.card, gridColumn: 'span 2' }}>
-          <div style={styles.cardTitle}>Notenverlauf</div>
+        <div className="card grade-timeline" style={{ ...styles.card, gridColumn: 'span 2' }}>
+          <div style={styles.cardTitle}>{t('gradeAnalytics.timeline')}</div>
           <div style={{ height: 160 }}>
             {timelineData.length > 1 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -115,7 +111,7 @@ export default function GradeAnalytics({ exams, targetGpa, targetEcts }) {
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <div style={styles.emptyState}>Noch nicht genug Daten für den Verlauf.</div>
+              <div style={styles.emptyState}>{t('gradeAnalytics.notEnoughData')}</div>
             )}
           </div>
         </div>
@@ -123,12 +119,12 @@ export default function GradeAnalytics({ exams, targetGpa, targetEcts }) {
 
       {/* What-If Banner */}
       <div className="card" style={styles.whatIf}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="grade-what-if" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: 24 }}>📈</span>
           <div>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>Ziel-Schnitt Analyse</div>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>{t('gradeAnalytics.targetAnalysis')}</div>
             <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-              Um einen Schnitt von <strong>{targetGpa.toFixed(1)}</strong> zu erreichen, benötigst du in den verbleibenden <strong>{remainingEcts} ECTS</strong> einen Durchschnitt von:
+              {t('gradeAnalytics.targetBody', { target: targetGpa.toFixed(1), remaining: remainingEcts })}
             </div>
           </div>
           <div style={{ flex: 1 }} />
@@ -140,7 +136,7 @@ export default function GradeAnalytics({ exams, targetGpa, targetEcts }) {
             fontSize: 20,
             fontWeight: 800
           }}>
-            {requiredGrade === null ? '—' : requiredGrade < 1.0 ? 'Besser als 1.0 🚀' : requiredGrade > 4.0 ? 'Nicht mehr möglich 😅' : requiredGrade.toFixed(2)}
+            {requiredGrade === null ? '—' : requiredGrade < 1.0 ? t('gradeAnalytics.betterThanOne') : requiredGrade > 4.0 ? t('gradeAnalytics.impossible') : requiredGrade.toFixed(2)}
           </div>
         </div>
       </div>

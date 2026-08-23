@@ -33,7 +33,7 @@ export default function ChatContinuity({ activePage }) {
   const handleSend = async () => {
     const text = input.trim();
     if (!text || activeAiChat.thinking) return;
-    await sendAiMessage(text, activeAiChat.sessionId, activeAiChat.messages);
+    await sendAiMessage(text, activeAiChat.sessionId, activeAiChat.messages, false);
     setInput('');
   };
 
@@ -45,12 +45,12 @@ export default function ChatContinuity({ activePage }) {
   };
 
   return (
-    <div style={styles.container}>
+    <div className="chat-continuity" style={styles.container}>
       {isOpen && (
-        <div style={styles.popup}>
+        <div className="chat-continuity-popup" style={styles.popup}>
           <div style={styles.popupHeader}>
             <span>{t('chat.title')}</span>
-            <button type="button" onClick={toggleOpen} style={styles.closeBtn}>×</button>
+            <button type="button" onClick={toggleOpen} style={styles.closeBtn} aria-label={t('chat.closeFloating')}>×</button>
           </div>
           <div style={styles.messageArea} ref={scrollRef}>
             {activeAiChat.messages.map((msg, i) => (
@@ -61,6 +61,7 @@ export default function ChatContinuity({ activePage }) {
           <div style={styles.inputBar}>
             <input
               ref={inputRef}
+              aria-label={t('chat.placeholder')}
               style={styles.input}
               placeholder={t('chat.placeholder')}
               value={input}
@@ -74,6 +75,7 @@ export default function ChatContinuity({ activePage }) {
       <button
         type="button"
         onClick={toggleOpen}
+        aria-label={isOpen ? t('chat.minimizeFloating') : t('chat.openFloating')}
         style={{
           ...styles.fab,
           ...(activeAiChat.thinking ? styles.fabThinking : {}),
@@ -150,6 +152,8 @@ const styles = {
     fontWeight: 600,
   },
   closeBtn: {
+    width: 44,
+    height: 44,
     background: 'none',
     border: 'none',
     color: 'var(--text-secondary)',

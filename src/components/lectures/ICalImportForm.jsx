@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { api } from '../../api';
 import { useData } from '../../context/DataContext';
 import { useLocale } from '../../context/LocaleContext';
-import { formatDate, generateId } from '../../utils/helpers';
+import { formatDate } from '../../utils/helpers';
 import { groupImportedItemsToModules } from '../../utils/icalGrouping';
+import { persistIcalItems, replaceIcalItems } from '../../utils/icalPersistence';
 import { RefreshIcon, CheckIcon } from '../icons/Icons';
 
 const COLORS_CYCLE = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4', '#F97316', '#6366F1'];
@@ -14,19 +16,9 @@ export default function ICalImportForm({
   showSyncInfo = true,
 }) {
   const { t, intlLocale } = useLocale();
-  const { addLectures, lectures, deleteLecture, modules, addModule, deleteModule } = useData();
-
-  const persistGrouped = async (items) => {
-    const { modules: mods, lectures: lecs } = groupImportedItemsToModules(items);
-    for (const m of mods) {
-      await addModule({
-        name: m.name, code: '', semester: '', moodleUrl: '', color: m.color, source: 'ical',
-        slots: m.slots.map((s) => ({ ...s, id: generateId() })),
-      });
-    }
-    if (lecs.length) await addLectures(lecs);
-    return { moduleCount: mods.length, lectureCount: lecs.length };
-  };
+  const {
+    addLectures, lectures, deleteLecture, modules, addModule, deleteModule, refreshData,
+  } = useData();
 
   const [url, setUrl] = useState('');
   const [savedUrl, setSavedUrl] = useState('');
@@ -36,10 +28,10 @@ export default function ICalImportForm({
   const [lastSync, setLastSync] = useState(null);
 
   useEffect(() => {
-    window.api.settings.get().then((s) => {
+    api.settings.get().then((s) => {
       if (s?.icalUrl) { setUrl(s.icalUrl); setSavedUrl(s.icalUrl); }
       if (s?.icalLastSync) setLastSync(s.icalLastSync);
-    });
+    }).catch(() => {});
   }, []);
 
   const handleFetch = async () => {
@@ -48,7 +40,7 @@ export default function ICalImportForm({
     setErrorMsg('');
     setPreview([]);
 
-    const result = await window.api.ical.fetch(url.trim());
+    const result = await api.ical.fetch(url.trim());
     if (!result.success) {
       setStatus('error');
       setErrorMsg(result.error || t('ical.errUnknown'));
@@ -81,14 +73,19 @@ export default function ICalImportForm({
 
   const handleImport = async (selectedItems) => {
     const toImport = selectedItems.filter((i) => i._selected !== false).map(({ _selected, ...rest }) => rest);
-    const result = await persistGrouped(toImport);
-
-    const now = new Date().toISOString();
-    await window.api.settings.save({ icalUrl: url.trim(), icalLastSync: now });
-    setSavedUrl(url.trim());
-    setLastSync(now);
-
-    await finishImport(result);
+    setStatus('loading');
+    setErrorMsg('');
+    try {
+      const result = await persistIcalItems(toImport, { addModule, addLectures });
+      const now = new Date().toISOString();
+      await api.settings.save({ icalUrl: url.trim(), icalLastSync: now });
+      setSavedUrl(url.trim());
+      setLastSync(now);
+      await finishImport(result);
+    } catch (error) {
+      setStatus('error');
+      setErrorMsg(t('ical.importFailed', { error: error.message || t('common.unknownError') }));
+    }
   };
 
   const handleRefresh = async () => {
@@ -97,7 +94,7 @@ export default function ICalImportForm({
     setStatus('loading');
     setErrorMsg('');
 
-    const result = await window.api.ical.fetch(savedUrl);
+    const result = await api.ical.fetch(savedUrl);
     if (!result.success) {
       setStatus('error');
       setErrorMsg(result.error || t('common.unknownError'));
@@ -113,19 +110,31 @@ export default function ICalImportForm({
       return;
     }
 
-    for (const l of lectures.filter((l) => l.imported)) await deleteLecture(l.id);
-    for (const m of modules.filter((m) => m.source === 'ical')) await deleteModule(m.id);
-
     const withColors = items.map((l, idx) => ({
       ...l,
       color: COLORS_CYCLE[idx % COLORS_CYCLE.length],
     }));
-    const importResult = await persistGrouped(withColors);
 
-    const now = new Date().toISOString();
-    await window.api.settings.save({ icalLastSync: now });
-    setLastSync(now);
-    await finishImport(importResult);
+    try {
+      const importResult = await replaceIcalItems({
+        importedLectures: lectures.filter(lecture => lecture.imported),
+        importedModules: modules.filter(module => module.source === 'ical'),
+        nextItems: withColors,
+        deleteLecture,
+        deleteModule,
+        addModule,
+        addLectures,
+        atomicReplace: api.runtime === 'browser' ? api.ical.replace : undefined,
+      });
+      if (api.runtime === 'browser') await refreshData();
+      const now = new Date().toISOString();
+      await api.settings.save({ icalLastSync: now });
+      setLastSync(now);
+      await finishImport(importResult);
+    } catch (error) {
+      setStatus('error');
+      setErrorMsg(t('ical.replaceFailed', { error: error.message || t('common.unknownError') }));
+    }
   };
 
   return (
@@ -140,9 +149,10 @@ export default function ICalImportForm({
       )}
 
       <div className="form-group">
-        <label className="form-label">{t('ical.urlLabel')}</label>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <label className="form-label" htmlFor="lecture-ical-url">{t('ical.urlLabel')}</label>
+        <div className="ical-input-row" style={{ display: 'flex', gap: 10 }}>
           <input
+            id="lecture-ical-url"
             className="form-input"
             placeholder={t('ical.urlPlaceholder')}
             value={url}
@@ -209,7 +219,7 @@ function ImportPreview({ items, onImport, onCancel, t, intlLocale, embedded }) {
   return (
     <>
       <div className="divider" />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+      <div className="ical-preview-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
           {items.length === 1 ? t('ical.previewCountOne') : t('ical.previewCountMany', { count: items.length })}
         </span>
@@ -220,9 +230,11 @@ function ImportPreview({ items, onImport, onCancel, t, intlLocale, embedded }) {
 
       <div style={styles.previewList}>
         {selected.map((item, idx) => (
-          <div
+          <button
+            type="button"
             key={item.icalUid || `${item.eventDate}-${item.time}-${idx}`}
             onClick={() => toggle(idx)}
+            aria-pressed={item._selected}
             style={{
               ...styles.previewItem,
               opacity: item._selected ? 1 : 0.45,
@@ -246,13 +258,13 @@ function ImportPreview({ items, onImport, onCancel, t, intlLocale, embedded }) {
                 {item.room && <span>📍 {item.room}</span>}
               </div>
             </div>
-          </div>
+          </button>
         ))}
       </div>
 
       {selectedCount > 0 && (
         <div style={styles.groupSummary}>
-          {`Wird angelegt als ${grouped.modules.length} Modul(e) · ${grouped.lectures.length} Einzeltermin(e)`}
+          {t('ical.groupSummary', { modules: grouped.modules.length, lectures: grouped.lectures.length })}
         </div>
       )}
 
@@ -288,6 +300,7 @@ const styles = {
   previewList: { display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 300, overflowY: 'auto', marginBottom: 8 },
   previewItem: {
     display: 'flex', alignItems: 'flex-start', gap: 10,
+    width: '100%', textAlign: 'left', color: 'inherit', border: 'none',
     padding: '10px 12px', borderRadius: 8, background: 'var(--bg-tertiary)',
     cursor: 'pointer', transition: 'opacity var(--transition)',
     borderLeft: '4px solid var(--accent)',

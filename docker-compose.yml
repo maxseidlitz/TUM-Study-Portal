@@ -1,0 +1,53 @@
+name: tum-study-portal
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        NODE_IMAGE: node:22.14.0-bookworm-slim@sha256:1c18d9ab3af4585870b92e4dbc5cac5a0dc77dd13df1a5905cea89fc720eb05b
+    image: tum-study-portal:local
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env.server
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3443
+      DATABASE_PATH: /var/lib/tum-study-portal/study-portal.sqlite
+      BACKUP_DIR: /var/lib/tum-study-portal/backups
+      BUILD_DIR: /app/build
+    ports:
+      - "127.0.0.1:3443:3443"
+    volumes:
+      - study-data:/var/lib/tum-study-portal
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3443/readyz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  ollama:
+    image: ollama/ollama:0.24.0@sha256:a6149234667efc71d37766d61c1a16f24c33e4cd7a0bf4125c44a7e47e2419c4
+    profiles: ["ollama"]
+    restart: unless-stopped
+    volumes:
+      - ollama-data:/root/.ollama
+    expose:
+      - "11434"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  study-data:
+    name: tum-study-portal-data
+  ollama-data:
+    name: tum-study-portal-ollama

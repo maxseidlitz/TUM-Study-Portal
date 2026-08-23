@@ -1,14 +1,53 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, {
+  createContext, useContext, useState, useCallback, useEffect,
+} from 'react';
 
 const ThemeContext = createContext(null);
+export const THEME_STORAGE_KEY = 'theme';
+
+function systemTheme() {
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+export function getStoredTheme() {
+  try {
+    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+    return stored === 'light' || stored === 'dark' ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
+export function getInitialTheme() {
+  return getStoredTheme() || systemTheme();
+}
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState('dark');
+  const [theme, setTheme] = useState(getInitialTheme);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    if (getStoredTheme()) return undefined;
+    const media = window.matchMedia?.('(prefers-color-scheme: dark)');
+    if (!media) return undefined;
+    const handleChange = (event) => {
+      if (!getStoredTheme()) setTheme(event.matches ? 'dark' : 'light');
+    };
+    media.addEventListener?.('change', handleChange);
+    return () => media.removeEventListener?.('change', handleChange);
+  }, []);
 
   const toggleTheme = useCallback(() => {
     setTheme((prev) => {
       const next = prev === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', next === 'light' ? 'light' : '');
+      try {
+        window.localStorage.setItem(THEME_STORAGE_KEY, next);
+      } catch {
+        // The selected theme still applies when storage is unavailable.
+      }
       return next;
     });
   }, []);

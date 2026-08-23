@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { useData } from '../context/DataContext';
 import { useLocale } from '../context/LocaleContext';
 import { getAiRecommendation, lectureMatchesCalendarDay } from '../utils/helpers';
+import { api } from '../api';
 
 /**
  * Study recommendation card.
@@ -28,13 +29,13 @@ export default function AiRecommendation() {
     [exams, todos, lectures, t],
   );
 
-  const kiAvailable = !!window.api?.ai?.recommend;
+  const kiAvailable = true;
 
   const runKi = useCallback(async () => {
     if (!kiAvailable) return;
     setStatus('loading');
     try {
-      const result = await window.api.ai.recommend({
+      const result = await api.ai.recommend({
         exams,
         todos,
         lectures: todayLectures,
@@ -78,6 +79,7 @@ export default function AiRecommendation() {
             onClick={runKi}
             disabled={status === 'loading'}
             title={t('ai.refreshTitle')}
+            aria-label={t('ai.refreshTitle')}
             style={{ opacity: 0.7 }}
           >
             <RefreshIcon spin={status === 'loading'} />
@@ -96,14 +98,13 @@ export default function AiRecommendation() {
 
       {/* Opt-in: the LLM only runs on explicit click */}
       {kiAvailable && status !== 'loading' && !isKi && (
-        <button style={styles.kiButton} onClick={runKi}>
-          ✨ Mit KI verfeinern
+        <button type="button" className="ai-refine-button" style={styles.kiButton} onClick={runKi}>
+          {t('ai.refine')}
         </button>
       )}
       {status === 'error' && (
         <div style={styles.errorHint}>
-          KI nicht verfügbar – lokale Empfehlung wird angezeigt. Modell in den
-          Einstellungen prüfen.
+          {t('ai.errorHint')}
         </div>
       )}
     </div>
@@ -148,6 +149,7 @@ const styles = {
   kiButton: {
     marginTop: 12,
     width: '100%',
+    minHeight: 44,
     padding: '7px 12px',
     background: 'transparent',
     border: '1px dashed var(--accent-light)',

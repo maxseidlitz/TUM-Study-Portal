@@ -6,6 +6,8 @@ import { useChatSessions } from '../hooks/useChatSessions';
 import ChatMessage from '../components/chat/ChatMessage';
 import ChatThinking from '../components/chat/ChatThinking';
 import { SendIcon } from '../components/icons/Icons';
+import AccessibleDialog from '../components/ui/AccessibleDialog';
+import { useIsMobile } from '../hooks/useMediaQuery';
 
 const SUGGESTION_KEYS = ['sug1', 'sug2', 'sug3', 'sug4'];
 const SUGGESTION_ICONS = ['🎯', '📅', '⏱️', '✅'];
@@ -18,6 +20,9 @@ export default function Chat() {
   } = useData();
 
   const [input, setInput] = useState('');
+  const [allowTodoWrites, setAllowTodoWrites] = useState(false);
+  const [sessionsOpen, setSessionsOpen] = useState(false);
+  const isMobile = useIsMobile();
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -42,9 +47,14 @@ export default function Chat() {
   const send = async (text) => {
     const content = text.trim();
     if (!content || isThinking) return;
-    await sendAiMessage(content, activeSessionId, messages);
+    const todoWriteConsent = allowTodoWrites;
+    setAllowTodoWrites(false);
     setInput('');
-    inputRef.current?.focus();
+    try {
+      await sendAiMessage(content, activeSessionId, messages, todoWriteConsent);
+    } finally {
+      inputRef.current?.focus();
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -57,12 +67,15 @@ export default function Chat() {
   const handleStartNewChat = async () => {
     await startNewChat();
     setInput('');
+    setAllowTodoWrites(false);
     inputRef.current?.focus();
   };
 
   const handleSelectSession = async (id) => {
     await selectSession(id);
+    setSessionsOpen(false);
     setInput('');
+    setAllowTodoWrites(false);
     inputRef.current?.focus();
   };
 
@@ -76,55 +89,65 @@ export default function Chat() {
     openTodos: todos.filter(td => !td.done).length,
   });
 
-  return (
-    <div style={styles.root}>
-      <div style={styles.mainRow}>
-        {persistReady && (
-          <aside style={styles.sessionAside} aria-label={t('chat.sessionsTitle')}>
-            <div style={styles.sessionAsideHead}>{t('chat.sessionsTitle')}</div>
-            <button type="button" className="btn btn-secondary btn-sm" style={styles.newSessionBtn} onClick={handleStartNewChat}>
-              {t('chat.newChat')}
+  const sessionPanel = (
+    <>
+      <div id="chat-sessions-title" style={styles.sessionAsideHead}>{t('chat.sessionsTitle')}</div>
+      <button type="button" className="btn btn-secondary btn-sm" style={styles.newSessionBtn} onClick={handleStartNewChat}>
+        {t('chat.newChat')}
+      </button>
+      <div style={styles.sessionList}>
+        {sessions.map(s => (
+          <div
+            key={s.id}
+            aria-current={s.id === activeSessionId ? 'true' : undefined}
+            style={{
+              ...styles.sessionItem,
+              ...(s.id === activeSessionId ? styles.sessionItemActive : {}),
+            }}
+          >
+            <button type="button" style={styles.sessionSelect} onClick={() => handleSelectSession(s.id)}>
+              <span style={styles.sessionItemTitle}>{sessionListLabel(s, t, intlLocale)}</span>
+              <span style={styles.sessionItemMeta}>
+                {s.updatedAt
+                  ? new Date(s.updatedAt).toLocaleString(intlLocale, { dateStyle: 'short', timeStyle: 'short' })
+                  : ''}
+              </span>
             </button>
-            <div style={styles.sessionList}>
-              {sessions.map(s => (
-                <div
-                  key={s.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleSelectSession(s.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleSelectSession(s.id);
-                    }
-                  }}
-                  style={{
-                    ...styles.sessionItem,
-                    ...(s.id === activeSessionId ? styles.sessionItemActive : {}),
-                  }}
-                >
-                  <div style={styles.sessionItemTitle}>{sessionListLabel(s, t, intlLocale)}</div>
-                  <div style={styles.sessionItemMeta}>
-                    {s.updatedAt
-                      ? new Date(s.updatedAt).toLocaleString(intlLocale, { dateStyle: 'short', timeStyle: 'short' })
-                      : ''}
-                  </div>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    style={styles.sessionDelete}
-                    title={t('chat.deleteSession')}
-                    onClick={ev => deleteSession(ev, s.id, t)}
-                  >
-                    {t('chat.deleteSession')}
-                  </button>
-                </div>
-              ))}
-            </div>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm chat-session-delete"
+              style={styles.sessionDelete}
+              title={t('chat.deleteSession')}
+              aria-label={`${t('chat.deleteSession')}: ${sessionListLabel(s, t, intlLocale)}`}
+              onClick={ev => deleteSession(ev, s.id, t)}
+            >
+              {t('chat.deleteSession')}
+            </button>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+
+  return (
+    <div className="chat-page" style={styles.root}>
+      <div className="chat-main-row" style={styles.mainRow}>
+        {persistReady && !isMobile && (
+          <aside className="chat-session-aside" style={styles.sessionAside} aria-label={t('chat.sessionsTitle')}>
+            {sessionPanel}
           </aside>
         )}
+        {persistReady && isMobile && sessionsOpen && (
+          <AccessibleDialog
+            onClose={() => setSessionsOpen(false)}
+            labelledBy="chat-sessions-title"
+            className="chat-sessions-dialog"
+          >
+            {sessionPanel}
+          </AccessibleDialog>
+        )}
 
-        <div style={styles.chatColumn}>
+        <div className="chat-column" style={styles.chatColumn}>
           {ipcStaleHint && (
             <div
               className="card card-sm"
@@ -140,13 +163,18 @@ export default function Chat() {
               {t('chat.ipcStaleMain')}
             </div>
           )}
-          <div style={styles.header}>
+          <div className="chat-header" style={styles.header}>
             <div>
               <h1 style={styles.title}>{t('chat.title')}</h1>
               <p style={styles.subtitle}>
                 <span style={styles.contextDot} /> {t('chat.contextLabel')} {contextSummary}
               </p>
             </div>
+            {persistReady && isMobile && (
+              <button type="button" className="btn btn-secondary" onClick={() => setSessionsOpen(true)}>
+                {t('chat.sessionsTitle')}
+              </button>
+            )}
             {!persistReady && messages.length > 0 && (
               <button type="button" className="btn btn-secondary btn-sm" onClick={handleStartNewChat}>
                 {t('chat.newChat')}
@@ -154,13 +182,13 @@ export default function Chat() {
             )}
           </div>
 
-          <div style={styles.messageArea} ref={scrollRef}>
+          <div className="chat-message-area" style={styles.messageArea} ref={scrollRef}>
             {messages.length === 0 ? (
               <div style={styles.empty}>
                 <div style={styles.emptyIcon}>🤖</div>
                 <h2 style={styles.emptyTitle}>{t('chat.emptyTitle')}</h2>
                 <p style={styles.emptyText}>{t('chat.emptyText')}</p>
-                <div style={styles.suggestions}>
+                <div className="chat-suggestions" style={styles.suggestions}>
                   {SUGGESTION_KEYS.map((key, i) => (
                     <button key={key} type="button" style={styles.suggestion} onClick={() => send(t(`chat.${key}`))}>
                       <span style={{ fontSize: 18 }}>{SUGGESTION_ICONS[i]}</span>
@@ -179,28 +207,51 @@ export default function Chat() {
             )}
           </div>
 
-          <div style={styles.inputBar}>
-            <textarea
-              ref={inputRef}
-              style={styles.input}
-              placeholder={t('chat.placeholder')}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              rows={1}
-            />
-            <button
-              type="button"
-              style={{
-                ...styles.sendBtn,
-                opacity: input.trim() && !isThinking ? 1 : 0.4,
-                cursor: input.trim() && !isThinking ? 'pointer' : 'default',
-              }}
-              onClick={() => send(input)}
-              disabled={!input.trim() || isThinking}
-            >
-              <SendIcon />
-            </button>
+          <div style={styles.composer}>
+            <div style={styles.consentPanel}>
+              <label htmlFor="chat-todo-write-consent" style={styles.consentLabel}>
+                <input
+                  id="chat-todo-write-consent"
+                  type="checkbox"
+                  checked={allowTodoWrites}
+                  disabled={isThinking}
+                  aria-describedby="chat-todo-write-help"
+                  onChange={event => setAllowTodoWrites(event.target.checked)}
+                  style={styles.consentCheckbox}
+                />
+                <span>{t('chat.allowTodoWrites')}</span>
+              </label>
+              <div id="chat-todo-write-help" style={styles.consentHelp}>
+                {t('chat.allowTodoWritesHelp')}
+              </div>
+            </div>
+            <div className="chat-input-bar" style={styles.inputBar}>
+              <textarea
+                ref={inputRef}
+                aria-label={t('chat.inputLabel')}
+                className="chat-message-input"
+                style={styles.input}
+                placeholder={t('chat.placeholder')}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                rows={1}
+              />
+              <button
+                type="button"
+                className="chat-send-button"
+                aria-label={t('chat.send')}
+                style={{
+                  ...styles.sendBtn,
+                  opacity: input.trim() && !isThinking ? 1 : 0.4,
+                  cursor: input.trim() && !isThinking ? 'pointer' : 'default',
+                }}
+                onClick={() => send(input)}
+                disabled={!input.trim() || isThinking}
+              >
+                <SendIcon />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -244,6 +295,16 @@ const styles = {
     borderColor: 'var(--accent)',
     background: 'var(--accent-subtle)',
   },
+  sessionSelect: {
+    display: 'flex',
+    width: '100%',
+    minHeight: 44,
+    flexDirection: 'column',
+    border: 0,
+    background: 'transparent',
+    textAlign: 'left',
+    cursor: 'pointer',
+  },
   sessionItemTitle: {
     fontSize: 12,
     fontWeight: 500,
@@ -283,18 +344,49 @@ const styles = {
     fontSize: 12, fontFamily: 'var(--font-sans)', transition: 'all var(--transition)',
   },
   messages: { display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 8 },
+  composer: { flexShrink: 0, marginTop: 12 },
+  consentPanel: {
+    padding: '8px 10px',
+    border: '1px solid var(--border-color)',
+    borderRadius: 12,
+    background: 'var(--bg-card)',
+  },
+  consentLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 44,
+    color: 'var(--text-primary)',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  consentCheckbox: {
+    width: 44,
+    height: 44,
+    margin: 0,
+    flexShrink: 0,
+    accentColor: 'var(--accent)',
+    cursor: 'pointer',
+  },
+  consentHelp: {
+    marginLeft: 54,
+    color: 'var(--text-secondary)',
+    fontSize: 11,
+    lineHeight: 1.4,
+  },
   inputBar: {
     display: 'flex', gap: 10, alignItems: 'flex-end', flexShrink: 0,
-    marginTop: 16, padding: 10, background: 'var(--bg-card)',
+    marginTop: 8, padding: 10, background: 'var(--bg-card)',
     border: '1px solid var(--border-color)', borderRadius: 14,
   },
   input: {
     flex: 1, background: 'transparent', border: 'none', outline: 'none',
     color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: 13,
-    resize: 'none', maxHeight: 120, lineHeight: 1.5, padding: '6px 8px',
+    resize: 'none', minHeight: 44, maxHeight: 120, lineHeight: 1.5, padding: '11px 8px',
   },
   sendBtn: {
-    width: 36, height: 36, borderRadius: 9, border: 'none',
+    width: 44, height: 44, borderRadius: 9, border: 'none',
     background: 'var(--accent)', color: '#fff',
     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
     transition: 'opacity var(--transition)',

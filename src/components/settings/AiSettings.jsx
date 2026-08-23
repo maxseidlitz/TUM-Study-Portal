@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocale } from '../../context/LocaleContext';
 import { OLLAMA_TOOL_MODEL_RECOMMENDATIONS } from '../../utils/ollamaModels';
+import { api } from '../../api';
 
 /**
  * KI-Anbieter-Einstellungen (Ollama / Google Gemini) — aus Settings.jsx
@@ -20,6 +21,8 @@ export default function AiSettings({ settings, setSettings }) {
 
   const isOllama = settings.aiProvider !== 'gemini';
   const isGemini = settings.aiProvider === 'gemini';
+  const isSelfHosted = api.runtime === 'browser';
+  const hasServerGeminiKey = isSelfHosted && Boolean(settings.geminiApiKeyConfigured);
 
   const fetchModelList = useCallback(async (snapshot) => {
     const s = {
@@ -31,7 +34,7 @@ export default function AiSettings({ settings, setSettings }) {
     setModelsStatus('loading');
     setModelsError('');
     try {
-      const result = await window.api.ai.models({
+      const result = await api.ai.models({
         aiProvider: s.aiProvider,
         ollamaUrl: s.ollamaUrl,
         geminiModel: s.geminiModel,
@@ -60,17 +63,28 @@ export default function AiSettings({ settings, setSettings }) {
   }, [settings.aiProvider, settings.ollamaUrl, settings.geminiModel, fetchModelList]);
 
   const handleSave = async () => {
-    await window.api.settings.save({ ...settings, locale });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      await api.settings.save({ ...settings, locale });
+      if (isSelfHosted && settings.geminiApiKey) {
+        setSettings(s => ({ ...s, geminiApiKey: '', geminiApiKeyConfigured: true }));
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      setTestStatus('error');
+      setTestMsg(e.message);
+    }
   };
 
   const handleTestAi = async () => {
     setTestStatus('loading');
     setTestMsg('');
-    await window.api.settings.save({ ...settings, locale });
     try {
-      const result = await window.api.ai.recommend({
+      await api.settings.save({ ...settings, locale });
+      if (isSelfHosted && settings.geminiApiKey) {
+        setSettings(s => ({ ...s, geminiApiKey: '', geminiApiKeyConfigured: true }));
+      }
+      const result = await api.ai.recommend({
         exams: [],
         todos: [],
         lectures: [],
@@ -120,8 +134,8 @@ export default function AiSettings({ settings, setSettings }) {
         <div className="divider" />
 
         <div className="form-group">
-          <label className="form-label">{t('settings.serviceLabel')}</label>
-          <div style={styles.segmentRow}>
+          <span id="ai-service-label" className="form-label">{t('settings.serviceLabel')}</span>
+          <div style={styles.segmentRow} role="group" aria-labelledby="ai-service-label">
             <button
               type="button"
               className="btn btn-secondary"
@@ -152,8 +166,9 @@ export default function AiSettings({ settings, setSettings }) {
                   {t('settings.ollamaSub')}{' '}
                   <button
                     type="button"
-                    onClick={() => window.api.openExternal('https://ollama.ai')}
-                    style={styles.link}
+                    className="ollama-help-link"
+                    onClick={() => api.openExternal('https://ollama.ai')}
+                    style={{ ...styles.link, ...styles.touchLink }}
                   >
                     {t('settings.ollamaInstall')}
                   </button>
@@ -163,13 +178,18 @@ export default function AiSettings({ settings, setSettings }) {
             <div className="divider" />
 
             <div className="form-group">
-              <label className="form-label">{t('settings.ollamaUrl')}</label>
+              <label className="form-label" htmlFor="settings-ollama-url">{t('settings.ollamaUrl')}</label>
+              {isSelfHosted && (
+                <p style={styles.modelsHint}>{t('settings.ollamaServerManaged')}</p>
+              )}
               <div style={{ display: 'flex', gap: 10 }}>
                 <input
+                  id="settings-ollama-url"
                   className="form-input"
                   value={settings.ollamaUrl}
                   onChange={e => setSettings(s => ({ ...s, ollamaUrl: e.target.value }))}
                   placeholder="http://localhost:11434"
+                  readOnly={isSelfHosted}
                 />
                 <button
                   type="button"
@@ -191,7 +211,7 @@ export default function AiSettings({ settings, setSettings }) {
                     const checked = e.target.checked;
                     setSettings(s => ({ ...s, ollamaDisableReasoning: checked }));
                     try {
-                      await window.api.settings.save({ ollamaDisableReasoning: checked });
+                      await api.settings.save({ ollamaDisableReasoning: checked });
                     } catch {
                       setSettings(s => ({ ...s, ollamaDisableReasoning: !checked }));
                     }
@@ -208,12 +228,12 @@ export default function AiSettings({ settings, setSettings }) {
             </div>
 
             <div className="form-group">
-              <label className="form-label">
+              <span className="form-label">
                 {t('settings.modelLabel')}
                 {modelsStatus === 'ok' && (
                   <span style={styles.countTag}>{t('settings.modelsFound', { count: models.length })}</span>
                 )}
-              </label>
+              </span>
 
               {modelsStatus === 'loading' && (
                 <div style={styles.modelsHint}>{t('settings.modelsLoading')}</div>
@@ -241,7 +261,10 @@ export default function AiSettings({ settings, setSettings }) {
                         <button
                           type="button"
                           key={m}
-                          onClick={() => setSettings(s => ({ ...s, ollamaModel: m }))}
+                          onClick={() => {
+                            if (!isSelfHosted) setSettings(s => ({ ...s, ollamaModel: m }));
+                          }}
+                          disabled={isSelfHosted}
                           style={{
                             ...styles.chip,
                             background: active ? 'var(--accent)' : 'var(--bg-tertiary)',
@@ -297,7 +320,7 @@ export default function AiSettings({ settings, setSettings }) {
                 <div style={styles.sectionTitle}>{t('settings.geminiTitle')}</div>
                 <div style={styles.sectionSub}>
                   {t('settings.geminiSub')}{' '}
-                  <button type="button" onClick={() => window.api.openExternal('https://aistudio.google.com/apikey')} style={styles.link}>
+                  <button type="button" onClick={() => api.openExternal('https://aistudio.google.com/apikey')} style={styles.link}>
                     {t('settings.geminiConsole')}
                   </button>{' '}
                   {t('settings.geminiSub2')}
@@ -307,28 +330,34 @@ export default function AiSettings({ settings, setSettings }) {
             <div className="divider" />
 
             <div className="form-group">
-              <label className="form-label">{t('settings.apiKey')}</label>
+              <label className="form-label" htmlFor="settings-api-key">{t('settings.apiKey')}</label>
               <input
+                id="settings-api-key"
                 className="form-input"
                 type="password"
                 autoComplete="off"
-                value={settings.geminiApiKey}
+                value={settings.geminiApiKey || ''}
                 onChange={e => setSettings(s => ({ ...s, geminiApiKey: e.target.value }))}
-                placeholder={t('settings.apiKeyPlaceholder')}
+                placeholder={isSelfHosted
+                  ? t(hasServerGeminiKey ? 'settings.apiKeyConfiguredPlaceholder' : 'settings.apiKeySelfHostedPlaceholder')
+                  : t('settings.apiKeyPlaceholder')}
               />
               <p style={styles.modelsHint}>
-                {t('settings.apiKeyHint')} <code style={styles.code}>GEMINI_API_KEY</code> {t('settings.apiKeyHint2')}
+                {isSelfHosted
+                  ? t('settings.apiKeySelfHostedHint')
+                  : <>{t('settings.apiKeyHint')} <code style={styles.code}>GEMINI_API_KEY</code> {t('settings.apiKeyHint2')}</>}
               </p>
             </div>
 
             <div className="form-group">
-              <label className="form-label">
+              <label className="form-label" htmlFor="settings-model-id">
                 {t('settings.modelId')}
                 {modelsStatus === 'ok' && models.length > 0 && (
                   <span style={styles.countTag}>{t('settings.modelsFound', { count: models.length })}</span>
                 )}
               </label>
               <input
+                id="settings-model-id"
                 className="form-input"
                 value={settings.geminiModel}
                 onChange={e => setSettings(s => ({ ...s, geminiModel: e.target.value }))}
@@ -403,7 +432,7 @@ export default function AiSettings({ settings, setSettings }) {
       </div>
 
       {/* Quick-Start Ollama */}
-      {isOllama && (
+      {isOllama && !isSelfHosted && (
         <div className="card" style={{ maxWidth: 620, background: 'var(--bg-tertiary)', borderColor: 'var(--border-subtle)' }}>
           <div style={styles.sectionHeader}>
             <span style={styles.sectionIcon}>💡</span>
@@ -434,6 +463,10 @@ const styles = {
   sectionTitle: { fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' },
   sectionSub: { fontSize: 12, color: 'var(--text-muted)', marginTop: 3, lineHeight: 1.5 },
   link: { background: 'none', border: 'none', color: 'var(--accent-hover)', cursor: 'pointer', padding: 0, fontSize: 'inherit' },
+  touchLink: {
+    display: 'inline-flex', minWidth: 44, minHeight: 44, alignItems: 'center',
+    marginBlock: -12, paddingBlock: 12,
+  },
   code: { fontFamily: 'monospace', background: 'var(--bg-primary)', padding: '1px 5px', borderRadius: 3, fontSize: 11 },
   countTag: {
     fontSize: 10, fontWeight: 600, color: 'var(--success)',

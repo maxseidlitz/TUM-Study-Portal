@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLocale } from '../../context/LocaleContext';
 import { formatDate } from '../../utils/helpers';
 import { CheckIcon } from '../icons/Icons';
+import { api } from '../../api';
 
 export default function ExamICalImportForm({
   existingExams,
@@ -22,7 +23,7 @@ export default function ExamICalImportForm({
     setErrorMsg('');
     setPreview([]);
 
-    const result = await window.api.ical.fetch(url.trim());
+    const result = await api.ical.fetch(url.trim());
     if (!result.success) {
       setStatus('error');
       setErrorMsg(result.error || t('common.unknownError'));
@@ -61,7 +62,7 @@ export default function ExamICalImportForm({
     const toImport = selected
       .filter((i) => i._selected)
       .map(({ _selected, _duplicate, ...rest }) => rest);
-    await onImport(toImport);
+    if (await onImport(toImport) === false) return;
     setStatus('success');
     onImportComplete?.({ examCount: toImport.length });
     if (onClose && !embedded) {
@@ -72,9 +73,10 @@ export default function ExamICalImportForm({
   return (
     <div>
       <div className="form-group">
-        <label className="form-label">{t('exams.icalUrlLabel')}</label>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <label className="form-label" htmlFor="exam-ical-url">{t('exams.icalUrlLabel')}</label>
+        <div className="ical-input-row" style={{ display: 'flex', gap: 10 }}>
           <input
+            id="exam-ical-url"
             className="form-input"
             placeholder="https://campus.tum.de/tumonline/...ics"
             value={url}
@@ -132,7 +134,7 @@ function ImportPreview({ items, onImport, onCancel, t, intlLocale, embedded }) {
   return (
     <>
       <div className="divider" />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+      <div className="ical-preview-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
           {items.length === 1 ? t('exams.icalPreviewOne') : t('exams.icalPreviewMany', { count: items.length })}
         </span>
@@ -143,9 +145,11 @@ function ImportPreview({ items, onImport, onCancel, t, intlLocale, embedded }) {
 
       <div style={styles.previewList}>
         {selected.map((item, idx) => (
-          <div
+          <button
+            type="button"
             key={`${item.date}-${item.name}-${idx}`}
             onClick={() => toggle(idx)}
+            aria-pressed={item._selected}
             style={{
               ...styles.previewItem,
               opacity: item._selected ? 1 : 0.4,
@@ -167,7 +171,7 @@ function ImportPreview({ items, onImport, onCancel, t, intlLocale, embedded }) {
                 {item.room && <span>📍 {item.room}</span>}
               </div>
             </div>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -197,6 +201,7 @@ const styles = {
   previewList: { display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 300, overflowY: 'auto', marginBottom: 8 },
   previewItem: {
     display: 'flex', alignItems: 'flex-start', gap: 10,
+    width: '100%', textAlign: 'left', color: 'inherit', border: 'none',
     padding: '10px 12px', borderRadius: 8, background: 'var(--bg-tertiary)',
     cursor: 'pointer', transition: 'opacity var(--transition)',
     borderLeft: '4px solid var(--accent)',

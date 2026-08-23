@@ -1,5 +1,20 @@
+import { api } from '../api';
+
 export function generateId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+export function createExamTodoPayload(exam, title, due) {
+  return {
+    title: String(title || '').trim(),
+    priority: 'medium',
+    subject: exam?.name || '',
+    due: due || '',
+    notes: '',
+    done: false,
+    moduleId: '',
+    moodleCourseId: '',
+  };
 }
 
 /** Anzeigename für Kurs/Fach in ToDos (Modul > Moodle > Freitext). */
@@ -180,11 +195,7 @@ export function getStudyProgress(dateStr) {
 }
 
 export function openExternal(url) {
-  if (window.api?.openExternal) {
-    window.api.openExternal(url);
-  } else {
-    window.open(url, '_blank');
-  }
+  return api.openExternal(url);
 }
 
 /** Lokale Heuristik für die KI-Karte; `t` wie aus useLocale(). */

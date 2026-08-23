@@ -1,4 +1,33 @@
 import React from 'react';
+import de from '../locales/de.json';
+import en from '../locales/en.json';
+import tr from '../locales/tr.json';
+
+const ERROR_MESSAGES = {
+  de: de.errorBoundary,
+  en: en.errorBoundary,
+  tr: tr.errorBoundary,
+};
+
+export function errorMessagesForLocale(locale) {
+  return ERROR_MESSAGES[locale] || ERROR_MESSAGES.de;
+}
+
+export function resolveErrorLocale({
+  documentObject = typeof document === 'undefined' ? null : document,
+  navigatorObject = typeof navigator === 'undefined' ? null : navigator,
+} = {}) {
+  const candidates = [
+    documentObject?.documentElement?.dataset?.uiLocale,
+    ...(navigatorObject?.languages || []),
+    navigatorObject?.language,
+  ];
+  for (const candidate of candidates) {
+    const locale = String(candidate || '').toLowerCase().split('-')[0];
+    if (locale in ERROR_MESSAGES) return locale;
+  }
+  return 'de';
+}
 
 /**
  * Fängt Render-Fehler in der Komponenten-Hierarchie ab, damit ein einzelner
@@ -27,19 +56,18 @@ export default class ErrorBoundary extends React.Component {
 
   render() {
     if (!this.state.error) return this.props.children;
+    const locale = resolveErrorLocale();
+    const messages = errorMessagesForLocale(locale);
 
     return (
-      <div style={styles.wrap}>
+      <div style={styles.wrap} lang={locale}>
         <div style={styles.card}>
           <div style={styles.icon}>⚠️</div>
-          <h1 style={styles.title}>Etwas ist schiefgelaufen</h1>
-          <p style={styles.text}>
-            Die App ist auf einen unerwarteten Fehler gestoßen. Deine Daten sind
-            lokal gespeichert und nicht betroffen.
-          </p>
+          <h1 style={styles.title}>{messages.title}</h1>
+          <p style={styles.text}>{messages.body}</p>
           <pre style={styles.detail}>{String(this.state.error?.message || this.state.error)}</pre>
           <button className="btn btn-primary" onClick={this.handleReload}>
-            App neu laden
+            {messages.reload}
           </button>
         </div>
       </div>

@@ -3,11 +3,12 @@ import { useLocale } from './LocaleContext';
 import { useToast } from './ToastContext';
 import { useEntityCrud } from '../hooks/useEntityCrud';
 import { messagesForApi, buildAiContext, deriveSessionTitle } from '../utils/chat';
+import { api } from '../api';
 
 const DataContext = createContext(null);
 
 export function DataProvider({ children }) {
-  const { locale, intlLocale, t } = useLocale();
+  const { locale, t } = useLocale();
   const showToast = useToast();
   const [exams, setExams] = useState([]);
   const [lectures, setLectures] = useState([]);
@@ -27,11 +28,11 @@ export function DataProvider({ children }) {
     showToast(err?.message || t('common.unknownError'), 'error');
   }, [showToast, t]);
 
-  const examCrud = useEntityCrud(window.api?.exams, setExams, {
+  const examCrud = useEntityCrud(api.exams, setExams, {
     sortFn: (a, b) => a.date.localeCompare(b.date),
     onError: crudError,
   });
-  const lectureCrud = useEntityCrud(window.api?.lectures, setLectures, {
+  const lectureCrud = useEntityCrud(api.lectures, setLectures, {
     sortFn: (a, b) => {
       const dayOrder = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
       const da = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
@@ -40,13 +41,13 @@ export function DataProvider({ children }) {
     },
     onError: crudError,
   });
-  const todoCrud = useEntityCrud(window.api?.todos, setTodos, {
+  const todoCrud = useEntityCrud(api.todos, setTodos, {
     mapOnCreate: (item) => ({ ...item, done: false }),
     mapOnLoad: (item) => ({ ...item, done: Boolean(item.done) }),
     onError: crudError,
   });
-  const moodleCrud = useEntityCrud(window.api?.moodle, setMoodleCourses, { onError: crudError });
-  const moduleCrud = useEntityCrud(window.api?.modules, setModules, {
+  const moodleCrud = useEntityCrud(api.moodle, setMoodleCourses, { onError: crudError });
+  const moduleCrud = useEntityCrud(api.modules, setModules, {
     sortFn: (a, b) => (a.name || '').localeCompare(b.name || ''),
     mapOnCreate: (item) => ({
       ...item,
@@ -69,11 +70,11 @@ export function DataProvider({ children }) {
   const loadAll = useCallback(async () => {
     try {
       const [e, l, td, m, mods] = await Promise.all([
-        window.api.exams.getAll(),
-        window.api.lectures.getAll(),
-        window.api.todos.getAll(),
-        window.api.moodle.getAll(),
-        window.api.modules.getAll(),
+        api.exams.getAll(),
+        api.lectures.getAll(),
+        api.todos.getAll(),
+        api.moodle.getAll(),
+        api.modules.getAll(),
       ]);
       setExams(sortExams(e));
       setLectures(sortLectures(l));
@@ -91,15 +92,24 @@ export function DataProvider({ children }) {
   useEffect(() => { loadAll(); }, [loadAll]);
 
   const toggleTodo = useCallback(async (id) => {
-    setTodos(prev => {
-      const updated = prev.map(item => item.id === id ? { ...item, done: !item.done } : item);
-      const todo = updated.find(item => item.id === id);
-      window.api.todos.update(todo);
-      return updated;
-    });
-  }, []);
+    const previous = todos.find(item => item.id === id);
+    if (!previous) return;
+    const todo = { ...previous, done: !previous.done };
+    setTodos(prev => prev.map(item => item.id === id ? todo : item));
+    try {
+      await api.todos.update(todo);
+    } catch (error) {
+      setTodos(prev => prev.map(item => item.id === id ? previous : item));
+      crudError(error);
+    }
+  }, [todos, crudError]);
 
-  const sendAiMessage = useCallback(async (content, sessionId, history) => {
+  const sendAiMessage = useCallback(async (
+    content,
+    sessionId,
+    history,
+    allowTodoWrites = false,
+  ) => {
     const userMsg = { role: 'user', content: content.trim() };
     const newHistory = [...history, userMsg];
 
@@ -110,24 +120,13 @@ export function DataProvider({ children }) {
       hasUnread: false,
     });
 
-    if (!window.api?.ai?.chat) {
-      const errorMsg = {
-        role: 'assistant',
-        content: t('chat.onlyElectron'),
-        error: true,
-      };
-      setActiveAiChat(prev => ({
-        ...prev,
-        messages: [...prev.messages, errorMsg],
-        thinking: false,
-      }));
-      return;
-    }
-
     try {
-      const context = buildAiContext({ exams, lectures, todos, modules, locale, intlLocale });
+      const context = buildAiContext({
+        locale,
+        allowTodoWrites: allowTodoWrites === true,
+      });
 
-      const result = await window.api.ai.chat({
+      const result = await api.ai.chat({
         messages: messagesForApi(newHistory),
         context,
       });
@@ -172,7 +171,7 @@ export function DataProvider({ children }) {
       });
 
       if (sessionId) {
-        await window.api.chats.save({
+        await api.chats.save({
           id: sessionId,
           title: deriveSessionTitle(nextMessages),
           updatedAt: new Date().toISOString(),
@@ -195,7 +194,7 @@ export function DataProvider({ children }) {
         thinking: false,
       }));
     }
-  }, [exams, lectures, todos, modules, locale, intlLocale, t, loadAll]);
+  }, [exams, lectures, todos, modules, locale, loadAll]);
 
   return (
     <DataContext.Provider value={{

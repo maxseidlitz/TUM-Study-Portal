@@ -201,6 +201,65 @@ function generateTodoId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function allowsTodoWriteIntent(rawText) {
+  const text = String(rawText || '').trim().toLocaleLowerCase('de-DE');
+  if (!text || text.length > 12000) return false;
+
+  const metaLanguage = /\b(?:(?:is|are)\s+what|appears?\s+on|(?:is|are)\s+(?:an?\s+)?(?:example|quote|label|documentation|tutorial|button\s+text)|(?:button|label|tutorial|documentation)\s+(?:says?|reads?|shows?|contains?)|(?:ist|sind)\s+(?:ein(?:e|en)?\s+)?(?:beispiel|zitat|beschriftung|buttontext)|(?:steht|erscheint)\s+(?:auf|in)|(?:button|schaltfläche|tutorial|dokumentation)\s+(?:sagt|zeigt|enthält|lautet))\b/u;
+  if (/\b(?:wie|how|nasıl)\b/u.test(text)
+    || /^(?:(?:kann|könnte|soll|darf)\s+ich|(?:can|could|should|may)\s+i)\b/u.test(text)
+    || /\b(?:falls|wenn|if|eğer|erklär\w*|beschreib\w*|explain\w*|describe\w*|tell\s+me|sag\s+mir|açıkla\w*)\b/u.test(text)
+    || /\b(?:nicht|keine?|don't|do not|never|oluşturma|ekleme|kaydetme)\b/u.test(text)
+    || /\b(?:ignore|ignoriere|anweisungen|instructions?|system[\s-]?prompt|tool|function|provider|model|talimatları|kuralları)\b/u.test(text)
+    || metaLanguage.test(text)) {
+    return false;
+  }
+
+  const germanTodo = /\b(?:todos?|to-dos?|aufgaben?|erinnerungen?)\b/u;
+  const germanDirect = /^(?:bitte\s+)?(?:erstell(?:e)?|leg(?:e)?|speicher(?:e)?|merk(?:e)?)\b/u;
+  const germanElliptical = /^bitte\s+(?:(?:das|dies|dieses|diesen|diese|es)\s+)?(?:als\s+)?(?:ein(?:e|en)?\s+)?(?:todo|to-do|aufgabe|erinnerung)\b.*\b(?:erstellen|anlegen|speichern)\s*[?!.]*$/u;
+  const germanPolite = /^(?:kannst|könntest)\s+du\s+(?:bitte\s+)?.*\b(?:erstellen|anlegen|speichern|merken)\s*[?!.]*$/u;
+  const germanExplicit = (
+    (germanTodo.test(text) && (
+      germanDirect.test(text)
+      || germanElliptical.test(text)
+      || germanPolite.test(text)
+    ))
+    || /^(?:bitte\s+)?erinner(?:e)?\s+(?:mich|uns)\b/u.test(text)
+    || /^(?:kannst|könntest)\s+du\s+(?:bitte\s+)?(?:mich|uns)(?:\s+bitte)?\b.*\berinnern\b/u.test(text)
+  );
+
+  const englishTodo = /\b(?:todos?|to-dos?|tasks?|reminders?)\b/u;
+  const englishDirect = /^(?:please\s+)?(?:create|add|save|store)\b/u;
+  const englishPolite = /^(?:can|could|would)\s+you\s+(?:please\s+)?(?:create|add|save|store)\b/u;
+  const englishExplicit = (
+    (englishTodo.test(text) && (
+      englishDirect.test(text)
+      || englishPolite.test(text)
+    ))
+    || /^(?:please\s+)?remind\s+(?:me|us)\b/u.test(text)
+    || /^(?:can|could|would)\s+you\s+(?:please\s+)?remind\s+(?:me|us)\b/u.test(text)
+    || /^(?:please\s+)?remember\s+to\b/u.test(text)
+  );
+
+  const turkishTodo = /\b(?:görev(?:ler)?|ödev(?:ler)?|hatırlatıcı(?:lar)?|yapılacak(?:lar)?)\b/u;
+  const turkishAction = /\b(?:oluştur(?:un)?|ekle(?:yin)?|kaydet(?:in)?|oluşturabilir\s+misin(?:iz)?|ekleyebilir\s+misin(?:iz)?|kaydedebilir\s+misin(?:iz)?)\b/u;
+  const turkishDirectStart = /^(?:(?:bir\s+)?(?:görev(?:ler)?|ödev(?:ler)?|hatırlatıcı(?:lar)?|yapılacak(?:lar)?)\b|(?:bunu|şunu)\s+(?:bir\s+)?(?:görev|ödev|hatırlatıcı)\b)/u;
+  const turkishExplicit = (
+    (turkishTodo.test(text) && turkishAction.test(text)
+      && (/^lütfen\b/u.test(text) || turkishDirectStart.test(text)))
+    || /^(?:lütfen\s+)?(?:bana|bize)\b.*\b(?:hatırlat(?:ın)?|hatırlatabilir\s+misin(?:iz)?|hatırlatır\s+mısın(?:ız)?)\b/u.test(text)
+  );
+
+  return germanExplicit || englishExplicit || turkishExplicit;
+}
+
+function latestUserAllowsTodoWrite(messages) {
+  const latest = [...(messages || [])].reverse()
+    .find(message => message?.role === 'user' && typeof message.content === 'string');
+  return allowsTodoWriteIntent(latest?.content);
+}
+
 /** Legt ein To-Do in store an (KI-Tool). Rückgabe ist JSON-serialisierbar für Function-/Tool-Antworten. */
 function executeCreateTodo(rawArgs) {
   let args = rawArgs;
@@ -259,10 +318,10 @@ function executeCreateTodo(rawArgs) {
   let resolvedSubject = subject;
   if (moduleId) {
     const mod = (store.modules || []).find((m) => m.id === moduleId);
-    if (mod && !resolvedSubject) resolvedSubject = String(mod.name || '').slice(0, 200);
+    if (mod) resolvedSubject = String(mod.name || '').slice(0, 200);
   } else if (moodleCourseId) {
     const c = (store.moodle_courses || []).find((x) => x.id === moodleCourseId);
-    if (c && !resolvedSubject) resolvedSubject = String(c.name || '').slice(0, 200);
+    if (c) resolvedSubject = String(c.name || '').slice(0, 200);
   }
 
   const id = generateTodoId();
@@ -451,6 +510,20 @@ function collectTodoToolResults(todoActionResults) {
     .map(r => ({ id: r.id, title: r.title, priority: r.priority }));
 }
 
+function safeTodoFinalContent(content, todoActionResults, locale) {
+  const failures = (todoActionResults || []).filter(result => result && !result.success);
+  if (!failures.length) return content;
+  const confirmed = collectTodoToolResults(todoActionResults);
+  const titles = confirmed.map(action => `„${action.title}“`).join(', ');
+  if (locale === 'en') {
+    return `${confirmed.length ? `Confirmed writes: ${titles}.` : 'No Todo was saved.'} ${failures.length} Todo action(s) failed or were rejected.`;
+  }
+  if (locale === 'tr') {
+    return `${confirmed.length ? `Onaylanan kayıtlar: ${titles}.` : 'Hiçbir görev kaydedilmedi.'} ${failures.length} görev işlemi başarısız oldu veya reddedildi.`;
+  }
+  return `${confirmed.length ? `Bestätigt gespeichert: ${titles}.` : 'Es wurde kein Todo gespeichert.'} ${failures.length} Todo-Aktion(en) sind fehlgeschlagen oder wurden abgelehnt.`;
+}
+
 function todayIsoLocal() {
   const now = new Date();
   const offset = now.getTimezoneOffset() * 60000;
@@ -468,11 +541,20 @@ function contextFromMainStore(context) {
   };
 }
 
-function executeChatTool(name, rawArgs, todayIso, todoActionResults) {
+function executeChatTool(name, rawArgs, todayIso, todoActionResults, writeIntentAllowed) {
   if (name === 'create_todo') {
     const parsed = parseOllamaToolArguments(rawArgs);
-    if (!parsed.ok) return { success: false, error: parsed.error };
-    const result = executeCreateTodo(parsed.value);
+    if (!parsed.ok) {
+      const result = { success: false, error: parsed.error };
+      todoActionResults.push(result);
+      return result;
+    }
+    const result = writeIntentAllowed
+      ? executeCreateTodo(parsed.value)
+      : {
+        success: false,
+        error: 'Todo write rejected: explicit user consent and a direct create, save, or reminder instruction are required.',
+      };
     todoActionResults.push(result);
     return result;
   }
@@ -724,7 +806,7 @@ async function aiRecommendGemini(settings, context) {
   return { content, model: modelId };
 }
 
-async function aiChatGemini(settings, messagesFromRenderer, context) {
+async function aiChatGemini(settings, messagesFromRenderer, context, dependencies = {}) {
   const apiKey = resolveGeminiApiKey(settings);
   if (!apiKey) {
     throw new Error(
@@ -752,6 +834,9 @@ async function aiChatGemini(settings, messagesFromRenderer, context) {
   }
 
   const tools = geminiToolsBody();
+  const requestGenerate = dependencies.requestGeminiGenerateContent || requestGeminiGenerateContent;
+  const writeIntentAllowed = context?.allowTodoWrites === true
+    && latestUserAllowsTodoWrite(messagesFromRenderer);
 
   const todoActionResults = [];
   const seenToolCalls = new Set();
@@ -765,7 +850,7 @@ async function aiChatGemini(settings, messagesFromRenderer, context) {
       tools,
     };
 
-    const json = await requestGeminiGenerateContent(apiKey, modelId, body);
+    const json = await requestGenerate(apiKey, modelId, body);
     const calls = extractGeminiFunctionCalls(json);
     const text = extractGeminiReplyText(json).trim();
     const modelContent = json.candidates?.[0]?.content;
@@ -796,7 +881,9 @@ async function aiChatGemini(settings, messagesFromRenderer, context) {
           };
         } else {
           seenToolCalls.add(signature);
-          result = executeChatTool(name, args, todayIsoLocal(), todoActionResults);
+          result = executeChatTool(
+            name, args, todayIsoLocal(), todoActionResults, writeIntentAllowed
+          );
         }
         frParts.push({
           functionResponse: {
@@ -811,7 +898,7 @@ async function aiChatGemini(settings, messagesFromRenderer, context) {
 
     if (text) {
       return {
-        content: text,
+        content: safeTodoFinalContent(text, todoActionResults, context?.locale),
         model: modelId,
         activeModel: modelId,
         fallbackUsed: false,
@@ -843,9 +930,11 @@ async function aiRecommendOllama(settings, context) {
   return { content, model };
 }
 
-async function aiChatOllama(settings, messagesFromRenderer, context) {
+async function aiChatOllama(settings, messagesFromRenderer, context, dependencies = {}) {
   const ollamaUrl = settings.ollamaUrl || 'http://localhost:11434';
-  const model = await resolveModelCached(ollamaUrl, settings.ollamaModel);
+  const resolveChatModel = dependencies.resolveModel || resolveModelCached;
+  const postChat = dependencies.postOllamaChat || postOllamaChat;
+  const model = await resolveChatModel(ollamaUrl, settings.ollamaModel);
   const originalMessages = (messagesFromRenderer || [])
     .filter((msg) => msg
       && (msg.role === 'user' || msg.role === 'assistant')
@@ -862,6 +951,8 @@ async function aiChatOllama(settings, messagesFromRenderer, context) {
   ];
 
   const tools = [...RETRIEVAL_OLLAMA_TOOLS, CREATE_TODO_OLLAMA_TOOL];
+  const writeIntentAllowed = context?.allowTodoWrites === true
+    && latestUserAllowsTodoWrite(originalMessages);
   const todoActionResults = [];
   const seenToolCalls = new Set();
   let toolCallCount = 0;
@@ -869,14 +960,14 @@ async function aiChatOllama(settings, messagesFromRenderer, context) {
   for (let turn = 0; turn < CHAT_MAX_TOOL_TURNS; turn++) {
     let json;
     try {
-      json = await postOllamaChat(ollamaUrl, model, settings, { messages, tools });
+      json = await postChat(ollamaUrl, model, settings, { messages, tools });
     } catch (e) {
       if (isOllamaToolsUnsupportedError(e)) {
         const fallbackPrompt = augmentOllamaSystemForNoReasoning(
           buildChatSystemPrompt(contextFromMainStore(context)),
           settings
         );
-        const fallbackJson = await postOllamaChat(ollamaUrl, model, settings, {
+        const fallbackJson = await postChat(ollamaUrl, model, settings, {
           messages: [{ role: 'system', content: fallbackPrompt }, ...originalMessages],
         });
         const fallbackContent = fallbackJson.message?.content || fallbackJson.response || '';
@@ -884,7 +975,7 @@ async function aiChatOllama(settings, messagesFromRenderer, context) {
           throw new Error('Ollama lieferte auch mit Vollkontext eine leere Antwort.');
         }
         return {
-          content: fallbackContent,
+          content: safeTodoFinalContent(fallbackContent, todoActionResults, context?.locale),
           todoActions: collectTodoToolResults(todoActionResults),
           ...chatMetadata(model, true, 'tools_unsupported'),
         };
@@ -918,7 +1009,13 @@ async function aiChatOllama(settings, messagesFromRenderer, context) {
           };
         } else {
           seenToolCalls.add(signature);
-          result = executeChatTool(name, tc.function?.arguments, todayIsoLocal(), todoActionResults);
+          result = executeChatTool(
+            name,
+            tc.function?.arguments,
+            todayIsoLocal(),
+            todoActionResults,
+            writeIntentAllowed
+          );
         }
         // Ollama erwartet `tool_name` (nicht OpenAI-`name`); sonst wird das Tool-Ergebnis ignoriert.
         messages.push({
@@ -933,7 +1030,7 @@ async function aiChatOllama(settings, messagesFromRenderer, context) {
     const content = json.message?.content || json.response || '';
     if (content.trim()) {
       return {
-        content,
+        content: safeTodoFinalContent(content, todoActionResults, context?.locale),
         todoActions: collectTodoToolResults(todoActionResults),
         ...chatMetadata(model, false),
       };
@@ -944,13 +1041,13 @@ async function aiChatOllama(settings, messagesFromRenderer, context) {
       buildChatSystemPrompt(contextFromMainStore(context)),
       settings
     );
-    const fallbackJson = await postOllamaChat(ollamaUrl, model, settings, {
+    const fallbackJson = await postChat(ollamaUrl, model, settings, {
       messages: [{ role: 'system', content: fallbackPrompt }, ...originalMessages],
     });
     const fallbackContent = fallbackJson.message?.content || fallbackJson.response || '';
     if (fallbackContent.trim()) {
       return {
-        content: fallbackContent,
+        content: safeTodoFinalContent(fallbackContent, todoActionResults, context?.locale),
         todoActions: collectTodoToolResults(todoActionResults),
         ...chatMetadata(model, true, 'empty_tool_response'),
       };

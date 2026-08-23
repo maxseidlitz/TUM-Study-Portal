@@ -44,7 +44,7 @@ export default function Links() {
   const linkGroups = useMemo(() => buildLinkGroups(t), [t]);
 
   return (
-    <div>
+    <div className="links-page">
       <div className="page-header">
         <h1>{t('links.title')}</h1>
         <p>{t('links.subtitle')}</p>
@@ -54,7 +54,7 @@ export default function Links() {
         {linkGroups.map(group => (
           <div key={group.title}>
             <div className="section-title">{group.title}</div>
-            <div style={styles.linkGrid}>
+            <div className="link-grid" style={styles.linkGrid}>
               {group.links.map(link => (
                 <LinkCard key={link.url} link={link} />
               ))}

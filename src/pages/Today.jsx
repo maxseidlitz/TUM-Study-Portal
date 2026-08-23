@@ -41,7 +41,7 @@ export default function Today() {
   const allRelevantTodos = [...new Map([...urgentTodos, ...todayTodos].map(t => [t.id, t])).values()];
 
   return (
-    <div>
+    <div className="today-page">
       <div className="page-header">
         <h1>{t('today.title')}</h1>
         <p>{dateStr}</p>
@@ -49,7 +49,7 @@ export default function Today() {
 
       {/* Next exam big countdown */}
       {nextExam && (
-        <div className="card" style={{ ...styles.bigCountdown, borderColor: countdownBorder(nextExam.days) }}>
+        <div className="card today-countdown" style={{ ...styles.bigCountdown, borderColor: countdownBorder(nextExam.days) }}>
           <div style={styles.countdownLabel}>{t('today.nextExam')}</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, margin: '8px 0' }}>
             <span style={{ ...styles.countdownNumber, color: getCountdownColor(nextExam.days) }}>
@@ -81,7 +81,7 @@ export default function Today() {
         </div>
       )}
 
-      <div style={styles.grid}>
+      <div className="today-grid" style={styles.grid}>
         {/* Today's lectures */}
         <div>
           <div className="card">
@@ -181,9 +181,11 @@ function TodoCard({ todo, modules, moodleCourses, onToggle, t, intlLocale }) {
   return (
     <div style={styles.todoCard}>
       <button
+        className="touch-icon-button"
         onClick={() => onToggle(todo.id)}
         style={{ ...styles.checkbox, borderColor: todo.priority === 'high' ? 'var(--danger)' : 'var(--border-color)' }}
         title={t('today.checkboxTitle')}
+        aria-label={`${t('today.checkboxTitle')}: ${todo.title}`}
       >
         {todo.done && '✓'}
       </button>

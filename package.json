@@ -4,11 +4,22 @@
   "description": "TUM Study Portal - Personal Academic Dashboard for TU München Students",
   "main": "public/electron.js",
   "homepage": "./",
+  "engines": {
+    "node": ">=22.14.0 <23",
+    "npm": ">=10.9.0 <11"
+  },
+  "packageManager": "npm@10.9.7",
   "scripts": {
-    "start": "concurrently \"BROWSER=none react-scripts start\" \"wait-on http://localhost:3000 && electron .\"",
-    "dev": "concurrently \"BROWSER=none react-scripts start\" \"wait-on http://localhost:3000 && electron .\"",
-    "test": "react-scripts test --watchAll=false",
-    "build": "react-scripts build",
+    "start": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:3000 && electron .\"",
+    "dev": "vite --host 127.0.0.1",
+    "test": "vitest run",
+    "test:server": "node --test server/test/*.test.js",
+    "test:all": "npm test && npm run test:server",
+    "test:e2e": "playwright test",
+    "test:electron": "node scripts/electron-smoke.js",
+    "build": "vite build && node scripts/finalize-vite-build.js",
+    "server": "node server/server.js",
+    "server:restore": "node server/restore.js",
     "electron": "electron .",
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
@@ -17,30 +28,42 @@
     "dist:linux": "npm run build && electron-builder --linux"
   },
   "dependencies": {
+    "argon2": "^0.45.1",
+    "better-sqlite3": "^13.0.3",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.6.2",
+    "helmet": "^8.3.0",
+    "ipaddr.js": "^2.5.0",
+    "pino": "^10.3.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",
     "recharts": "^3.8.1",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2",
-    "electron": "^29.3.0",
-    "electron-builder": "^24.13.3",
-    "react-scripts": "5.0.1",
-    "wait-on": "^7.2.0"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app"
-    ]
+    "@playwright/test": "^1.62.1",
+    "@vitejs/plugin-react": "^6.1.0",
+    "concurrently": "^10.0.5",
+    "electron": "^43.4.1",
+    "electron-builder": "^26.15.3",
+    "jsdom": "^29.1.1",
+    "supertest": "^7.2.2",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11",
+    "wait-on": "^9.1.0"
   },
   "browserslist": {
     "production": [
-      "last 1 electron version"
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
     ],
     "development": [
-      "last 1 electron version"
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
     ]
   },
   "build": {
@@ -53,7 +76,9 @@
       "public/ai.js",
       "public/aiRetrieval.js",
       "public/store.js",
+      "server/services/backupFormat.js",
       "public/ical.js",
+      "public/externalUrl.js",
       "node_modules/**/*"
     ],
     "extraResources": [

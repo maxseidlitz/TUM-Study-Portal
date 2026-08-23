@@ -9,29 +9,48 @@ on:
   push:
     branches: [main]
     tags: ['v*']
+  pull_request:
   workflow_dispatch: {}
 
 permissions:
   contents: read
 
 jobs:
+  electron-smoke:
+    name: Electron file renderer smoke
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.14.0
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Build Vite renderer
+        run: npm run build
+      - name: Smoke-test Electron file renderer
+        run: xvfb-run -a npm run test:electron
+
   build-windows:
+    if: github.event_name != 'pull_request'
     runs-on: windows-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 20
+          node-version: 22.14.0
           cache: npm
 
       - name: Install dependencies
-        # npm install statt npm ci: toleriert geringfügige Lockfile-Drift
-        # zwischen npm-Versionen, statt den Build hart abzubrechen.
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Download & bundle Ollama runtime
         shell: pwsh
@@ -39,6 +58,7 @@ jobs:
           # Feste Version + direkter Asset-Link (kein flakiger latest/download-Redirect)
           $version = "v0.24.0"
           $url = "https://github.com/ollama/ollama/releases/download/$version/ollama-windows-amd64.zip"
+          $expectedSha256 = "40c523d3eeba6f4647c5ca58fe47f15b8dee79f7675ebf573458890064f424c7"
           New-Item -ItemType Directory -Force -Path "resources/ollama" | Out-Null
           Write-Host "Lade Ollama-Runtime $version ..."
 
@@ -56,6 +76,9 @@ jobs:
             Start-Sleep -Seconds 15
           }
           if (-not $ok) { throw "Ollama-Download nach 5 Versuchen fehlgeschlagen." }
+          if ((Get-FileHash "ollama.zip" -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expectedSha256) {
+            throw "Ollama-Archiv-Prüfsumme stimmt nicht."
+          }
 
           Expand-Archive -Path "ollama.zip" -DestinationPath "resources/ollama" -Force
           Remove-Item "ollama.zip"
@@ -72,19 +95,16 @@ jobs:
           }
           Write-Host "Ollama-Runtime gebündelt."
 
-      - name: Build React app
+      - name: Build web renderer
         run: npm run build
-        env:
-          # CRA behandelt Warnungen sonst als Fehler in CI
-          CI: false
 
       - name: Build Windows installer (electron-builder)
-        run: npx electron-builder --win --publish never
+        run: npx --no-install electron-builder --win --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: TUM-Study-Portal-Windows
           path: dist/*.exe
@@ -92,25 +112,27 @@ jobs:
           retention-days: 7
 
   build-macos:
+    if: github.event_name != 'pull_request'
     runs-on: macos-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 20
+          node-version: 22.14.0
           cache: npm
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Download & bundle Ollama runtime
         run: |
           version="v0.24.0"
           url="https://github.com/ollama/ollama/releases/download/${version}/ollama-darwin.tgz"
+          expected_sha256="e6d5e8b4bc0cb2a35ff7901c58d81ca2170403a819c4726f58798155fa682e38"
           mkdir -p resources/ollama
           echo "Lade Ollama-Runtime ${version} ..."
 
@@ -129,6 +151,7 @@ jobs:
             echo "Ollama-Download nach 5 Versuchen fehlgeschlagen."
             exit 1
           fi
+          echo "${expected_sha256}  ollama.tgz" | shasum -a 256 -c -
 
           tar -xzf ollama.tgz -C resources/ollama
           rm -f ollama.tgz
@@ -147,20 +170,18 @@ jobs:
           fi
           echo "Ollama-Runtime gebündelt."
 
-      - name: Build React app
+      - name: Build web renderer
         run: npm run build
-        env:
-          CI: false
 
       - name: Build macOS app (electron-builder)
-        run: npx electron-builder --mac --x64 --arm64 --publish never
+        run: npx --no-install electron-builder --mac --x64 --arm64 --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Unsignierter Build ohne Apple-Developer-Zertifikat
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Upload macOS artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: TUM-Study-Portal-macOS
           path: dist/*.dmg
@@ -177,13 +198,13 @@ jobs:
 
     steps:
       - name: Download macOS artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: TUM-Study-Portal-macOS
           path: release
 
       - name: Publish GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           name: TUM Study Portal ${{ github.ref_name }}
           generate_release_notes: true

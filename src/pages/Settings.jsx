@@ -3,12 +3,15 @@ import { useLocale } from '../context/LocaleContext';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
 import AiSettings from '../components/settings/AiSettings';
+import { api } from '../api';
+import { persistOptimisticSetting } from '../utils/settingsPersistence';
 
 export default function Settings() {
   const { theme, toggleTheme } = useTheme();
   const { t, locale, setLocale } = useLocale();
   const showToast = useToast();
   const importRef = useRef(null);
+  const savedTimerRef = useRef(null);
 
   const defaultState = () => ({
     aiProvider: 'ollama',
@@ -25,21 +28,48 @@ export default function Settings() {
   const [settings, setSettings] = useState(defaultState());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [ectsError, setEctsError] = useState('');
   const [gpaError, setGpaError] = useState('');
 
   useEffect(() => {
-    window.api.settings.get().then((s) => {
-      setSettings({ ...defaultState(), ...s });
-      setLoading(false);
-    });
+    let cancelled = false;
+    api.settings.get()
+      .then((s) => {
+        if (!cancelled) setSettings({ ...defaultState(), ...s });
+      })
+      .catch((error) => {
+        if (!cancelled) showToast(error.message || t('common.unknownError'), 'error');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [showToast, t]);
+
+  useEffect(() => () => {
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
   }, []);
 
   const saveSettings = async (next) => {
+    const previous = settings;
     setSaving(true);
-    setSettings(next);
-    await window.api.settings.save(next);
-    setTimeout(() => setSaving(false), 800);
+    setSaved(false);
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+    try {
+      await persistOptimisticSetting({
+        previous,
+        next,
+        apply: setSettings,
+        persist: api.settings.save,
+      });
+      setSaving(false);
+      setSaved(true);
+      savedTimerRef.current = setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      setSaving(false);
+      showToast(error.message || t('common.unknownError'), 'error');
+    }
   };
 
   const handleEctsChange = (e) => {
@@ -65,8 +95,7 @@ export default function Settings() {
   };
 
   const handleExport = async () => {
-    if (!window.api?.backup) return;
-    const result = await window.api.backup.export();
+    const result = await api.backup.export();
     if (!result.success) {
       showToast(result.error || t('common.unknownError'), 'error');
       return;
@@ -90,8 +119,7 @@ export default function Settings() {
     }
     const reader = new FileReader();
     reader.onload = async (ev) => {
-      if (!window.api?.backup) return;
-      const result = await window.api.backup.import(ev.target.result);
+      const result = await api.backup.import(ev.target.result);
       if (result.success) {
         showToast(t('settings.importSuccess'), 'success');
         setTimeout(() => window.location.reload(), 1200);
@@ -104,8 +132,21 @@ export default function Settings() {
   };
 
   const handleRestartTour = async () => {
-    await window.api.settings.save({ onboardingCompleted: false, onboardingStep: 0 });
-    window.dispatchEvent(new CustomEvent('restart-setup-wizard'));
+    try {
+      await api.settings.save({ onboardingCompleted: false, onboardingStep: 0 });
+      window.dispatchEvent(new CustomEvent('restart-setup-wizard'));
+    } catch (error) {
+      showToast(error.message || t('common.unknownError'), 'error');
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await api.auth.logout();
+      window.location.assign('/login');
+    } catch (error) {
+      showToast(error.message || t('common.unknownError'), 'error');
+    }
   };
 
   if (loading) return <div className="loading">{t('settings.loading')}</div>;
@@ -115,7 +156,8 @@ export default function Settings() {
       <div className="page-header">
         <h1>{t('settings.pageTitle')}</h1>
         <p>{t('settings.pageSubtitle')}</p>
-        {saving && <span style={styles.savingMsg}>{t('settings.saved')}</span>}
+        {saving && <span style={styles.savingMsg}>{t('common.loadingShort')}</span>}
+        {saved && <span style={styles.savingMsg}>{t('settings.saved')}</span>}
       </div>
 
       {/* Studium & Dashboard */}
@@ -130,18 +172,21 @@ export default function Settings() {
         <div className="divider" />
         <div className="form-row">
           <div className="form-group">
-            <label className="form-label">{t('settings.targetEctsLabel')}</label>
+            <label className="form-label" htmlFor="settings-target-ects">{t('settings.targetEctsLabel')}</label>
             <input
+              id="settings-target-ects"
               type="number"
               className={`form-input${ectsError ? ' form-input-error' : ''}`}
               value={settings.targetEcts}
               onChange={handleEctsChange}
+              disabled={saving}
             />
             {ectsError && <span style={styles.fieldError}>{ectsError}</span>}
           </div>
           <div className="form-group">
-            <label className="form-label">{t('settings.targetGpaLabel')}</label>
+            <label className="form-label" htmlFor="settings-target-gpa">{t('settings.targetGpaLabel')}</label>
             <input
+              id="settings-target-gpa"
               type="number"
               step="0.1"
               min="1.0"
@@ -149,16 +194,19 @@ export default function Settings() {
               className={`form-input${gpaError ? ' form-input-error' : ''}`}
               value={settings.targetGpa}
               onChange={handleGpaChange}
+              disabled={saving}
             />
             {gpaError && <span style={styles.fieldError}>{gpaError}</span>}
           </div>
         </div>
         <div className="form-group">
-          <label className="form-label">{t('settings.preferredMensaLabel')}</label>
+          <label className="form-label" htmlFor="settings-mensa">{t('settings.preferredMensaLabel')}</label>
           <select
+            id="settings-mensa"
             className="form-input"
             value={settings.preferredMensaId}
             onChange={e => saveSettings({ ...settings, preferredMensaId: e.target.value })}
+            disabled={saving}
           >
             <option value="422">Mensa Garching</option>
             <option value="421">Mensa Arcisstraße</option>
@@ -209,8 +257,8 @@ export default function Settings() {
         </div>
         <div className="divider" />
         <div className="form-group">
-          <label className="form-label">{t('settings.languageTitle')}</label>
-          <div style={styles.segmentRow}>
+          <span id="settings-language-label" className="form-label">{t('settings.languageTitle')}</span>
+          <div style={styles.segmentRow} role="group" aria-labelledby="settings-language-label">
             {[
               { code: 'de', label: t('settings.langDe') },
               { code: 'en', label: t('settings.langEn') },
@@ -221,7 +269,9 @@ export default function Settings() {
                 type="button"
                 className="btn btn-secondary"
                 style={locale === code ? { ...styles.segmentBtn, ...styles.segmentActive } : styles.segmentBtn}
-                onClick={() => setLocale(code)}
+                onClick={() => setLocale(code).catch(error => {
+                  showToast(error.message || t('common.unknownError'), 'error');
+                })}
               >
                 {label}
               </button>
@@ -241,8 +291,8 @@ export default function Settings() {
         </div>
         <div className="divider" />
         <div className="form-group">
-          <label className="form-label">{t('common.themeToggle')}</label>
-          <div style={styles.segmentRow}>
+          <span id="settings-theme-label" className="form-label">{t('common.themeToggle')}</span>
+          <div style={styles.segmentRow} role="group" aria-labelledby="settings-theme-label">
             {['light', 'dark'].map((th) => (
               <button
                 key={th}
@@ -260,6 +310,22 @@ export default function Settings() {
 
       {/* KI-Anbieter (ausgelagert) */}
       <AiSettings settings={settings} setSettings={setSettings} />
+
+      {api.runtime === 'browser' && (
+        <div className="card" style={{ maxWidth: 620, marginBottom: 24 }}>
+          <div style={styles.sectionHeader}>
+            <span style={styles.sectionIcon}>🔒</span>
+            <div>
+              <div style={styles.sectionTitle}>{t('settings.sessionTitle')}</div>
+              <div style={styles.sectionSub}>{t('settings.sessionSub')}</div>
+            </div>
+          </div>
+          <div className="divider" />
+          <button type="button" className="btn btn-danger" onClick={handleLogout}>
+            {t('settings.logout')}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

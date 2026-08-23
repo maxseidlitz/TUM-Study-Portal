@@ -5,10 +5,11 @@ const http = require('http');
 const https = require('https');
 const { spawn } = require('child_process');
 const { parseIcal, eventsToCalendarItems } = require('./ical');
+const { isSafeExternalUrl } = require('./externalUrl');
 const {
   store, saveStore, initStore,
   getMergedLecturesForClient, parseCompositeLectureId, setSlotOverride,
-  autoBackup,
+  exportBackupJson, importBackupJson,
 } = require('./store');
 const {
   DEFAULT_MODEL, normalizeOllamaUrl, describeConnectionError, listOllamaModels,
@@ -16,7 +17,8 @@ const {
   aiRecommendOllama, aiChatOllama, aiRecommendGemini, aiChatGemini,
 } = require('./ai');
 
-const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+const isSmokeTest = process.env.ELECTRON_SMOKE_TEST === '1';
+const isDev = !isSmokeTest && (process.env.NODE_ENV === 'development' || !app.isPackaged);
 
 let mainWindow;
 
@@ -76,9 +78,18 @@ function createWindow() {
     : `file://${path.join(__dirname, '../build/index.html')}`;
 
   mainWindow.loadURL(startUrl);
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (isSafeExternalUrl(url)) {
+      shell.openExternal(url).catch((error) => {
+        console.error('Externe URL konnte nicht geöffnet werden:', error.message);
+      });
+    }
+    // Never create a renderer-owned child window with an opener.
+    return { action: 'deny' };
+  });
 
   mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
+    if (!isSmokeTest) mainWindow.show();
   });
 
   mainWindow.on('closed', () => { mainWindow = null; });
@@ -351,11 +362,35 @@ function registerIpcHandlers() {
     }
   });
 
-  ipcMain.handle('ai:chat', async (_, { messages, context }) => {
+  ipcMain.handle('ai:chat', async (_, payload = {}) => {
     const settings = store.settings || {};
     const provider = settings.aiProvider === 'gemini' ? 'gemini' : 'ollama';
 
     try {
+      const messages = payload?.messages;
+      const rawContext = payload?.context ?? {};
+      if (!rawContext || typeof rawContext !== 'object' || Array.isArray(rawContext)) {
+        throw new Error('Ungültiger KI-Chat-Kontext.');
+      }
+      const allowedContextKeys = ['locale', 'today', 'allowTodoWrites'];
+      if (Object.keys(rawContext).some(key => !allowedContextKeys.includes(key))) {
+        throw new Error('Unbekanntes Feld im KI-Chat-Kontext.');
+      }
+      if (rawContext.allowTodoWrites != null && typeof rawContext.allowTodoWrites !== 'boolean') {
+        throw new Error('allowTodoWrites muss ein Boolean sein.');
+      }
+      if (rawContext.locale != null && !['de', 'en', 'tr'].includes(rawContext.locale)) {
+        throw new Error('Ungültige Sprache im KI-Chat-Kontext.');
+      }
+      if (rawContext.today != null
+        && (typeof rawContext.today !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(rawContext.today))) {
+        throw new Error('Ungültiges Datum im KI-Chat-Kontext.');
+      }
+      const context = {
+        ...(rawContext.locale == null ? {} : { locale: rawContext.locale }),
+        ...(rawContext.today == null ? {} : { today: rawContext.today }),
+        allowTodoWrites: rawContext.allowTodoWrites === true,
+      };
       let result;
       if (provider === 'gemini') {
         result = await aiChatGemini(settings, messages, context);
@@ -368,12 +403,16 @@ function registerIpcHandlers() {
     }
   });
 
-  ipcMain.handle('shell:openExternal', (_, url) => shell.openExternal(url));
+  ipcMain.handle('shell:openExternal', async (_, url) => {
+    if (!isSafeExternalUrl(url)) return false;
+    await shell.openExternal(url);
+    return true;
+  });
 
   // Backup — Export / Import
   ipcMain.handle('backup:export', () => {
     try {
-      return { success: true, data: JSON.stringify(store, null, 2) };
+      return { success: true, data: exportBackupJson() };
     } catch (e) {
       return { success: false, error: e.message };
     }
@@ -381,13 +420,7 @@ function registerIpcHandlers() {
 
   ipcMain.handle('backup:import', (_, jsonString) => {
     try {
-      const parsed = JSON.parse(jsonString);
-      // Write a safety-backup before overwriting
-      autoBackup();
-      Object.keys(store).forEach((k) => { delete store[k]; });
-      Object.assign(store, parsed);
-      saveStore();
-      return { success: true };
+      return importBackupJson(jsonString);
     } catch (e) {
       return { success: false, error: e.message };
     }
@@ -611,8 +644,39 @@ app.whenReady().then(() => {
   registerOllamaIpc();
   createWindow();
 
-  // Kick off Ollama setup once the renderer can receive progress events.
-  if (mainWindow) {
+  if (isSmokeTest && mainWindow) {
+    const timeout = setTimeout(() => {
+      console.error('ELECTRON_SMOKE_FAILED renderer timeout');
+      app.exit(1);
+    }, 15000);
+    mainWindow.webContents.once('did-fail-load', (_event, code, description) => {
+      clearTimeout(timeout);
+      console.error(`ELECTRON_SMOKE_FAILED ${code} ${description}`);
+      app.exit(1);
+    });
+    mainWindow.webContents.once('did-finish-load', async () => {
+      try {
+        const result = await mainWindow.webContents.executeJavaScript(
+          `({
+            protocol: location.protocol,
+            hasRoot: Boolean(document.querySelector('#root > *')),
+            title: document.title
+          })`,
+        );
+        if (result.protocol !== 'file:' || !result.hasRoot || result.title !== 'TUM Study Portal') {
+          throw new Error(`unexpected renderer state: ${JSON.stringify(result)}`);
+        }
+        clearTimeout(timeout);
+        console.log('ELECTRON_SMOKE_OK');
+        app.exit(0);
+      } catch (error) {
+        clearTimeout(timeout);
+        console.error(`ELECTRON_SMOKE_FAILED ${error.message}`);
+        app.exit(1);
+      }
+    });
+  } else if (mainWindow) {
+    // Kick off Ollama setup once the renderer can receive progress events.
     mainWindow.webContents.once('did-finish-load', () => { runOllamaSetup(); });
   }
 

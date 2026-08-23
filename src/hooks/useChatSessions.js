@@ -1,36 +1,31 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { generateId } from '../utils/helpers';
+import { api } from '../api';
 
 const SAVE_DEBOUNCE_MS = 500;
 
 /**
- * IPC-basierte Chat-Sessions: Laden, Speichern, Wechseln, Löschen.
+ * Adapter-basierte Chat-Sessions: Laden, Speichern, Wechseln, Löschen.
  * Synchronisiert mit globalem activeAiChat aus DataContext.
  */
 export function useChatSessions({ activeAiChat, setActiveAiChat }) {
-  const chatsPreload = typeof window !== 'undefined' && typeof window.api?.chats?.getAll === 'function';
-
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState('');
   const [messages, setMessages] = useState([]);
   const [persistReady, setPersistReady] = useState(false);
   const [ipcStaleHint, setIpcStaleHint] = useState(false);
-  const [hydrated, setHydrated] = useState(!chatsPreload);
+  const [hydrated, setHydrated] = useState(false);
   const saveDebounceRef = useRef(null);
 
   const thinking = activeAiChat.sessionId === activeSessionId && activeAiChat.thinking;
 
   useEffect(() => {
-    if (!chatsPreload) {
-      setHydrated(true);
-      return undefined;
-    }
     let cancelled = false;
     (async () => {
       try {
         const [list, settings] = await Promise.all([
-          window.api.chats.getAll(),
-          window.api.settings.get(),
+          api.chats.getAll(),
+          api.settings.get(),
         ]);
         if (cancelled) return;
         setPersistReady(true);
@@ -45,8 +40,8 @@ export function useChatSessions({ activeAiChat, setActiveAiChat }) {
           const nid = generateId();
           const now = new Date().toISOString();
           const row = { id: nid, title: '', startedAt: now, updatedAt: now, messages: [] };
-          await window.api.chats.save(row);
-          await window.api.settings.save({ ...settings, lastActiveChatId: nid });
+          await api.chats.save(row);
+          await api.settings.save({ ...settings, lastActiveChatId: nid });
           if (cancelled) return;
           setSessions([row, ...sessionsList]);
           setActiveSessionId(nid);
@@ -73,7 +68,7 @@ export function useChatSessions({ activeAiChat, setActiveAiChat }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [chatsPreload]);
+  }, []);
 
   const flushSaveCurrentSession = useCallback(async () => {
     if (!persistReady || !activeSessionId) return;
@@ -91,8 +86,8 @@ export function useChatSessions({ activeAiChat, setActiveAiChat }) {
       messages,
     };
     if (startedAt) payload.startedAt = startedAt;
-    await window.api.chats.save(payload);
-    const nextList = await window.api.chats.getAll();
+    await api.chats.save(payload);
+    const nextList = await api.chats.getAll();
     setSessions(nextList);
   }, [persistReady, activeSessionId, messages, sessions]);
 
@@ -109,33 +104,41 @@ export function useChatSessions({ activeAiChat, setActiveAiChat }) {
 
   const startNewChat = useCallback(async () => {
     if (thinking) return;
-    if (persistReady) {
-      await flushSaveCurrentSession();
-      const nid = generateId();
-      const now = new Date().toISOString();
-      const row = { id: nid, title: '', startedAt: now, updatedAt: now, messages: [] };
-      const st = await window.api.settings.get();
-      await window.api.chats.save(row);
-      await window.api.settings.save({ ...st, lastActiveChatId: nid });
-      const nextList = await window.api.chats.getAll();
-      setSessions(nextList);
-      setActiveSessionId(nid);
-      setMessages([]);
-    } else {
-      setMessages([]);
+    try {
+      if (persistReady) {
+        await flushSaveCurrentSession();
+        const nid = generateId();
+        const now = new Date().toISOString();
+        const row = { id: nid, title: '', startedAt: now, updatedAt: now, messages: [] };
+        const st = await api.settings.get();
+        await api.chats.save(row);
+        await api.settings.save({ ...st, lastActiveChatId: nid });
+        const nextList = await api.chats.getAll();
+        setSessions(nextList);
+        setActiveSessionId(nid);
+        setMessages([]);
+      } else {
+        setMessages([]);
+      }
+    } catch (error) {
+      console.error(error);
     }
   }, [thinking, persistReady, flushSaveCurrentSession]);
 
   const selectSession = useCallback(async (id) => {
     if (id === activeSessionId || thinking) return;
-    if (persistReady) {
-      await flushSaveCurrentSession();
-      const s = sessions.find(x => x.id === id);
-      if (!s) return;
-      const st = await window.api.settings.get();
-      await window.api.settings.save({ ...st, lastActiveChatId: id });
-      setActiveSessionId(id);
-      setMessages(Array.isArray(s.messages) ? [...s.messages] : []);
+    try {
+      if (persistReady) {
+        await flushSaveCurrentSession();
+        const s = sessions.find(x => x.id === id);
+        if (!s) return;
+        const st = await api.settings.get();
+        await api.settings.save({ ...st, lastActiveChatId: id });
+        setActiveSessionId(id);
+        setMessages(Array.isArray(s.messages) ? [...s.messages] : []);
+      }
+    } catch (error) {
+      console.error(error);
     }
   }, [activeSessionId, thinking, persistReady, flushSaveCurrentSession, sessions]);
 
@@ -149,23 +152,23 @@ export function useChatSessions({ activeAiChat, setActiveAiChat }) {
     }
 
     try {
-      await window.api.chats.delete(id);
-      const nextList = await window.api.chats.getAll();
+      await api.chats.delete(id);
+      const nextList = await api.chats.getAll();
       setSessions(nextList);
       if (activeSessionId !== id) return;
       if (nextList.length) {
         const next = nextList[0];
-        const st = await window.api.settings.get();
-        await window.api.settings.save({ ...st, lastActiveChatId: next.id });
+        const st = await api.settings.get();
+        await api.settings.save({ ...st, lastActiveChatId: next.id });
         setActiveSessionId(next.id);
         setMessages(Array.isArray(next.messages) ? [...next.messages] : []);
       } else {
         const nid = generateId();
         const now = new Date().toISOString();
         const row = { id: nid, title: '', startedAt: now, updatedAt: now, messages: [] };
-        const st = await window.api.settings.get();
-        await window.api.chats.save(row);
-        await window.api.settings.save({ ...st, lastActiveChatId: nid });
+        const st = await api.settings.get();
+        await api.chats.save(row);
+        await api.settings.save({ ...st, lastActiveChatId: nid });
         setSessions([row]);
         setActiveSessionId(nid);
         setMessages([]);
@@ -203,7 +206,6 @@ export function useChatSessions({ activeAiChat, setActiveAiChat }) {
   }, [activeSessionId, activeAiChat.hasUnread, activeAiChat.sessionId, setActiveAiChat]);
 
   return {
-    chatsPreload,
     sessions,
     activeSessionId,
     messages,

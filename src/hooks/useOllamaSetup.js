@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
+import { api } from '../api';
 
 export function useOllamaSetup() {
   const [state, setState] = useState(null);
 
   useEffect(() => {
-    if (!window.api?.ollama) return undefined;
-    window.api.ollama.getSetupState().then(setState).catch(() => {});
-    const unsubscribe = window.api.ollama.onSetupProgress(setState);
+    api.ollama.getSetupState().then(setState).catch(() => {});
+    const unsubscribe = api.ollama.onSetupProgress(setState);
     return unsubscribe;
   }, []);
 

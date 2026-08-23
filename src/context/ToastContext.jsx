@@ -34,9 +34,9 @@ export function useToast() {
 function ToastContainer({ toasts, onDismiss }) {
   if (toasts.length === 0) return null;
   return (
-    <div style={styles.container}>
+    <div className="toast-container" style={styles.container} aria-live="polite" aria-atomic="false">
       {toasts.map(t => (
-        <div key={t.id} style={{ ...styles.toast, ...styles[t.type] }} onClick={() => onDismiss(t.id)}>
+        <div className="toast" key={t.id} role={t.type === 'error' ? 'alert' : 'status'} style={{ ...styles.toast, ...styles[t.type] }} onClick={() => onDismiss(t.id)}>
           <span style={styles.icon}>{ICONS[t.type]}</span>
           <span style={styles.message}>{t.message}</span>
         </div>

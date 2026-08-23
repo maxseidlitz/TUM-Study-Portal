@@ -17,6 +17,7 @@ import WeekTimeGridView from '../components/lectures/WeekTimeGridView';
 import EmptyState from '../components/ui/EmptyState';
 import { PlusIcon, CloseIcon, CalIcon } from '../components/icons/Icons';
 import LectureCard from '../components/lectures/LectureList';
+import AccessibleDialog from '../components/ui/AccessibleDialog';
 
 const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 const COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4', '#F97316', '#6366F1'];
@@ -138,17 +139,17 @@ export default function Lectures({ openImportRequest = 0 }) {
     if (editing) {
       if (isModuleBase && editScope === 'single' && overrideDate) {
         // Nur diesen Termin verschieben/ändern → Override-ID moduleId::slotId::datum
-        await updateLecture({
+        if (!await updateLecture({
           id: `${editing}::${overrideDate}`,
           time: payload.time,
           end_time: payload.end_time,
           room: payload.room,
-        });
+        })) return;
       } else {
-        await updateLecture({ ...payload, id: editing });
+        if (!await updateLecture({ ...payload, id: editing })) return;
       }
     } else {
-      await addLecture(payload);
+      if (!await addLecture(payload)) return;
     }
     closeModal();
   };
@@ -156,25 +157,23 @@ export default function Lectures({ openImportRequest = 0 }) {
   // Einzelnen Termin einer Reihe absagen
   const handleCancelOccurrence = async () => {
     if (!editing || !overrideDate) return;
-    await deleteLecture(`${editing}::${overrideDate}`);
-    closeModal();
+    if (await deleteLecture(`${editing}::${overrideDate}`)) closeModal();
   };
 
   const handleDelete = async (id) => {
-    await deleteLecture(id);
-    setDeleteConfirm(null);
+    if (await deleteLecture(id)) setDeleteConfirm(null);
   };
 
   return loading ? (
     <div className="loading">{t('common.loading')}</div>
   ) : (
-    <div>
-      <div style={styles.pageHeader}>
+    <div className="lectures-page">
+      <div className="responsive-page-header" style={styles.pageHeader}>
         <div className="page-header" style={{ marginBottom: 0 }}>
           <h1>{t('lectures.title')}</h1>
           <p>{lectures.length === 1 ? t('lectures.countOne') : t('lectures.countMany', { count: lectures.length })}</p>
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'flex-end' }}>
+        <div className="responsive-toolbar" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'flex-end' }}>
           <div style={styles.viewToggle} role="group" aria-label={t('lectures.viewToggleAria')}>
             <button
               type="button"
@@ -304,17 +303,16 @@ export default function Lectures({ openImportRequest = 0 }) {
 
       {/* Modal */}
       {showModal && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
-          <div className="modal">
+        <AccessibleDialog onClose={closeModal} labelledBy="lecture-form-title" className="modal">
             <div className="modal-header">
-              <h2>{editing ? t('lectures.modalEdit') : t('lectures.modalNew')}</h2>
-              <button className="btn btn-ghost btn-icon" onClick={closeModal}><CloseIcon /></button>
+              <h2 id="lecture-form-title">{editing ? t('lectures.modalEdit') : t('lectures.modalNew')}</h2>
+              <button className="btn btn-ghost btn-icon" onClick={closeModal} aria-label={t('common.close')}><CloseIcon /></button>
             </div>
             <form onSubmit={handleSubmit}>
               {isModuleBase && (
                 <div className="form-group" style={styles.scopeBox}>
-                  <label className="form-label" style={{ marginBottom: 6 }}>{t('lectures.scopeLabel')}</label>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <span id="lecture-scope-label" className="form-label" style={{ marginBottom: 6 }}>{t('lectures.scopeLabel')}</span>
+                  <div style={{ display: 'flex', gap: 8 }} role="group" aria-labelledby="lecture-scope-label">
                     <button
                       type="button"
                       className="btn btn-secondary"
@@ -335,6 +333,8 @@ export default function Lectures({ openImportRequest = 0 }) {
                   {editScope === 'single' && (
                     <div style={{ marginTop: 10 }}>
                       <input
+                        id="lecture-override-date"
+                        aria-label={t('lectures.fieldEventDate')}
                         className="form-input"
                         type="date"
                         value={overrideDate}
@@ -354,14 +354,15 @@ export default function Lectures({ openImportRequest = 0 }) {
                 </div>
               )}
               <div className="form-group">
-                <label className="form-label">{t('lectures.fieldName')}</label>
-                <input className="form-input" required placeholder={t('lectures.placeholderName')}
+                <label className="form-label" htmlFor="lecture-name">{t('lectures.fieldName')}</label>
+                <input id="lecture-name" className="form-input" required placeholder={t('lectures.placeholderName')}
                   value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">{t('lectures.fieldDay')}</label>
+                  <label className="form-label" htmlFor="lecture-day">{t('lectures.fieldDay')}</label>
                   <select
+                    id="lecture-day"
                     className="form-select"
                     value={form.day}
                     disabled={Boolean(form.eventDate)}
@@ -371,11 +372,14 @@ export default function Lectures({ openImportRequest = 0 }) {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">{t('lectures.fieldColor')}</label>
-                  <div style={styles.colorPicker}>
+                  <span id="lecture-color-label" className="form-label">{t('lectures.fieldColor')}</span>
+                  <div className="color-picker" style={styles.colorPicker} role="group" aria-labelledby="lecture-color-label">
                     {COLORS.map(c => (
                       <button
                         key={c} type="button"
+                        className="color-swatch"
+                        aria-label={t('lectures.colorChoice', { color: c })}
+                        aria-pressed={form.color === c}
                         onClick={() => setForm(f => ({ ...f, color: c }))}
                         style={{ ...styles.colorSwatch, background: c, outline: form.color === c ? `3px solid ${c}` : 'none', outlineOffset: 2 }}
                       />
@@ -385,8 +389,9 @@ export default function Lectures({ openImportRequest = 0 }) {
               </div>
               {Boolean(form.eventDate) && (
                 <div className="form-group">
-                  <label className="form-label">{t('lectures.fieldEventDate')}</label>
+                  <label className="form-label" htmlFor="lecture-event-date">{t('lectures.fieldEventDate')}</label>
                   <input
+                    id="lecture-event-date"
                     className="form-input"
                     type="date"
                     value={form.eventDate || ''}
@@ -415,8 +420,9 @@ export default function Lectures({ openImportRequest = 0 }) {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">{t('lectures.fieldFrom')}</label>
+                  <label className="form-label" htmlFor="lecture-from">{t('lectures.fieldFrom')}</label>
                   <input
+                    id="lecture-from"
                     className="form-input"
                     type="time"
                     disabled={Boolean(form.allDay)}
@@ -425,8 +431,9 @@ export default function Lectures({ openImportRequest = 0 }) {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">{t('lectures.fieldTo')}</label>
+                  <label className="form-label" htmlFor="lecture-to">{t('lectures.fieldTo')}</label>
                   <input
+                    id="lecture-to"
                     className={`form-input${timeError ? ' form-input-error' : ''}`}
                     type="time"
                     disabled={Boolean(form.allDay)}
@@ -438,13 +445,13 @@ export default function Lectures({ openImportRequest = 0 }) {
               {timeError && <span style={{ fontSize: 11, color: 'var(--danger)', marginTop: -8, marginBottom: 8, display: 'block' }}>{timeError}</span>}
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">{t('lectures.fieldRoom')}</label>
-                  <input className="form-input" placeholder={t('lectures.placeholderRoom')}
+                  <label className="form-label" htmlFor="lecture-room">{t('lectures.fieldRoom')}</label>
+                  <input id="lecture-room" className="form-input" placeholder={t('lectures.placeholderRoom')}
                     value={form.room} onChange={e => setForm(f => ({ ...f, room: e.target.value }))} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">{t('lectures.fieldLecturer')}</label>
-                  <input className="form-input" placeholder={t('lectures.placeholderLecturer')}
+                  <label className="form-label" htmlFor="lecture-lecturer">{t('lectures.fieldLecturer')}</label>
+                  <input id="lecture-lecturer" className="form-input" placeholder={t('lectures.placeholderLecturer')}
                     value={form.lecturer} onChange={e => setForm(f => ({ ...f, lecturer: e.target.value }))} />
                 </div>
               </div>
@@ -453,18 +460,16 @@ export default function Lectures({ openImportRequest = 0 }) {
                 <button type="submit" className="btn btn-primary">{editing ? t('common.save') : t('common.add')}</button>
               </div>
             </form>
-          </div>
-        </div>
+        </AccessibleDialog>
       )}
 
       {showIcal && <ICalImport onClose={() => setShowIcal(false)} />}
 
       {deleteConfirm && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setDeleteConfirm(null)}>
-          <div className="modal" style={{ maxWidth: 380 }}>
+        <AccessibleDialog onClose={() => setDeleteConfirm(null)} labelledBy="lecture-delete-title" className="modal" style={{ maxWidth: 380 }}>
             <div className="modal-header">
-              <h2>{t('lectures.deleteTitle')}</h2>
-              <button className="btn btn-ghost btn-icon" onClick={() => setDeleteConfirm(null)}><CloseIcon /></button>
+              <h2 id="lecture-delete-title">{t('lectures.deleteTitle')}</h2>
+              <button className="btn btn-ghost btn-icon" onClick={() => setDeleteConfirm(null)} aria-label={t('common.close')}><CloseIcon /></button>
             </div>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
               {t('lectures.deleteBody', { name: lectures.find(l => l.id === deleteConfirm)?.name || '' })}
@@ -473,8 +478,7 @@ export default function Lectures({ openImportRequest = 0 }) {
               <button className="btn btn-secondary" onClick={() => setDeleteConfirm(null)}>{t('common.cancel')}</button>
               <button className="btn btn-danger" onClick={() => handleDelete(deleteConfirm)}>{t('common.delete')}</button>
             </div>
-          </div>
-        </div>
+        </AccessibleDialog>
       )}
     </div>
   );

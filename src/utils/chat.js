@@ -38,15 +38,10 @@ export function sessionListLabel(s, t, intlLocale) {
 }
 
 /** Schlanker Chat-Kontext; persönliche Daten liest der Main-Prozess direkt aus seinem Store. */
-export function buildAiContext({ locale, intlLocale }) {
+export function buildAiContext({ locale, allowTodoWrites = false }) {
   return {
     locale,
-    todayIso: new Date().toISOString().slice(0, 10),
-    today: new Date().toLocaleDateString(intlLocale, {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    }),
+    today: new Date().toISOString().slice(0, 10),
+    allowTodoWrites: allowTodoWrites === true,
   };
 }

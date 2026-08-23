@@ -48,10 +48,10 @@ export default function ModuleCard({ mod, onEdit, onDelete, t }) {
         ) : (
           <span style={{ fontSize: 12, color: 'var(--text-muted)', flex: 1 }}>{t('modules.noUrl')}</span>
         )}
-        <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => onEdit(mod)} title={t('modules.editTitle')}>
+        <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => onEdit(mod)} title={t('modules.editTitle')} aria-label={`${t('modules.editTitle')}: ${mod.name}`}>
           <EditIcon />
         </button>
-        <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => onDelete(mod.id)} title={t('modules.deleteTitleBtn')} style={{ color: 'var(--danger)' }}>
+        <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => onDelete(mod.id)} title={t('modules.deleteTitleBtn')} aria-label={`${t('modules.deleteTitleBtn')}: ${mod.name}`} style={{ color: 'var(--danger)' }}>
           <TrashIcon />
         </button>
       </div>

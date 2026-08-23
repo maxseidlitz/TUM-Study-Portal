@@ -95,9 +95,9 @@ export default function WeekTimeGridView({
   const timeGutterTotalHeight = allDayStripHeight + GRID_BODY_HEIGHT;
 
   return (
-    <div style={styles.wrap}>
-      <div style={styles.toolbar}>
-        <div style={styles.toolbarBtns}>
+    <div className="week-grid-view" style={styles.wrap}>
+      <div className="week-grid-toolbar" style={styles.toolbar}>
+        <div className="week-grid-toolbar-buttons" style={styles.toolbarBtns}>
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => setWeekOffset((w) => w - 1)}>
             {t('lectures.prevWeek')}
           </button>
@@ -115,7 +115,7 @@ export default function WeekTimeGridView({
         {t('lectures.weekGridShort')}
       </p>
 
-      <div style={styles.scrollOuter}>
+      <div className="week-grid-scroll" style={styles.scrollOuter} tabIndex={0} role="region" aria-label={t('lectures.weekGridScrollLabel')}>
         <div style={styles.headerRow}>
           <div style={{ ...styles.cornerCell, width: TIME_GUTTER_PX, minWidth: TIME_GUTTER_PX }} aria-hidden />
           {columns.map((col, i) => {
@@ -258,17 +258,8 @@ function GridEventBlock({ item, pxPerMin, onEdit, onDelete, t }) {
 
   return (
     <div
-      role="button"
-      tabIndex={0}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onEdit(lecture);
-        }
-      }}
-      onClick={() => onEdit(lecture)}
       style={{
         position: 'absolute',
         left: `calc(${leftPct}% + ${pad}px)`,
@@ -287,21 +278,21 @@ function GridEventBlock({ item, pxPerMin, onEdit, onDelete, t }) {
         minHeight: 0,
       }}
     >
-      <div style={{ ...styles.evToolbar, opacity: hover ? 1 : 0 }}>
-        <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={(e) => { e.stopPropagation(); onEdit(lecture); }} title={t('lectures.editTitle')}>
+      <div className="week-event-actions" style={{ ...styles.evToolbar, opacity: hover ? 1 : 0 }}>
+        <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => onEdit(lecture)} title={t('lectures.editTitle')} aria-label={`${t('lectures.editTitle')}: ${lecture.name}`}>
           <EditIcon />
         </button>
-        <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={(e) => { e.stopPropagation(); onDelete(lecture.id); }} title={t('lectures.deleteTitleBtn')} style={{ color: 'var(--danger)' }}>
+        <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => onDelete(lecture.id)} title={t('lectures.deleteTitleBtn')} aria-label={`${t('lectures.deleteTitleBtn')}: ${lecture.name}`} style={{ color: 'var(--danger)' }}>
           <TrashIcon />
         </button>
       </div>
-      <div style={styles.evBody}>
+      <button type="button" style={styles.evBody} onClick={() => onEdit(lecture)} aria-label={`${t('lectures.editTitle')}: ${lecture.name}`}>
         <div style={styles.evTitle} title={lecture.name}>{lecture.name}</div>
         <div style={styles.evMeta}>
           <span style={{ color: lecture.color || 'var(--accent)', fontWeight: 600 }}>{timeStr}</span>
           {lecture.room && <span style={styles.evRoom} title={lecture.room}> · {lecture.room}</span>}
         </div>
-      </div>
+      </button>
     </div>
   );
 }
@@ -499,6 +490,10 @@ const styles = {
     flexDirection: 'column',
     gap: 2,
     overflow: 'hidden',
+    border: 0,
+    background: 'transparent',
+    textAlign: 'left',
+    cursor: 'pointer',
   },
   evTitle: {
     fontSize: 12,

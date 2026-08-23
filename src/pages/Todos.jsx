@@ -3,6 +3,10 @@ import { useData } from '../context/DataContext';
 import { useLocale } from '../context/LocaleContext';
 import { formatDate, getDaysUntil, resolveTodoCourseLabel } from '../utils/helpers';
 import TodoDetail from '../components/todos/TodoDetail';
+import { api } from '../api';
+import AccessibleDialog from '../components/ui/AccessibleDialog';
+import { useIsMobile } from '../hooks/useMediaQuery';
+import { persistOptimisticSetting } from '../utils/settingsPersistence';
 
 const SECTION_KEYS = ['high', 'medium', 'low'];
 const SECTION_COLORS = { high: 'var(--danger)', medium: 'var(--warning)', low: 'var(--success)' };
@@ -20,12 +24,13 @@ export default function Todos() {
   const [completing, setCompleting] = useState(new Set());
   const [hideCompleted, setHideCompleted] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const s = await window.api.settings.get();
+        const s = await api.settings.get();
         if (!cancelled) setHideCompleted(Boolean(s?.todosHideCompleted));
       } catch {
         if (!cancelled) setHideCompleted(false);
@@ -37,10 +42,16 @@ export default function Todos() {
   }, []);
 
   const persistHideCompleted = async (next) => {
-    setHideCompleted(next);
     try {
-      const prev = await window.api.settings.get();
-      await window.api.settings.save({ ...prev, todosHideCompleted: next });
+      await persistOptimisticSetting({
+        previous: hideCompleted,
+        next,
+        apply: setHideCompleted,
+        persist: async value => {
+          const previousSettings = await api.settings.get();
+          await api.settings.save({ ...previousSettings, todosHideCompleted: value });
+        },
+      });
     } catch (e) {
       console.error(e);
     }
@@ -89,14 +100,15 @@ export default function Todos() {
     });
   };
 
-  const handleDelete = (id) => {
-    deleteTodo(id);
-    if (selectedId === id) setSelectedId(null);
+  const handleDelete = async (id) => {
+    if (await deleteTodo(id)) {
+      if (selectedId === id) setSelectedId(null);
+    }
   };
 
   return (
-    <div>
-      <div style={styles.pageHeader}>
+    <div className="todos-page">
+      <div className="responsive-page-header" style={styles.pageHeader}>
         <div className="page-header" style={{ marginBottom: 0 }}>
           <h1>{t('todos.title')}</h1>
           <p>{t('todos.summary', { open: openCount, done: doneTodos.length })}</p>
@@ -111,7 +123,7 @@ export default function Todos() {
         </label>
       </div>
 
-      <div style={styles.layout}>
+      <div className="todos-layout" style={styles.layout}>
         {/* Task list */}
         <div style={{ flex: 1, minWidth: 0 }}>
           {sections.map(section => {
@@ -187,7 +199,7 @@ export default function Todos() {
         </div>
 
         {/* Detail pane */}
-        {selected && (
+        {selected && !isMobile && (
           <TodoDetail
             todo={selected}
             onUpdate={updateTodo}
@@ -199,6 +211,25 @@ export default function Todos() {
             onClose={() => setSelectedId(null)}
           />
         )}
+        {selected && isMobile && (
+          <AccessibleDialog
+            onClose={() => setSelectedId(null)}
+            labelledBy="todo-detail-title"
+            className="todo-detail-dialog"
+          >
+            <TodoDetail
+              todo={selected}
+              titleId="todo-detail-title"
+              onUpdate={updateTodo}
+              onToggle={(id) => {
+                const todoItem = todos.find(x => x.id === id);
+                if (todoItem) handleComplete(todoItem);
+              }}
+              onDelete={handleDelete}
+              onClose={() => setSelectedId(null)}
+            />
+          </AccessibleDialog>
+        )}
       </div>
     </div>
   );
@@ -207,7 +238,7 @@ export default function Todos() {
 function Section({ section, count, collapsed, onToggleCollapse, children }) {
   return (
     <div style={styles.section}>
-      <button style={styles.sectionHeader} onClick={onToggleCollapse}>
+      <button type="button" className="todo-section-toggle" style={styles.sectionHeader} onClick={onToggleCollapse} aria-expanded={!collapsed}>
         <Chevron collapsed={collapsed} />
         <span style={{ ...styles.sectionDot, background: section.color }} />
         <span style={styles.sectionLabel}>{section.label}</span>
@@ -227,33 +258,42 @@ function TodoRow({ todo, modules, moodleCourses, selected, done, completing, onS
   return (
     <div
       className={`todo-row ${selected ? 'selected' : ''}`}
-      onClick={onSelect}
       style={{ opacity: isDone ? 0.55 : 1 }}
     >
       <button
         className={`todo-check ${isDone ? 'done' : ''}`}
+        type="button"
         onClick={(e) => { e.stopPropagation(); onComplete(); }}
         title={isDone ? t('todos.markOpen') : t('todos.complete')}
+        aria-label={isDone ? t('todos.markOpen') : t('todos.complete')}
       >
         <CheckIcon />
       </button>
 
-      <span style={{ ...styles.rowTitle, textDecoration: isDone ? 'line-through' : 'none' }}>
-        {todo.title}
-      </span>
+      <button
+        type="button"
+        className="todo-row-select"
+        onClick={onSelect}
+        aria-pressed={selected}
+        aria-label={todo.title}
+      >
+        <span style={{ ...styles.rowTitle, textDecoration: isDone ? 'line-through' : 'none' }}>
+          {todo.title}
+        </span>
 
-      <div style={styles.rowMeta}>
-        {courseLabel && <span style={styles.subjectTag}>{courseLabel}</span>}
-        {days !== null && !done && (
-          <span style={{
-            ...styles.dueTag,
-            color: overdue ? 'var(--danger)' : days === 0 ? 'var(--warning)' : 'var(--text-muted)',
-          }}>
-            {overdue ? t('todos.overdue', { days: Math.abs(days) }) : days === 0 ? t('todos.todayDue') : formatDate(todo.due, intlLocale)}
-          </span>
-        )}
-        <span style={{ ...styles.priorityDot, background: priorityColor(todo.priority) }} />
-      </div>
+        <span style={styles.rowMeta}>
+          {courseLabel && <span style={styles.subjectTag}>{courseLabel}</span>}
+          {days !== null && !done && (
+            <span style={{
+              ...styles.dueTag,
+              color: overdue ? 'var(--danger)' : days === 0 ? 'var(--warning)' : 'var(--text-muted)',
+            }}>
+              {overdue ? t('todos.overdue', { days: Math.abs(days) }) : days === 0 ? t('todos.todayDue') : formatDate(todo.due, intlLocale)}
+            </span>
+          )}
+          <span style={{ ...styles.priorityDot, background: priorityColor(todo.priority) }} />
+        </span>
+      </button>
     </div>
   );
 }
@@ -296,6 +336,7 @@ function InlineAdd({ onAdd, t }) {
       <span className="todo-check" style={{ pointerEvents: 'none', opacity: 0.4 }} />
       <input
         ref={inputRef}
+        aria-label={t('todos.addTask')}
         style={styles.addInput}
         placeholder={t('todos.addPlaceholder')}
         value={text}
@@ -334,7 +375,7 @@ const styles = {
   section: { marginBottom: 18 },
   sectionHeader: {
     display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-    padding: '6px 12px', background: 'transparent', border: 'none',
+    minHeight: 44, padding: '6px 12px', background: 'transparent', border: 'none',
     cursor: 'pointer', color: 'var(--text-muted)',
   },
   sectionDot: { width: 8, height: 8, borderRadius: '50%', flexShrink: 0 },

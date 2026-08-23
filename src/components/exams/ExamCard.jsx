@@ -33,7 +33,7 @@ export default function ExamCard({
     : null;
 
   return (
-    <div className="card" style={{ ...styles.examCard, opacity: past && !exam.grade ? 0.65 : 1 }}>
+    <div className="card exam-card" style={{ ...styles.examCard, opacity: past && !exam.grade ? 0.65 : 1 }}>
       <div style={styles.examCardHeader}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h3 style={styles.examName}>{exam.name}</h3>
@@ -73,7 +73,7 @@ export default function ExamCard({
         </div>
       )}
 
-      <div style={styles.examActions}>
+      <div className="exam-card-actions" style={styles.examActions}>
         <button type="button" className="btn btn-ghost btn-sm" onClick={onOpenLog} title={t('exams.studyLogTitle')}>
           <LogIcon /> {t('exams.studyLog')}
         </button>
@@ -88,7 +88,7 @@ export default function ExamCard({
         </button>
         <div style={{ flex: 1 }} />
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => onEdit(exam)}><EditIcon /> {t('exams.editShort')}</button>
-        <button type="button" className="btn btn-danger btn-sm" onClick={() => onDelete(exam.id)}><TrashIcon /></button>
+        <button type="button" className="btn btn-danger btn-sm btn-icon" aria-label={`${t('common.delete')}: ${exam.name}`} onClick={() => onDelete(exam.id)}><TrashIcon /></button>
       </div>
     </div>
   );

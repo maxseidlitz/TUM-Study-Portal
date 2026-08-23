@@ -41,8 +41,19 @@ contextBridge.exposeInMainWorld('api', {
     get: () => ipcRenderer.invoke('settings:get'),
     save: (settings) => ipcRenderer.invoke('settings:save', settings),
   },
+  auth: {
+    // Desktop has no authenticated server session. Keep the shared method
+    // callable while preserving the current local Electron session.
+    logout: () => Promise.resolve({ success: true, noop: true }),
+  },
   ical: {
     fetch: (url) => ipcRenderer.invoke('ical:fetch', url),
+    // Atomic replacement is a server-only capability. Electron callers use
+    // the existing sequential fail-fast persistence path.
+    replace: () => Promise.resolve({
+      success: false,
+      error: 'Atomic iCal replacement is only available in self-hosted mode.',
+    }),
   },
   ai: {
     recommend: (context) => ipcRenderer.invoke('ai:recommend', context),
@@ -68,7 +79,9 @@ contextBridge.exposeInMainWorld('api', {
       return () => ipcRenderer.removeListener('ollama:setup-progress', listener);
     },
   },
-  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
+  // Navigation is validated again in the main process. Resolve false instead
+  // of leaking an ignored invoke rejection into renderer event handlers.
+  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url).then(Boolean, () => false),
   backup: {
     export: () => ipcRenderer.invoke('backup:export'),
     import: (json) => ipcRenderer.invoke('backup:import', json),

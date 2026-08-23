@@ -2,6 +2,8 @@
   "common": {
     "loading": "Veriler yükleniyor…",
     "unknownError": "Bilinmeyen hata",
+    "loadError": "Veriler yüklenemedi.",
+    "refresh": "Yenile",
     "cancel": "İptal",
     "save": "Kaydet",
     "add": "Ekle",
@@ -14,6 +16,17 @@
     "themeToggle": "Temayı değiştir",
     "light": "Açık",
     "dark": "Koyu"
+  },
+  "pwa": {
+    "online": "Çevrimiçi",
+    "offlineTitle": "Çevrimdışı",
+    "offlineBody": "Okuma sınırlıdır; değişiklikler kaydedilmez.",
+    "updateAvailable": "Yeni bir uygulama sürümü mevcut.",
+    "updateNow": "Şimdi güncelle",
+    "updating": "Güncelleniyor…",
+    "installTitle": "iPhone'a yükleyin.",
+    "installBody": "Safari'de Paylaş'a, ardından “Ana Ekrana Ekle”ye dokunun.",
+    "dismiss": "Şimdi değil"
   },
   "priority": {
     "high": "Yüksek",
@@ -38,6 +51,16 @@
     "openTodosOne": "1 görev",
     "openTodosMany": "{count} görev"
   },
+  "mobileShell": {
+    "appName": "TUM Study Portal",
+    "primaryNavigation": "Ana menü",
+    "tabToday": "Bugün",
+    "tabTodos": "Görevler",
+    "tabLectures": "Program",
+    "tabChat": "Sohbet",
+    "more": "Daha fazla",
+    "closeMore": "Menüyü kapat"
+  },
   "dashboard": {
     "greetingMorning": "Günaydın",
     "greetingDay": "İyi günler",
@@ -61,7 +84,9 @@
     "examToday": "Bugün!",
     "examDays": "{days}g",
     "dueWithDate": " · teslim {date}",
-    "dueDate": "teslim {date}"
+    "dueDate": "teslim {date}",
+    "mensaError": "Menü yüklenemedi.",
+    "mensaClosed": "Bugün menü yok (kapalı)."
   },
   "today": {
     "title": "Bugün",
@@ -120,6 +145,9 @@
     "logPlaceholderTopics": "ör. Bölüm 3-5, ödevler",
     "logAdd": "Ekle",
     "logEmpty": "Henüz kayıt yok. İlk oturumu ekleyin!",
+    "logLoadError": "Çalışma kayıtları yüklenemedi. Lütfen tekrar deneyin.",
+    "logCreateError": "Çalışma kaydı kaydedilemedi.",
+    "logDeleteError": "Çalışma kaydı silinemedi.",
     "gradeModalTitle": "Not gir",
     "gradeNotPassed": "Başarısız",
     "gradeSave": "Notu kaydet",
@@ -141,7 +169,15 @@
     "icalSuccess": "Sınavlar başarıyla içe aktarıldı!",
     "icalSuccessMany": "{count} sınav başarıyla içe aktarıldı!",
     "icalNoEvents": "Bu takvimde sınav tarihi bulunamadı.",
-    "icalDuplicate": "Zaten mevcut"
+    "icalDuplicate": "Zaten mevcut",
+    "exportCsvBtn": "CSV olarak dışa aktar",
+    "exportCsvSuccess": "Sınavlar CSV olarak dışa aktarıldı",
+    "suggestTodoTitle": "Çalışma görevi oluşturulsun mu?",
+    "suggestTodoBody": "“{name}” için otomatik bir çalışma görevi oluşturulsun mu?",
+    "suggestTodoBtnYes": "Görev oluştur",
+    "suggestTodoBtnNo": "Atla",
+    "suggestTodoTaskTitle": "{name} için çalış",
+    "suggestTodoCreated": "Çalışma görevi oluşturuldu!"
   },
   "lectures": {
     "title": "Dersler",
@@ -175,6 +211,11 @@
     "fieldTo": "Bitiş",
     "fieldRoom": "Sınıf",
     "fieldLecturer": "Öğretim üyesi",
+    "scopeLabel": "Değişikliğin kapsamı",
+    "scopeAll": "Tüm seri",
+    "scopeSingle": "Yalnızca bu etkinlik",
+    "cancelOccurrence": "Etkinliği iptal et",
+    "timeError": "Bitiş saati başlangıç saatinden sonra olmalıdır.",
     "placeholderName": "ör. Analysis 2",
     "placeholderRoom": "ör. MI HS 1",
     "placeholderLecturer": "ör. Prof. Müller",
@@ -188,6 +229,8 @@
     "nowLine": "Şimdi {time}",
     "overlapTitle": "Çakışan saatler yan yana",
     "viewToggleAria": "Görünüm",
+    "weekGridScrollLabel": "Yatay kaydırılabilir haftalık ders programı",
+    "colorChoice": "Renk {color}",
     "daysLong": {
       "Mo": "Pazartesi",
       "Di": "Salı",
@@ -298,7 +341,16 @@
     "moodleSyncSubmit": "Destekle",
     "moodleSyncSuccess": "Desteğiniz için teşekkürler!",
     "editTitle": "Düzenle",
-    "deleteTitleBtn": "Sil"
+    "deleteTitleBtn": "Sil",
+    "deleteWithLecturesTitle": "Modül silinsin mi?",
+    "deleteWithLecturesBody": "“{name}” ve ilişkili {count} ders saati kalıcı olarak silinir.",
+    "moodleInfoTitle": "Moodle eşitleme kullanılamıyor",
+    "moodleInfoBody": "TUM herkese açık bir API sağlamadığı için otomatik Moodle eşitlemesi mümkün değil. Modülleri manuel ekleyebilir ve hızlı erişim için Moodle bağlantısını kaydedebilirsiniz.",
+    "colorChoice": "Renk {color}",
+    "weekGridScrollLabel": "Yatay kaydırılabilir haftalık program düzenleyici",
+    "clickGridToAdd": "Ders eklemek için programa dokunun",
+    "scheduleEditorHint": "Ders eklemek için programa dokunun. Düzenlemek için bir derse dokunun.",
+    "editSlot": "Dersi düzenle"
   },
   "links": {
     "title": "TUM bağlantıları",
@@ -354,7 +406,10 @@
     "deselectAll": "Tümünü kaldır",
     "selectAll": "Tümünü seç",
     "importOne": "1 etkinliği içe aktar",
-    "importMany": "{count} etkinliği içe aktar"
+    "importMany": "{count} etkinliği içe aktar",
+    "importFailed": "Takvim içe aktarma durduruldu: {error}",
+    "replaceFailed": "Takvim yenileme ilk hatada durduruldu. Onaylanmış değişiklikler korunur: {error}",
+    "groupSummary": "{modules} modül · {lectures} tek etkinlik oluşturulur"
   },
   "settings": {
     "pageTitle": "Ayarlar",
@@ -376,6 +431,7 @@
     "ollamaSub": "Öneriler ve sohbet için yerel dil modeli.",
     "ollamaInstall": "Ollama kur →",
     "ollamaUrl": "Ollama sunucu URL",
+    "ollamaServerManaged": "Self-hosted: URL ve model sunucuda OLLAMA_BASE_URL ve OLLAMA_MODEL ile yönetilir.",
     "ollamaDisableReasoningLabel": "Dahili akıl yürütme/thinking kapat (daha hızlı, daha az işlem)",
     "ollamaDisableReasoningHint": "Anında kaydedilir. Ollama API (0.20+): modelden hemen sonra think: false. Sistem istemi de genişletilir. Bazı yapılar bayrağı yok sayabilir. gpt-oss: yalnızca low/medium/high.",
     "loadModels": "Modelleri yükle",
@@ -403,6 +459,9 @@
     "geminiSub2": "yenileyin.",
     "apiKey": "API anahtarı",
     "apiKeyPlaceholder": "Google AI Studio (veya ortamda GEMINI_API_KEY)",
+    "apiKeySelfHostedPlaceholder": "Yeni anahtarı güvenli şekilde kaydet",
+    "apiKeyConfiguredPlaceholder": "Sunucuda bir anahtar kayıtlı",
+    "apiKeySelfHostedHint": "Self-hosted: Anahtar yalnızca kaydederken sunucuya gönderilir ve bu tarayıcıya geri verilmez. Boş alan mevcut anahtarı korur.",
     "apiKeyHint": "Alternatif: anahtarı yalnızca ortam değişkeniyle",
     "apiKeyHint2": "Electron başlatırken ayarlayın — alanı boş bırakın.",
     "modelId": "Model kimliği",
@@ -423,7 +482,25 @@
     "qs3": "Yukarıdan “Modelleri yükle” ve bir model seç",
     "qs4": "“Bağlantıyı test et” — sonra öneriler ve sohbet",
     "testOkMsg": "Bağlantı tamam (model: {model}). Yanıt: “{snippet}…”",
-    "restartTour": "Kurulum sihirbazını yeniden başlat"
+    "studyTitle": "Öğrenim ve pano",
+    "studySub": "AKTS hedefleri ve yemekhane tercihleri.",
+    "targetEctsLabel": "AKTS hedefi (toplam)",
+    "targetGpaLabel": "Hedef not ortalaması",
+    "targetEctsError": "0 ile 360 arasında bir sayı olmalıdır.",
+    "targetGpaError": "1,0 ile 4,0 arasında bir sayı olmalıdır.",
+    "preferredMensaLabel": "Tercih edilen yemekhane",
+    "backupTitle": "Veri yedekleme",
+    "backupSub": "Tüm verileri dışa aktarın veya bir yedekten geri yükleyin.",
+    "exportBtn": "Dışa aktar",
+    "exportSuccess": "Veriler dışa aktarıldı.",
+    "importBtn": "İçe aktar",
+    "importConfirm": "Mevcut verilerin üzerine yazılacak. Devam edilsin mi?",
+    "importSuccess": "Veriler içe aktarıldı. Uygulama yeniden yüklenecek…",
+    "importError": "İçe aktarma başarısız: {error}",
+    "restartTour": "Kurulum sihirbazını yeniden başlat",
+    "sessionTitle": "Oturum",
+    "sessionSub": "Bu cihazdaki mevcut sunucu oturumunu sonlandırır.",
+    "logout": "Çıkış yap"
   },
   "chat": {
     "loading": "Veriler yükleniyor…",
@@ -450,14 +527,23 @@
     "sug2": "Sonraki sınavım için çalışma planı oluştur.",
     "sug3": "Sonraki sınava kadar ne kadar sürem var?",
     "sug4": "Açık görevleri mantıklı sıralamama yardım et.",
-    "placeholder": "Çalışmaların hakkında sor…"
+    "placeholder": "Çalışmaların hakkında sor…",
+    "send": "Mesaj gönder",
+    "inputLabel": "YZ asistanına mesaj gönder",
+    "allowTodoWrites": "Bu mesaj için görev oluşturmaya izin ver",
+    "allowTodoWritesHelp": "Model yalnızca doğrulanmış görevler önerebilir veya oluşturabilir. İzin yalnızca göndereceğiniz bir sonraki mesaj için geçerlidir.",
+    "openFloating": "Sohbeti aç",
+    "minimizeFloating": "Sohbeti küçült",
+    "closeFloating": "Sohbet penceresini kapat"
   },
   "ai": {
     "labelKi": "🤖 YZ önerisi",
     "labelLocal": "💡 Öneri",
     "badgeLocal": "Yerel",
     "badgeLocalTitle": "YZ erişilemez — yerel kural",
-    "refreshTitle": "Öneriyi yenile"
+    "refreshTitle": "Öneriyi yenile",
+    "refine": "✨ YZ ile geliştir",
+    "errorHint": "YZ kullanılamıyor — yerel öneri gösteriliyor. Ayarlar'da modeli kontrol edin."
   },
   "aiFallback": {
     "examUrgentOne": "“{name}” sınavına 1 gün kaldı! Bugün tekrara odaklan.",
@@ -471,6 +557,58 @@
     "lectureOne": "Bugün 1 ders — notları gözden geçirmeyi unutma!",
     "lectureMany": "Bugün {count} ders — notları gözden geçirmeyi unutma!",
     "relaxed": "Bugün her şey rahat! Zamanı proaktif sınav hazırlığı için kullan."
+  },
+  "ollama": {
+    "setupFailed": "YZ kurulumu başarısız",
+    "setupDownloading": "YZ modeli yükleniyor",
+    "setupStarting": "YZ hizmeti başlatılıyor…",
+    "setupErrorMsg": "YZ modeli kurulurken bir hata oluştu.",
+    "setupDownloadHint": "“{model}” bir kez indirilecek. Bağlantınıza göre birkaç dakika sürebilir.",
+    "setupStartingHint": "Yerel YZ hizmeti (Ollama) hazırlanıyor…",
+    "setupRetrying": "Yeniden deneniyor…",
+    "setupRetry": "Tekrar dene",
+    "setupDismissError": "YZ olmadan devam et",
+    "setupDismissDownload": "Arka planda yükle",
+    "setupHint": "Uygulama YZ modeli olmadan da çalışır. İndirmeyi daha sonra Ayarlar’dan yeniden başlatabilirsiniz."
+  },
+  "pomodoro": {
+    "workLabel": "Odaklanma",
+    "breakLabel": "Mola",
+    "longBreakLabel": "Uzun mola",
+    "logTitle": "Çalışma oturumunu kaydet",
+    "logTypeLabel": "Şunun için",
+    "logTypeExam": "Sınav",
+    "logTypeTodo": "Görev",
+    "logExamLabel": "Sınav seç",
+    "logTodoLabel": "Görev seç",
+    "logNoExam": "Sınav seçilmedi",
+    "logNoTodo": "Görev seçilmedi",
+    "logDurationLabel": "Süre",
+    "logDurationMinutes": "{min} dakika",
+    "logSave": "Kaydet",
+    "logSkip": "Atla",
+    "logSaveError": "Çalışma oturumu kaydedilemedi. Lütfen tekrar deneyin.",
+    "toggle": "Pomodoro zamanlayıcısını aç veya kapat",
+    "start": "Başlat",
+    "pause": "Duraklat",
+    "reset": "Sıfırla"
+  },
+  "gradeAnalytics": {
+    "completed": "Tamamlanan",
+    "remaining": "Kalan",
+    "ectsProgress": "AKTS ilerlemesi",
+    "ofTarget": "{target} üzerinden",
+    "timeline": "Not geçmişi",
+    "notEnoughData": "Not geçmişi için henüz yeterli veri yok.",
+    "targetAnalysis": "Hedef ortalama analizi",
+    "targetBody": "{target} ortalamaya ulaşmak için kalan {remaining} AKTS boyunca gereken ortalama:",
+    "betterThanOne": "1,0’dan daha iyi 🚀",
+    "impossible": "Artık mümkün değil 😅"
+  },
+  "errorBoundary": {
+    "title": "Bir sorun oluştu",
+    "body": "Uygulama beklenmeyen bir hatayla karşılaştı. Yerel olarak kaydedilen verileriniz etkilenmedi.",
+    "reload": "Uygulamayı yeniden yükle"
   },
   "setupWizard": {
     "stepWelcome": "Hoş geldiniz",
