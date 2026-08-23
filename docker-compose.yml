@@ -1,0 +1,45 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        NODE_VERSION: "22.14.0"
+    image: tum-study-portal:local
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env.server
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3443
+      DATABASE_PATH: /var/lib/tum-study-portal/study-portal.sqlite
+      BACKUP_DIR: /var/lib/tum-study-portal/backups
+      BUILD_DIR: /app/build
+    ports:
+      - "127.0.0.1:3443:3443"
+    volumes:
+      - study-data:/var/lib/tum-study-portal
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3443/readyz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  ollama:
+    image: ollama/ollama:0.24.0
+    profiles: ["ollama"]
+    restart: unless-stopped
+    volumes:
+      - ollama-data:/root/.ollama
+    expose:
+      - "11434"
+
+volumes:
+  study-data:
+  ollama-data:

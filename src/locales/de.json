@@ -17,6 +17,17 @@
     "light": "Hell",
     "dark": "Dunkel"
   },
+  "pwa": {
+    "online": "Online",
+    "offlineTitle": "Offline",
+    "offlineBody": "Lesen ist eingeschränkt; Änderungen werden nicht gespeichert.",
+    "updateAvailable": "Eine neue App-Version ist verfügbar.",
+    "updateNow": "Jetzt aktualisieren",
+    "updating": "Aktualisiere…",
+    "installTitle": "Auf dem iPhone installieren.",
+    "installBody": "Tippe in Safari auf „Teilen“ und dann auf „Zum Home-Bildschirm“.",
+    "dismiss": "Nicht jetzt"
+  },
   "priority": {
     "high": "Hoch",
     "medium": "Mittel",

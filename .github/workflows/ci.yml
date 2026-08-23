@@ -1,0 +1,44 @@
+name: Web and Server CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 22.14.0
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Test client
+        run: npm test -- --runInBand
+      - name: Test server
+        run: npm run test:server
+      - name: Build web application
+        run: npm run build
+        env:
+          CI: true
+      - name: Audit production dependencies
+        run: npm audit --omit=dev
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Compose configuration
+        run: cp .env.server.example .env.server && docker compose config --quiet
+      - name: Build production image
+        run: docker build --build-arg NODE_VERSION=${NODE_VERSION} -t tum-study-portal:ci .

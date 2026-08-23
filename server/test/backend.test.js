@@ -24,7 +24,11 @@ async function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'study-backend-'));
   const buildDir = path.join(root, 'build');
   fs.mkdirSync(buildDir);
+  fs.mkdirSync(path.join(buildDir, 'static'));
   fs.writeFileSync(path.join(buildDir, 'index.html'), '<!doctype html><html><head></head><body><div id="root"></div></body></html>');
+  fs.writeFileSync(path.join(buildDir, 'static', 'main.abc123.js'), 'console.log("static");');
+  fs.writeFileSync(path.join(buildDir, 'service-worker.js'), 'self.addEventListener("fetch", () => {});');
+  fs.writeFileSync(path.join(buildDir, 'offline.html'), '<!doctype html><title>Offline</title>');
   const config = {
     nodeEnv: 'test',
     publicOrigin: ORIGIN,
@@ -101,8 +105,16 @@ test('health, login, session, CSRF and origin enforcement', async (t) => {
   const { app } = await fixture(t);
   await request(app).get('/healthz').expect(200, { status: 'ok' });
   await request(app).get('/readyz').expect(200, { status: 'ready' });
+  await request(app).get('/service-worker.js').expect(200)
+    .expect('Cache-Control', 'no-store')
+    .expect('Service-Worker-Allowed', '/');
+  await request(app).get('/offline.html').expect(200).expect('Cache-Control', 'no-store');
+  await request(app).get('/static/main.abc123.js').expect(200)
+    .expect('Cache-Control', 'public, max-age=31536000, immutable');
   await request(app).get('/api/v1/exams').expect(401);
   const auth = await login(app);
+  await request(app).get('/').set('Cookie', auth.session).expect(200)
+    .expect('Cache-Control', 'no-store');
   await request(app).post('/api/v1/exams').set('Cookie', auth.session)
     .set('Origin', ORIGIN).send({ id: 'e1', name: 'Exam', date: '' }).expect(403);
   await request(app).post('/api/v1/exams').set('Cookie', auth.session)

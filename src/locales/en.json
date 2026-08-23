@@ -17,6 +17,17 @@
     "light": "Light",
     "dark": "Dark"
   },
+  "pwa": {
+    "online": "Online",
+    "offlineTitle": "Offline",
+    "offlineBody": "Reading is limited; changes will not be saved.",
+    "updateAvailable": "A new app version is available.",
+    "updateNow": "Update now",
+    "updating": "Updating…",
+    "installTitle": "Install on iPhone.",
+    "installBody": "In Safari, tap Share, then “Add to Home Screen”.",
+    "dismiss": "Not now"
+  },
   "priority": {
     "high": "High",
     "medium": "Medium",

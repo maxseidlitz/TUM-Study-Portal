@@ -17,6 +17,17 @@
     "light": "Açık",
     "dark": "Koyu"
   },
+  "pwa": {
+    "online": "Çevrimiçi",
+    "offlineTitle": "Çevrimdışı",
+    "offlineBody": "Okuma sınırlıdır; değişiklikler kaydedilmez.",
+    "updateAvailable": "Yeni bir uygulama sürümü mevcut.",
+    "updateNow": "Şimdi güncelle",
+    "updating": "Güncelleniyor…",
+    "installTitle": "iPhone'a yükleyin.",
+    "installBody": "Safari'de Paylaş'a, ardından “Ana Ekrana Ekle”ye dokunun.",
+    "dismiss": "Şimdi değil"
+  },
   "priority": {
     "high": "Yüksek",
     "medium": "Orta",

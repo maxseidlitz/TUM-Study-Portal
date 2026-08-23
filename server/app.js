@@ -281,10 +281,12 @@ async function createApp({ config, db: suppliedDb, logger: suppliedLogger } = {}
 
   app.use('/api/v1', api);
   app.use('/static', express.static(path.join(config.buildDir, 'static'), { index: false, immutable: true, maxAge: '1y' }));
-  for (const asset of ['manifest.json', 'favicon.ico', 'asset-manifest.json', 'logo192.png', 'logo512.png']) {
+  app.use('/icons', express.static(path.join(config.buildDir, 'icons'), { index: false, fallthrough: true }));
+  for (const asset of ['manifest.json', 'offline.html', 'service-worker.js', 'favicon.ico', 'asset-manifest.json']) {
     app.get(`/${asset}`, (req, res, next) => {
       const target = path.join(config.buildDir, asset);
       if (!fs.existsSync(target)) return next();
+      if (asset === 'service-worker.js') res.set('Service-Worker-Allowed', '/');
       return res.sendFile(target);
     });
   }

@@ -49,6 +49,7 @@ function entityApi(request, commandRequest, resource) {
 export function createHttpRequest({
   baseUrl = '/api/v1',
   fetchImpl = typeof window !== 'undefined' ? window.fetch?.bind(window) : undefined,
+  online = () => typeof navigator === 'undefined' || navigator.onLine !== false,
   csrf = true,
   csrfHeaderName = 'X-CSRF-Token',
   csrfToken,
@@ -60,6 +61,9 @@ export function createHttpRequest({
       throw new ApiError('API request failed: fetch is unavailable');
     }
     const normalizedMethod = String(method).toUpperCase();
+    if (!SAFE_METHODS.has(normalizedMethod) && !online()) {
+      throw new ApiError('API write blocked: device is offline');
+    }
     const requestHeaders = {
       Accept: 'application/json',
       ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),

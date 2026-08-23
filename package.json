@@ -4,6 +4,11 @@
   "description": "TUM Study Portal - Personal Academic Dashboard for TU München Students",
   "main": "public/electron.js",
   "homepage": "./",
+  "engines": {
+    "node": ">=22.14.0 <23",
+    "npm": ">=10.9.0 <11"
+  },
+  "packageManager": "npm@10.9.7",
   "scripts": {
     "start": "concurrently \"BROWSER=none react-scripts start\" \"wait-on http://localhost:3000 && electron .\"",
     "dev": "concurrently \"BROWSER=none react-scripts start\" \"wait-on http://localhost:3000 && electron .\"",
@@ -50,10 +55,14 @@
   },
   "browserslist": {
     "production": [
-      "last 1 electron version"
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
     ],
     "development": [
-      "last 1 electron version"
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
     ]
   },
   "build": {

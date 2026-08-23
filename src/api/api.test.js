@@ -178,6 +178,23 @@ describe('HTTP API adapter', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
+  test('fails mutating requests cleanly while offline without queueing or fetching', async () => {
+    const fetchImpl = jest.fn();
+    const request = createHttpRequest({
+      fetchImpl,
+      csrfToken: 'csrf',
+      online: () => false,
+    });
+
+    await expect(request('/todos', { method: 'POST', body: { id: '1' } }))
+      .rejects.toMatchObject({
+        name: 'ApiError',
+        status: 0,
+        message: 'API write blocked: device is offline',
+      });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   test('handles 204 responses without parsing a body and reports malformed JSON', async () => {
     const noContent = {
       ...jsonResponse(null, { status: 204 }),

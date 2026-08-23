@@ -13,6 +13,7 @@ import ChatContinuity from './components/ChatContinuity';
 import SetupWizard from './components/SetupWizard';
 import PomodoroWidget from './components/PomodoroWidget';
 import OllamaSetup from './components/OllamaSetup';
+import PwaStatus from './components/PwaStatus';
 import { MobileBottomNavigation, MobileTopBar } from './components/MobileNavigation';
 import {
   DEFAULT_PAGE,
@@ -97,6 +98,7 @@ export default function App() {
       <ThemeProvider>
         <ToastProvider>
         <DataProvider>
+          <PwaStatus />
           <SetupWizard
             onNavigate={navigate}
             onVisibilityChange={setWizardActive}

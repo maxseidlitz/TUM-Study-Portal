@@ -128,7 +128,7 @@ flowchart LR
 
 ### Voraussetzungen
 
-- Node.js 18 oder neuer
+- Node.js 22 (Container-Build: 22.14.0)
 - npm
 - optional: laufendes [Ollama](https://ollama.com/)
 
@@ -157,6 +157,11 @@ npm run dist:linux  # Linux AppImage
 ```
 
 Der GitHub-Workflow baut die macOS-Version auf einem nativen macOS-Runner. Ein Tag wie `v1.0.0` veröffentlicht die erzeugten DMGs automatisch als GitHub Release.
+
+### PWA selbst hosten
+
+Docker-, HTTPS-, Tailscale-, Backup-, Restore- und Update-Anweisungen stehen
+in der [Self-Hosting-Dokumentation](docs/SELF_HOSTING.md).
 
 ## 🧩 Architektur
 
