@@ -1,9 +1,11 @@
+name: tum-study-portal
+
 services:
   app:
     build:
       context: .
       args:
-        NODE_VERSION: "22.14.0"
+        NODE_IMAGE: node:22.14.0-bookworm-slim@sha256:1c18d9ab3af4585870b92e4dbc5cac5a0dc77dd13df1a5905cea89fc720eb05b
     image: tum-study-portal:local
     restart: unless-stopped
     init: true
@@ -32,7 +34,7 @@ services:
       - ALL
 
   ollama:
-    image: ollama/ollama:0.24.0
+    image: ollama/ollama:0.24.0@sha256:a6149234667efc71d37766d61c1a16f24c33e4cd7a0bf4125c44a7e47e2419c4
     profiles: ["ollama"]
     restart: unless-stopped
     volumes:
@@ -42,4 +44,6 @@ services:
 
 volumes:
   study-data:
+    name: tum-study-portal-data
   ollama-data:
+    name: tum-study-portal-ollama

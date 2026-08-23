@@ -1,5 +1,8 @@
-const CACHE_VERSION = 'tum-study-static-v1';
+const BUILD_ID = '__BUILD_ID__';
+const CACHE_PREFIX = 'tum-study-static-';
+const CACHE_NAME = `${CACHE_PREFIX}${BUILD_ID}`;
 const OFFLINE_URL = '/offline.html';
+const BUILD_ASSETS = __BUILD_ASSETS__;
 const PRECACHE_URLS = [
   OFFLINE_URL,
   '/manifest.json',
@@ -7,6 +10,7 @@ const PRECACHE_URLS = [
   '/icons/icon-512.png',
   '/icons/icon-maskable-192.png',
   '/icons/icon-maskable-512.png',
+  ...BUILD_ASSETS,
 ];
 
 function isCacheableStaticUrl(url) {
@@ -15,33 +19,16 @@ function isCacheableStaticUrl(url) {
 }
 
 self.addEventListener('install', event => {
-  event.waitUntil((async () => {
-    const cache = await caches.open(CACHE_VERSION);
-    await cache.addAll(PRECACHE_URLS);
-
-    // CRA fingerprints build assets. Discover those names without ever storing
-    // asset-manifest.json or index.html themselves.
-    try {
-      const response = await fetch('/asset-manifest.json', { cache: 'no-store', credentials: 'same-origin' });
-      if (!response.ok) return;
-      const manifest = await response.json();
-      const staticUrls = Object.values(manifest.files || {})
-        .filter(value => typeof value === 'string')
-        .map(value => new URL(value, self.location.origin))
-        .filter(url => isCacheableStaticUrl(url) && /\.(?:css|js)$/.test(url.pathname))
-        .map(url => url.pathname);
-      await cache.addAll([...new Set(staticUrls)]);
-    } catch {
-      // The neutral offline page still works if optional asset discovery fails.
-    }
-  })());
+  // addAll is atomic: a failed response rejects installation and leaves the
+  // currently active worker/cache untouched.
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(PRECACHE_URLS)));
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     const names = await caches.keys();
     await Promise.all(names
-      .filter(name => name.startsWith('tum-study-static-') && name !== CACHE_VERSION)
+      .filter(name => name.startsWith(CACHE_PREFIX) && name !== CACHE_NAME)
       .map(name => caches.delete(name)));
     await self.clients.claim();
   })());
@@ -60,7 +47,7 @@ self.addEventListener('fetch', event => {
   // the dynamically CSRF-injected index. Only the neutral page is a fallback.
   if (request.mode === 'navigate') {
     event.respondWith(fetch(request).catch(async () => {
-      const cache = await caches.open(CACHE_VERSION);
+      const cache = await caches.open(CACHE_NAME);
       return cache.match(OFFLINE_URL);
     }));
     return;
@@ -68,13 +55,11 @@ self.addEventListener('fetch', event => {
 
   if (!isCacheableStaticUrl(url)) return;
   event.respondWith((async () => {
-    const cache = await caches.open(CACHE_VERSION);
+    const cache = await caches.open(CACHE_NAME);
     const cached = await cache.match(request);
     if (cached) return cached;
     const response = await fetch(request);
-    if (response.ok && response.type === 'basic') {
-      await cache.put(request, response.clone());
-    }
+    if (response.ok && response.type === 'basic') await cache.put(request, response.clone());
     return response;
   })());
 });

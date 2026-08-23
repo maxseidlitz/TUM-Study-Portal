@@ -6,6 +6,7 @@ import TodoDetail from '../components/todos/TodoDetail';
 import { api } from '../api';
 import AccessibleDialog from '../components/ui/AccessibleDialog';
 import { useIsMobile } from '../hooks/useMediaQuery';
+import { persistOptimisticSetting } from '../utils/settingsPersistence';
 
 const SECTION_KEYS = ['high', 'medium', 'low'];
 const SECTION_COLORS = { high: 'var(--danger)', medium: 'var(--warning)', low: 'var(--success)' };
@@ -41,10 +42,16 @@ export default function Todos() {
   }, []);
 
   const persistHideCompleted = async (next) => {
-    setHideCompleted(next);
     try {
-      const prev = await api.settings.get();
-      await api.settings.save({ ...prev, todosHideCompleted: next });
+      await persistOptimisticSetting({
+        previous: hideCompleted,
+        next,
+        apply: setHideCompleted,
+        persist: async value => {
+          const previousSettings = await api.settings.get();
+          await api.settings.save({ ...previousSettings, todosHideCompleted: value });
+        },
+      });
     } catch (e) {
       console.error(e);
     }

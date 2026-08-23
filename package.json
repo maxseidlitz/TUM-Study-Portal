@@ -15,7 +15,7 @@
     "test": "react-scripts test --watchAll=false",
     "test:server": "node --test server/test/*.test.js",
     "test:all": "npm test && npm run test:server",
-    "build": "react-scripts build",
+    "build": "react-scripts build && node scripts/generate-service-worker.js",
     "server": "node server/server.js",
     "server:restore": "node server/restore.js",
     "electron": "electron .",

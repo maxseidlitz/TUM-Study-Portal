@@ -4,12 +4,14 @@ import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
 import AiSettings from '../components/settings/AiSettings';
 import { api } from '../api';
+import { persistOptimisticSetting } from '../utils/settingsPersistence';
 
 export default function Settings() {
   const { theme, toggleTheme } = useTheme();
   const { t, locale, setLocale } = useLocale();
   const showToast = useToast();
   const importRef = useRef(null);
+  const savedTimerRef = useRef(null);
 
   const defaultState = () => ({
     aiProvider: 'ollama',
@@ -26,6 +28,7 @@ export default function Settings() {
   const [settings, setSettings] = useState(defaultState());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [ectsError, setEctsError] = useState('');
   const [gpaError, setGpaError] = useState('');
 
@@ -44,12 +47,25 @@ export default function Settings() {
     return () => { cancelled = true; };
   }, [showToast, t]);
 
+  useEffect(() => () => {
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+  }, []);
+
   const saveSettings = async (next) => {
+    const previous = settings;
     setSaving(true);
-    setSettings(next);
+    setSaved(false);
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
     try {
-      await api.settings.save(next);
-      setTimeout(() => setSaving(false), 800);
+      await persistOptimisticSetting({
+        previous,
+        next,
+        apply: setSettings,
+        persist: api.settings.save,
+      });
+      setSaving(false);
+      setSaved(true);
+      savedTimerRef.current = setTimeout(() => setSaved(false), 2000);
     } catch (error) {
       setSaving(false);
       showToast(error.message || t('common.unknownError'), 'error');
@@ -140,7 +156,8 @@ export default function Settings() {
       <div className="page-header">
         <h1>{t('settings.pageTitle')}</h1>
         <p>{t('settings.pageSubtitle')}</p>
-        {saving && <span style={styles.savingMsg}>{t('settings.saved')}</span>}
+        {saving && <span style={styles.savingMsg}>{t('common.loadingShort')}</span>}
+        {saved && <span style={styles.savingMsg}>{t('settings.saved')}</span>}
       </div>
 
       {/* Studium & Dashboard */}
@@ -161,6 +178,7 @@ export default function Settings() {
               className={`form-input${ectsError ? ' form-input-error' : ''}`}
               value={settings.targetEcts}
               onChange={handleEctsChange}
+              disabled={saving}
             />
             {ectsError && <span style={styles.fieldError}>{ectsError}</span>}
           </div>
@@ -174,6 +192,7 @@ export default function Settings() {
               className={`form-input${gpaError ? ' form-input-error' : ''}`}
               value={settings.targetGpa}
               onChange={handleGpaChange}
+              disabled={saving}
             />
             {gpaError && <span style={styles.fieldError}>{gpaError}</span>}
           </div>
@@ -184,6 +203,7 @@ export default function Settings() {
             className="form-input"
             value={settings.preferredMensaId}
             onChange={e => saveSettings({ ...settings, preferredMensaId: e.target.value })}
+            disabled={saving}
           >
             <option value="422">Mensa Garching</option>
             <option value="421">Mensa Arcisstraße</option>
@@ -246,7 +266,9 @@ export default function Settings() {
                 type="button"
                 className="btn btn-secondary"
                 style={locale === code ? { ...styles.segmentBtn, ...styles.segmentActive } : styles.segmentBtn}
-                onClick={() => setLocale(code)}
+                onClick={() => setLocale(code).catch(error => {
+                  showToast(error.message || t('common.unknownError'), 'error');
+                })}
               >
                 {label}
               </button>

@@ -1,7 +1,7 @@
-# syntax=docker/dockerfile:1.7
-ARG NODE_VERSION=22.14.0
+# syntax=docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e
+ARG NODE_IMAGE=node:22.14.0-bookworm-slim@sha256:1c18d9ab3af4585870b92e4dbc5cac5a0dc77dd13df1a5905cea89fc720eb05b
 
-FROM node:${NODE_VERSION}-bookworm-slim AS native-base
+FROM ${NODE_IMAGE} AS native-base
 WORKDIR /app
 RUN apt-get update \
  && apt-get install -y --no-install-recommends python3 make g++ \
@@ -17,9 +17,10 @@ COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY public ./public
 COPY src ./src
+COPY scripts ./scripts
 RUN npm run build
 
-FROM node:${NODE_VERSION}-bookworm-slim AS runtime
+FROM ${NODE_IMAGE} AS runtime
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3443 \

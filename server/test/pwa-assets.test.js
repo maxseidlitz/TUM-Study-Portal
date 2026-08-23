@@ -22,6 +22,7 @@ test('web app manifest is installable and references real correctly sized icons'
   assert.ok(manifest.icons.some(icon => icon.purpose === 'any' && icon.sizes === '192x192'));
 
   for (const icon of [...manifest.icons, ...manifest.shortcuts.flatMap(shortcut => shortcut.icons)]) {
+    assert.match(icon.src, /^\.\/icons\//);
     const expected = icon.sizes.split('x').map(Number);
     assert.deepEqual(pngSize(path.join(root, 'public', icon.src)), expected, icon.src);
   }
@@ -29,14 +30,24 @@ test('web app manifest is installable and references real correctly sized icons'
 });
 
 test('service worker cache policy excludes dynamic HTML, auth, APIs and writes', () => {
-  const source = fs.readFileSync(path.join(root, 'public/service-worker.js'), 'utf8');
+  const source = fs.readFileSync(path.join(root, 'scripts/service-worker.template.js'), 'utf8');
+  assert.match(source, /CACHE_NAME = `\$\{CACHE_PREFIX\}\$\{BUILD_ID\}`/);
+  assert.match(source, /cache\.addAll\(PRECACHE_URLS\)/);
   assert.match(source, /request\.method !== 'GET'/);
   assert.match(source, /request\.mode === 'navigate'/);
   assert.match(source, /fetch\(request\)\.catch\(async \(\) =>/);
   assert.match(source, /cache\.match\(OFFLINE_URL\)/);
   assert.match(source, /url\.pathname\.startsWith\('\/static\/'\)/);
-  assert.match(source, /asset-manifest\.json.*cache: 'no-store'/s);
+  assert.doesNotMatch(source, /asset-manifest\.json|index\.html/);
   const precache = source.match(/const PRECACHE_URLS = \[([\s\S]*?)\];/)[1];
   assert.doesNotMatch(precache, /['"]\/(?:index\.html|login|api)/);
   assert.doesNotMatch(source, /sync['"]/);
+});
+
+test('PWA document assets are relative and do not load external fonts', () => {
+  const source = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
+  assert.match(source, /rel="manifest" href="\.\/manifest\.json"/);
+  assert.match(source, /rel="apple-touch-icon"[^>]+href="\.\/icons\/apple-touch-icon\.png"/);
+  assert.doesNotMatch(source, /fonts\.googleapis\.com|fonts\.gstatic\.com/);
+  assert.doesNotMatch(source, /rel="(?:manifest|apple-touch-icon)"[^>]+href="\//);
 });

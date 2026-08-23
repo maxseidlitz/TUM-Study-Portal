@@ -3,10 +3,10 @@
 ## Prerequisites and security model
 
 Use Docker Engine with Compose v2 on a Linux host. The image pins Node.js
-22.14.0 on Debian Bookworm; its build stages include Python 3, `make` and
-`g++` so `better-sqlite3` and `argon2` can install native binaries. The runtime
-contains neither that toolchain nor source secrets and runs as the unprivileged
-`node` user.
+22.14.0 on Debian Bookworm by its multi-platform registry digest; its build
+stages include Python 3, `make` and `g++` so `better-sqlite3` and `argon2` can
+install native binaries. The runtime contains neither that toolchain nor source
+secrets and runs as the unprivileged `node` user.
 
 Keep the service private with Tailscale whenever possible. In every topology,
 use HTTPS, retain the application login, and expose only the reverse proxy.
@@ -16,7 +16,9 @@ The Compose example binds Node to host loopback.
 
 Copy `.env.server.example` to `.env.server`, set mode `0600`, and replace every
 placeholder. Compose reads this file at runtime; Docker does not copy it into
-the image.
+the image. `.env`, `.env.server`, and every other `.env.*` runtime file are
+ignored by Git; only files ending in `.example` may be tracked. CI rejects
+tracked runtime env files and common private-key formats.
 
 Generate independent secrets:
 
@@ -114,6 +116,28 @@ Rolling back means checking out that revision, rebuilding, and running the same
 `up` command. Database migrations are forward-only, so preserve the pre-update
 backup for a data rollback.
 
+The Compose project is explicitly named `tum-study-portal`; persistent volumes
+are therefore always `tum-study-portal-data` and
+`tum-study-portal-ollama`, independent of checkout-directory names.
+
+### Updating pinned upstream artifacts
+
+`Dockerfile` and `docker-compose.yml` pin Node and Ollama as `tag@sha256`.
+Resolve a new multi-platform digest from the registry, update both the
+human-readable tag and digest, and let CI build and start the result:
+
+```sh
+docker buildx imagetools inspect node:22.14.0-bookworm-slim
+docker buildx imagetools inspect ollama/ollama:0.24.0
+```
+
+Use the manifest-list/index digest shown by these commands, never a digest from
+an unrelated architecture. GitHub Actions are pinned to full commit SHAs.
+Desktop Ollama downloads are pinned to v0.24.0 and checked against SHA-256
+digests published on that GitHub release. Dependency updates must update those
+pins explicitly; CI verifies the pin format, Compose config, Caddy config,
+non-root runtime, healthcheck, and persistent-volume write access.
+
 ## HTTPS with a domain and Caddy
 
 Point an A/AAAA record at the host, allow inbound TCP 80/443, and keep port
@@ -155,12 +179,15 @@ SQLite uses WAL; never copy only the live `.sqlite` file. For a consistent
 full-volume backup, briefly stop the app and archive the complete volume:
 
 ```sh
+mkdir -p backups
 docker compose stop app
-VOLUME=$(docker volume ls -q \
-  --filter label=com.docker.compose.volume=study-data | head -n1)
-test -n "$VOLUME"
-docker run --rm -v "$VOLUME:/data:ro" -v "$PWD/backups:/out" alpine:3.22 \
-  tar -czf "/out/study-data-$(date -u +%Y%m%dT%H%M%SZ).tar.gz" -C /data .
+ARCHIVE="study-data-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
+docker run --rm \
+  -v tum-study-portal-data:/data:ro \
+  -v "$PWD/backups:/out" \
+  alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce \
+  tar -czf "/out/$ARCHIVE" -C /data .
+test -s "backups/$ARCHIVE"
 docker compose start app
 ```
 
@@ -178,10 +205,39 @@ docker compose run --rm --no-deps app \
 docker compose up -d app
 ```
 
-For a full archive restore, stop the app, archive the current volume as a
-rollback copy, empty the target volume, extract the chosen archive into it,
-then start the app. Verify `/readyz`, login, entity counts, and foreign-key
-integrity before deleting the rollback copy.
+For a full archive restore, use the exact named volume. The first command below
+creates a rollback archive before replacing anything:
+
+```sh
+RESTORE_ARCHIVE="$PWD/backups/study-data-YYYYMMDDTHHMMSSZ.tar.gz"
+test -s "$RESTORE_ARCHIVE"
+mkdir -p backups
+docker compose stop app
+ROLLBACK="pre-restore-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
+docker run --rm \
+  -v tum-study-portal-data:/data:ro \
+  -v "$PWD/backups:/out" \
+  alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce \
+  tar -czf "/out/$ROLLBACK" -C /data .
+test -s "backups/$ROLLBACK"
+docker run --rm \
+  -v tum-study-portal-data:/data \
+  alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce \
+  sh -eu -c 'find /data -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +'
+docker run --rm \
+  -v tum-study-portal-data:/data \
+  -v "$(dirname "$RESTORE_ARCHIVE"):/restore:ro" \
+  -e ARCHIVE="$(basename "$RESTORE_ARCHIVE")" \
+  alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce \
+  sh -eu -c 'tar -xzf "/restore/$ARCHIVE" -C /data'
+docker compose up -d app
+docker compose ps
+curl --fail --retry 10 --retry-delay 2 http://127.0.0.1:3443/readyz
+```
+
+Then verify login, entity counts, and a representative write. Keep the rollback
+archive until those checks and `PRAGMA foreign_key_check` on a test restore
+have passed.
 
 ## Operational checks
 

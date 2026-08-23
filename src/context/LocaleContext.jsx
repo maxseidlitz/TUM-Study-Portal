@@ -10,6 +10,7 @@ import de from '../locales/de.json';
 import en from '../locales/en.json';
 import tr from '../locales/tr.json';
 import { api } from '../api';
+import { persistOptimisticSetting } from '../utils/settingsPersistence';
 
 const MESSAGES = { de, en, tr };
 export const LOCALE_TO_INTL = { de: 'de-DE', en: 'en-US', tr: 'tr-TR' };
@@ -74,14 +75,16 @@ export function LocaleProvider({ children }) {
 
   const setLocale = useCallback(async (code) => {
     if (!VALID_LOCALES.has(code)) return;
-    setLocaleState(code);
-    document.documentElement.lang = code;
-    try {
-      await api.settings.save({ locale: code });
-    } catch {
-      /* ignore */
-    }
-  }, []);
+    await persistOptimisticSetting({
+      previous: locale,
+      next: code,
+      apply: value => {
+        setLocaleState(value);
+        document.documentElement.lang = value;
+      },
+      persist: value => api.settings.save({ locale: value }),
+    });
+  }, [locale]);
 
   const value = useMemo(
     () => ({ locale, intlLocale, t, setLocale }),
