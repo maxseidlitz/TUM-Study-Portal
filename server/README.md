@@ -80,8 +80,8 @@ The JSON backup endpoint remains compatible with the desktop export. New
 exports carry `format: "tum-study-portal-backup"` and `formatVersion: 1`; a
 versioned import must contain every defined array collection. Formatless
 desktop backups remain accepted only when at least one recognized collection
-is present as an array, so `{}` and unrelated JSON can never mean “replace with
-empty”. Format validation occurs before the safety backup or any deletion.
+contains a domain element, so `{}`, unrelated JSON and `todos: []` can never
+mean “replace with empty”. Format validation occurs before the safety backup or any deletion.
 Backups never export sessions, password material or Gemini keys. Before strict validation,
 import normalizes legacy `text`/`dueDate`/`examId` Todos and migrates pre-module
 desktop exports. Legacy module, slot and standalone-lecture IDs containing the

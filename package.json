@@ -76,6 +76,7 @@
       "public/ai.js",
       "public/aiRetrieval.js",
       "public/store.js",
+      "server/services/backupFormat.js",
       "public/ical.js",
       "public/externalUrl.js",
       "node_modules/**/*"

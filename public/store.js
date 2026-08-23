@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { app } = require('electron');
+const { backupPayload, importStorePayload } = require('../server/services/backupFormat');
 
 // ---- JSON File Store ----
 // `store` wird als gemeinsam genutzte Objekt-Referenz exportiert und niemals
@@ -32,12 +34,77 @@ function loadStore() {
   }
 }
 
-function saveStore() {
+function atomicWrite(filename, content) {
+  const temporary = `${filename}.tmp-${process.pid}-${crypto.randomUUID()}`;
   try {
-    fs.writeFileSync(dbPath, JSON.stringify(store, null, 2), 'utf8');
-  } catch (e) {
-    console.error('Failed to save store:', e);
+    fs.writeFileSync(temporary, content, { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+    fs.renameSync(temporary, filename);
+  } finally {
+    fs.rmSync(temporary, { force: true });
   }
+}
+
+function saveStore() {
+  if (!dbPath) throw new Error('Store is not initialized');
+  atomicWrite(dbPath, JSON.stringify(store, null, 2));
+}
+
+function replaceStore(next) {
+  Object.keys(store).forEach((keyName) => { delete store[keyName]; });
+  Object.assign(store, next);
+}
+
+function exportBackupJson(source = store) {
+  return JSON.stringify(backupPayload(source), null, 2);
+}
+
+function backupDirectory() {
+  const userDataPath = dbPath ? path.dirname(dbPath) : app?.getPath('userData');
+  if (!userDataPath) throw new Error('Store is not initialized');
+  return path.join(userDataPath, 'backups');
+}
+
+function pruneBackups(directory, pattern, retention, preserve = '') {
+  let files = fs.readdirSync(directory).filter(name => pattern.test(name)).sort().reverse();
+  if (preserve && files.includes(preserve)) {
+    files = [preserve, ...files.filter(name => name !== preserve)];
+  }
+  for (const filename of files.slice(retention)) fs.unlinkSync(path.join(directory, filename));
+}
+
+function createImportSafetyBackup() {
+  const directory = backupDirectory();
+  fs.mkdirSync(directory, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const filename = `import-safety-${stamp}-${crypto.randomUUID()}.json`;
+  const target = path.join(directory, filename);
+  atomicWrite(target, exportBackupJson());
+  pruneBackups(directory, /^import-safety-.*\.json$/, 20, filename);
+  return target;
+}
+
+function importBackupJson(jsonString, {
+  createSafetyBackup = createImportSafetyBackup,
+  persist = saveStore,
+} = {}) {
+  if (typeof jsonString !== 'string') throw new Error('Backup must be JSON text');
+  let parsed;
+  try {
+    parsed = JSON.parse(jsonString);
+  } catch {
+    throw new Error('Backup is not valid JSON');
+  }
+  const next = importStorePayload(parsed);
+  const previous = JSON.parse(JSON.stringify(store));
+  createSafetyBackup();
+  replaceStore(next);
+  try {
+    persist();
+  } catch (error) {
+    replaceStore(previous);
+    throw error;
+  }
+  return { success: true };
 }
 
 function normalizeStoreAfterLoad() {
@@ -222,23 +289,17 @@ function migrateLegacyToModulesIfNeeded() {
 
 function autoBackup() {
   try {
-    const userDataPath = app.getPath('userData');
-    const backupDir = path.join(userDataPath, 'backups');
+    const backupDir = backupDirectory();
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
 
     const today = new Date().toISOString().split('T')[0];
     const backupPath = path.join(backupDir, `backup-${today}.json`);
     if (!fs.existsSync(backupPath)) {
-      fs.writeFileSync(backupPath, JSON.stringify(store, null, 2), 'utf8');
+      atomicWrite(backupPath, exportBackupJson());
     }
 
-    // Keep only the 7 newest backup files
-    const files = fs.readdirSync(backupDir)
-      .filter(f => f.startsWith('backup-') && f.endsWith('.json'))
-      .sort();
-    while (files.length > 7) {
-      fs.unlinkSync(path.join(backupDir, files.shift()));
-    }
+    // Daily and pre-import backups have separate retention windows.
+    pruneBackups(backupDir, /^backup-\d{4}-\d{2}-\d{2}\.json$/, 7);
   } catch (e) {
     console.error('Auto-backup failed:', e);
   }
@@ -263,4 +324,9 @@ module.exports = {
   expandModulesToLectures,
   setSlotOverride,
   autoBackup,
+  createImportSafetyBackup,
+  exportBackupJson,
+  importBackupJson,
+  replaceStore,
+  setStorePathForTests: (filename) => { dbPath = filename; },
 };

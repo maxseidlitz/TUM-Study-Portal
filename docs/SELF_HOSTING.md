@@ -183,9 +183,14 @@ Application JSON exports identify themselves with
 `format: "tum-study-portal-backup"` and `formatVersion: 1`. Versioned imports
 must contain every defined collection array. Formatless desktop exports are
 accepted for compatibility only if they contain at least one recognized
-collection array. Empty objects, unrelated JSON, unsupported versions, and
+collection with a domain element. Empty objects, empty legacy collections,
+unrelated JSON, unsupported versions, and
 incomplete versioned exports fail validation before a safety backup or database
 mutation.
+Electron and server exports use the same envelope and cross-import. Electron
+creates a UUID-suffixed pre-import backup for every accepted import, independently
+of its daily backup, retains 20 pre-import and 7 daily backups separately, and replaces
+its JSON store through a temporary-file rename with in-memory rollback on error.
 
 SQLite uses WAL; never copy only the live `.sqlite` file. For a consistent
 full-volume backup, briefly stop the app and archive the complete volume:

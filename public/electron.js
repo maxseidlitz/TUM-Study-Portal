@@ -9,7 +9,7 @@ const { isSafeExternalUrl } = require('./externalUrl');
 const {
   store, saveStore, initStore,
   getMergedLecturesForClient, parseCompositeLectureId, setSlotOverride,
-  autoBackup,
+  exportBackupJson, importBackupJson,
 } = require('./store');
 const {
   DEFAULT_MODEL, normalizeOllamaUrl, describeConnectionError, listOllamaModels,
@@ -388,7 +388,7 @@ function registerIpcHandlers() {
   // Backup — Export / Import
   ipcMain.handle('backup:export', () => {
     try {
-      return { success: true, data: JSON.stringify(store, null, 2) };
+      return { success: true, data: exportBackupJson() };
     } catch (e) {
       return { success: false, error: e.message };
     }
@@ -396,13 +396,7 @@ function registerIpcHandlers() {
 
   ipcMain.handle('backup:import', (_, jsonString) => {
     try {
-      const parsed = JSON.parse(jsonString);
-      // Write a safety-backup before overwriting
-      autoBackup();
-      Object.keys(store).forEach((k) => { delete store[k]; });
-      Object.assign(store, parsed);
-      saveStore();
-      return { success: true };
+      return importBackupJson(jsonString);
     } catch (e) {
       return { success: false, error: e.message };
     }

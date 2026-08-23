@@ -622,6 +622,7 @@ test('empty, foreign and incomplete versioned backup objects fail before safety 
   const invalidBackups = [
     '{}',
     JSON.stringify({ users: [] }),
+    JSON.stringify({ todos: [], foreign: [{ id: 'not-domain-data' }] }),
     JSON.stringify({
       format: 'tum-study-portal-backup',
       formatVersion: 1,
@@ -640,6 +641,37 @@ test('empty, foreign and incomplete versioned backup objects fail before safety 
       .expect(({ body }) => assert.deepEqual(body.map(exam => exam.id), ['preserved']));
   }
   assert.equal(fs.existsSync(path.join(root, 'backups')), false);
+});
+
+test('complete versioned empty backup intentionally clears domain data', async (t) => {
+  const { app } = await fixture(t);
+  const auth = await login(app);
+  await api(app, auth, 'post', '/api/v1/exams', {
+    id: 'to-clear', name: 'Clear me', date: '',
+  }).expect(200);
+  const empty = JSON.stringify({
+    format: 'tum-study-portal-backup',
+    formatVersion: 1,
+    exams: [],
+    lectures: [],
+    todos: [],
+    moodle_courses: [],
+    modules: [],
+    study_logs: [],
+    chat_sessions: [],
+    settings: {},
+  });
+  await api(app, auth, 'post', '/api/v1/backup/import', { data: empty }).expect(200)
+    .expect(({ body }) => assert.equal(body.success, true));
+  await api(app, auth, 'get', '/api/v1/exams').expect(200, []);
+  const legacyWithForeignFields = JSON.stringify({
+    exams: [{ id: 'legacy-valid', name: 'Legacy valid', date: '' }],
+    todos: [],
+    foreign: [{ id: 'ignored' }],
+  });
+  await api(app, auth, 'post', '/api/v1/backup/import', { data: legacyWithForeignFields }).expect(200);
+  await api(app, auth, 'get', '/api/v1/exams').expect(200)
+    .expect(({ body }) => assert.deepEqual(body.map(exam => exam.id), ['legacy-valid']));
 });
 
 test('current desktop backup fixture imports without compatibility rewrites', async (t) => {
