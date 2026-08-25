@@ -3,6 +3,7 @@ import { useData } from '../context/DataContext';
 import { useLocale } from '../context/LocaleContext';
 import { getDaysUntil } from '../utils/helpers';
 import { NAVIGATION_GROUPS } from '../navigation';
+import AppLogo from './icons/AppLogo';
 
 export default function Sidebar({ activePage, onNavigate }) {
   const { t } = useLocale();
@@ -19,9 +20,7 @@ export default function Sidebar({ activePage, onNavigate }) {
 
       {/* Logo */}
       <div style={styles.logo}>
-        <div style={styles.logoMark}>
-          <span style={styles.logoT}>TUM</span>
-        </div>
+        <AppLogo size={36} />
         <div>
           <div style={styles.logoTitle}>Study Portal</div>
           <div style={styles.logoSub}>TU München</div>
@@ -94,22 +93,6 @@ const styles = {
     alignItems: 'center',
     gap: 10,
     padding: '0 20px 20px',
-  },
-  logoMark: {
-    width: 36,
-    height: 36,
-    background: 'var(--accent)',
-    borderRadius: 8,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  logoT: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: 800,
-    letterSpacing: '0.05em',
   },
   logoTitle: { fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.2 },
   logoSub: { fontSize: 11, color: 'var(--text-muted)', marginTop: 1 },

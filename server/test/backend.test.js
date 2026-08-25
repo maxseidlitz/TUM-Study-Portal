@@ -162,7 +162,7 @@ test('login selects and safely renders German, English, and Turkish', async (t) 
   const login = loginPage('token', 'en', 'failed');
   assert.match(login, /name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/);
   assert.match(login, /<section class="login-card" aria-labelledby="login-title">/);
-  assert.match(login, /<img src="\/icons\/apple-touch-icon\.png" alt="">/);
+  assert.match(login, /<img src="\/icons\/apple-touch-icon\.png" alt="TUM Study Portal">/);
   assert.match(login, /<h1 id="login-title">TUM Study Portal<\/h1>/);
   assert.match(login, /<p class="alert" role="alert">Sign-in failed\.<\/p>/);
   assert.match(login, /input,button\{width:100%;min-height:44px/);

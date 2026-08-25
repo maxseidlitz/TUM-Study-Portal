@@ -75,7 +75,7 @@ button:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
 input:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 @media(prefers-color-scheme:dark){:root{--bg:#0f1117;--card:#1a1d27;--text:#f2f4f8;--muted:#aeb6c5;--border:#343a4a;--input:#11141c;--accent:#5aa2e8;--accent-hover:#78b5ef;--button-text:#071525;--alert-bg:#35191d;--alert-text:#ffb4b8;--alert-border:#7d3038}.login-card{box-shadow:0 18px 44px rgba(0,0,0,.35)}}
 </style></head><body><main><section class="login-card" aria-labelledby="login-title">
-<div class="brand"><img src="/icons/apple-touch-icon.png" alt=""><h1 id="login-title">TUM Study Portal</h1><p class="subtitle">${html(messages.title)}</p></div>
+<div class="brand"><img src="/icons/apple-touch-icon.png" alt="TUM Study Portal"><h1 id="login-title">TUM Study Portal</h1><p class="subtitle">${html(messages.title)}</p></div>
 ${error ? `<p class="alert" role="alert">${html(error)}</p>` : ''}
 <form method="post" action="/login"><input type="hidden" name="_csrf" value="${html(token)}">
 <label for="password">${html(messages.password)}</label><input id="password" name="password" type="password" autocomplete="current-password" required autofocus>

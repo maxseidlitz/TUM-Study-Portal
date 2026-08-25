@@ -7,6 +7,7 @@ import ExamICalImportForm from './exams/ExamICalImportForm';
 import { useOllamaSetup, isOllamaSetupActive } from '../hooks/useOllamaSetup';
 import { api } from '../api';
 import AccessibleDialog from './ui/AccessibleDialog';
+import AppLogo from './icons/AppLogo';
 
 const TOTAL_STEPS = 4;
 
@@ -173,7 +174,7 @@ export default function SetupWizard({ onComplete, onVisibilityChange, onNavigate
         <div className="setup-content" style={styles.content}>
           {step === 0 && (
             <>
-              <div style={styles.icon}>🎓</div>
+              <div style={styles.icon}><AppLogo size={64} /></div>
               <h1 id="setup-wizard-title" style={styles.title}>{t('setupWizard.welcomeTitle')}</h1>
               <p style={styles.body}>{t('setupWizard.welcomeBody')}</p>
               <ul style={styles.featureList}>
@@ -335,7 +336,7 @@ const styles = {
   },
   progressLabel: { fontSize: 11, textAlign: 'center', lineHeight: 1.3 },
   content: { minHeight: 200, marginBottom: 20 },
-  icon: { fontSize: 48, textAlign: 'center', marginBottom: 12 },
+  icon: { display: 'flex', justifyContent: 'center', marginBottom: 16 },
   title: {
     fontFamily: 'var(--font-serif)', fontSize: 'var(--text-xl)', fontWeight: 700,
     color: 'var(--text-primary)', textAlign: 'center', marginBottom: 12,

@@ -12,6 +12,7 @@
       @media (prefers-color-scheme: dark) { :root { --bg: #0f1117; --text: #f5f7fa; --muted: #b5bdc9; } }
       body { min-height: 100vh; min-height: 100dvh; margin: 0; display: grid; place-items: center; background: var(--bg); color: var(--text); }
       main { width: min(32rem, calc(100% - 2rem)); text-align: center; }
+      img { width: 64px; height: 64px; margin-bottom: 1rem; border-radius: 14px; }
       h1 { margin-bottom: .5rem; }
       p { color: var(--muted); line-height: 1.5; }
       button { min-height: 44px; padding: .7rem 1rem; border: 0; border-radius: .5rem; background: var(--accent); color: white; font: inherit; font-weight: 600; }
@@ -19,6 +20,7 @@
   </head>
   <body>
     <main>
+      <img src="./icons/icon-192.png" width="64" height="64" alt="" />
       <h1 id="offline-title">Du bist offline</h1>
       <p id="offline-body">Diese sichere Offline-Seite enthält keine persönlichen Daten. Stelle die Verbindung wieder her, um das Portal zu öffnen oder Änderungen zu speichern.</p>
       <form action="/" method="get"><button id="offline-retry" type="submit">Erneut versuchen</button></form>

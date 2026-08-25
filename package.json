@@ -17,6 +17,7 @@
     "test:all": "npm test && npm run test:server",
     "test:e2e": "playwright test",
     "test:electron": "node scripts/electron-smoke.js",
+    "icons": "node scripts/generate-icons.js",
     "build": "vite build && node scripts/finalize-vite-build.js",
     "server": "node server/server.js",
     "server:restore": "node server/restore.js",
@@ -69,6 +70,7 @@
   "build": {
     "appId": "de.tum.study-portal",
     "productName": "TUM Study Portal",
+    "icon": "assets/icon.png",
     "files": [
       "build/**/*",
       "public/electron.js",
@@ -96,10 +98,18 @@
     },
     "mac": {
       "category": "public.app-category.education",
-      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "identity": "-",
+      "gatekeeperAssess": false,
+      "hardenedRuntime": false,
+      "artifactName": "TUM-Study-Portal-${version}-${arch}.${ext}",
       "target": [
-        "dmg"
+        "dmg",
+        "zip"
       ]
+    },
+    "dmg": {
+      "title": "TUM-Study-Portal",
+      "writeUpdateInfo": false
     },
     "win": {
       "target": [

@@ -6,6 +6,7 @@ import {
   NAVIGATION_ITEMS,
   mobileTabForPage,
 } from '../navigation';
+import AppLogo from './icons/AppLogo';
 import { MoreIcon } from './icons/NavigationIcons';
 import AccessibleDialog from './ui/AccessibleDialog';
 
@@ -15,7 +16,9 @@ export function MobileTopBar({ activePage }) {
 
   return (
     <header className="mobile-top-bar">
-      <div className="mobile-app-mark" aria-hidden="true">TUM</div>
+      <div className="mobile-app-mark">
+        <AppLogo size={36} decorative />
+      </div>
       <div className="mobile-top-copy">
         <span className="mobile-app-name">{t('mobileShell.appName')}</span>
         <strong className="mobile-page-title">{t(item?.labelKey || 'sidebar.navDashboard')}</strong>

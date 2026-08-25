@@ -173,18 +173,50 @@ jobs:
       - name: Build web renderer
         run: npm run build
 
-      - name: Build macOS app (electron-builder)
-        run: npx --no-install electron-builder --mac --x64 --arm64 --publish never
+      # hdiutil verträgt keine parallelen DMG-Läufe. x64 und arm64
+      # nacheinander bauen und die Artefakte dazwischen wegkopieren,
+      # weil electron-builder das dist-Verzeichnis sonst leert.
+      - name: Build macOS arm64 installer
+        run: npx --no-install electron-builder --mac --arm64 --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Unsignierter Build ohne Apple-Developer-Zertifikat
           CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Preserve arm64 installers
+        run: |
+          mkdir -p release-macos
+          mv dist/*.dmg dist/*.zip release-macos/ 2>/dev/null || true
+
+      - name: Build macOS x64 installer
+        run: npx --no-install electron-builder --mac --x64 --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Collect and verify macOS installers
+        run: |
+          mkdir -p release-macos
+          mv dist/*.dmg dist/*.zip release-macos/ 2>/dev/null || true
+          ls -lh release-macos
+          shopt -s nullglob
+          dmgs=(release-macos/*.dmg)
+          if [ ${#dmgs[@]} -eq 0 ]; then
+            echo "Keine DMG-Dateien erzeugt."
+            exit 1
+          fi
+          for f in "${dmgs[@]}"; do
+            echo "==== verify ${f} ===="
+            hdiutil imageinfo "$f"
+            hdiutil verify "$f"
+          done
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: TUM-Study-Portal-macOS
-          path: dist/*.dmg
+          path: |
+            release-macos/*.dmg
+            release-macos/*.zip
           if-no-files-found: error
           retention-days: 7
 
@@ -209,4 +241,6 @@ jobs:
           name: TUM Study Portal ${{ github.ref_name }}
           generate_release_notes: true
           fail_on_unmatched_files: true
-          files: release/*.dmg
+          files: |
+            release/*.dmg
+            release/*.zip

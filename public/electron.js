@@ -57,6 +57,13 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+function resolveAppIcon() {
+  return path.join(
+    __dirname,
+    app.isPackaged ? '../build/icons/icon-512.png' : 'icons/icon-512.png',
+  );
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -64,6 +71,7 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     backgroundColor: '#0f1117',
+    icon: resolveAppIcon(),
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -638,6 +646,10 @@ function registerOllamaIpc() {
 }
 
 app.whenReady().then(() => {
+  const iconPath = resolveAppIcon();
+  if (process.platform === 'darwin' && app.dock && fs.existsSync(iconPath)) {
+    app.dock.setIcon(iconPath);
+  }
   buildMenu();
   initStore();
   registerIpcHandlers();
