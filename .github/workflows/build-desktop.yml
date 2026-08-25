@@ -2,7 +2,7 @@ name: Build Desktop Apps
 
 # Baut bei jedem Push auf main unsignierte Windows- und macOS-Installer.
 # Die Ollama-Runtime wird vor dem Build heruntergeladen und mitgepackt.
-# Das KI-Modell (gemma4:e2b) wird NICHT gebündelt – die App lädt es beim
+# Das KI-Modell (qwen3:4b-instruct) wird NICHT gebündelt – die App lädt es beim
 # ersten Start selbst herunter.
 
 on:

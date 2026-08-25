@@ -181,7 +181,7 @@ function TodoCard({ todo, modules, moodleCourses, onToggle, t, intlLocale }) {
   return (
     <div style={styles.todoCard}>
       <button
-        className="touch-icon-button"
+        type="button"
         onClick={() => onToggle(todo.id)}
         style={{ ...styles.checkbox, borderColor: todo.priority === 'high' ? 'var(--danger)' : 'var(--border-color)' }}
         title={t('today.checkboxTitle')}

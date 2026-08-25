@@ -329,6 +329,32 @@ test('iCal replacement is atomic, scoped to imported rows and rolls back injecte
   assert.equal(modules.body.some(mod => mod.id === 'manual'), true);
 });
 
+test('iCal replacement keeps matching slot overrides', async (t) => {
+  const { app } = await fixture(t);
+  const auth = await login(app);
+  await api(app, auth, 'post', '/api/v1/modules', {
+    id: 'old-import',
+    name: 'Analysis 2',
+    source: 'ical',
+    slots: [{
+      id: 'old-slot',
+      day: 'Mo',
+      time: '10:00',
+      end_time: '11:00',
+      overrides: { '2026-08-24': { canceled: true } },
+    }],
+  }).expect(200);
+  const items = [
+    { name: 'Analysis  2', day: 'Mo', time: '10:00', end_time: '11:00', eventDate: '2026-08-17' },
+    { name: 'Analysis 2', day: 'Mo', time: '10:00', end_time: '11:00', eventDate: '2026-08-31' },
+  ];
+  await api(app, auth, 'post', '/api/v1/ical/replace', { items }).expect(200);
+  const modules = await api(app, auth, 'get', '/api/v1/modules').expect(200);
+  const imported = modules.body.find(mod => mod.source === 'ical' && mod.name === 'Analysis 2');
+  assert.ok(imported);
+  assert.equal(imported.slots[0].overrides['2026-08-24'].canceled, true);
+});
+
 test('study logs, settings secrets, chats and result routes work', async (t) => {
   const { app } = await fixture(t);
   const auth = await login(app);

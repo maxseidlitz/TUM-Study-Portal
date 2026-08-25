@@ -17,7 +17,8 @@ const defaults = {
   ollamaUrl: '',
   ollamaModel: '',
   ollamaServerManaged: false,
-  ollamaDisableReasoning: false,
+  ollamaDisableReasoning: true,
+  allowAiTodoWrites: false,
   geminiModel: '',
   targetEcts: 180,
   targetGpa: 1,
@@ -107,10 +108,31 @@ function mostCommon(values) {
   return best;
 }
 
+function normalizeIcalTitle(name) {
+  const trimmed = String(name || '').replace(/\s+/g, ' ').trim();
+  return trimmed || '(Ohne Titel)';
+}
+
+function slotOverrideKey(moduleName, slot) {
+  return `${normalizeIcalTitle(moduleName)}|${slot.day || ''}|${slot.time || ''}|${slot.end_time || ''}`;
+}
+
+function collectSlotOverrides(modules = []) {
+  const map = new Map();
+  for (const mod of modules) {
+    for (const slot of mod.slots || []) {
+      const overrides = slot.overrides && typeof slot.overrides === 'object' ? slot.overrides : null;
+      if (!overrides || !Object.keys(overrides).length) continue;
+      map.set(slotOverrideKey(mod.name, slot), overrides);
+    }
+  }
+  return map;
+}
+
 function groupIcalItems(items) {
   const byName = new Map();
   for (const item of items) {
-    const name = (item.name || '(Ohne Titel)').trim();
+    const name = normalizeIcalTitle(item.name);
     if (!byName.has(name)) byName.set(name, []);
     byName.get(name).push(item);
   }
@@ -320,7 +342,16 @@ class DomainService {
 
   replaceIcal(rawItems) {
     const items = schemas.icalItems.parse(rawItems);
+    const overrideMap = collectSlotOverrides(
+      this.db.listModules().filter(mod => mod.source === 'ical'),
+    );
     const grouped = groupIcalItems(items);
+    for (const mod of grouped.modules) {
+      for (const slot of mod.slots) {
+        const overrides = overrideMap.get(slotOverrideKey(mod.name, slot));
+        if (overrides) slot.overrides = overrides;
+      }
+    }
     this.db.transaction(() => {
       this.db.db.prepare("DELETE FROM lectures WHERE json_extract(data_json, '$.imported') = 1").run();
       this.db.db.prepare("DELETE FROM modules WHERE json_extract(data_json, '$.source') = 'ical'").run();

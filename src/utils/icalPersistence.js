@@ -1,5 +1,9 @@
 import { generateId } from './helpers';
-import { groupImportedItemsToModules } from './icalGrouping';
+import {
+  collectSlotOverrides,
+  groupImportedItemsToModules,
+  slotOverrideKey,
+} from './icalGrouping';
 
 export class ICalPersistenceError extends Error {
   constructor(stage, cause) {
@@ -21,7 +25,8 @@ async function requireSuccess(operation, stage) {
   }
 }
 
-export async function persistIcalItems(items, { addModule, addLectures }) {
+export async function persistIcalItems(items, { addModule, addLectures, importedModules = [] }) {
+  const overrideMap = collectSlotOverrides(importedModules);
   const { modules, lectures } = groupImportedItemsToModules(items);
 
   for (const module of modules) {
@@ -32,7 +37,14 @@ export async function persistIcalItems(items, { addModule, addLectures }) {
       moodleUrl: '',
       color: module.color,
       source: 'ical',
-      slots: module.slots.map(slot => ({ ...slot, id: generateId() })),
+      slots: module.slots.map((slot) => {
+        const overrides = overrideMap.get(slotOverrideKey(module.name, slot));
+        return {
+          ...slot,
+          id: generateId(),
+          ...(overrides ? { overrides } : {}),
+        };
+      }),
     }), 'create-module');
   }
 
@@ -75,5 +87,5 @@ export async function replaceIcalItems({
   for (const module of importedModules) {
     await requireSuccess(() => deleteModule(module.id), 'delete-module');
   }
-  return persistIcalItems(nextItems, { addModule, addLectures });
+  return persistIcalItems(nextItems, { addModule, addLectures, importedModules });
 }

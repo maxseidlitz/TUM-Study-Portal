@@ -144,6 +144,7 @@ const settingSchemas = {
   ollamaUrl: z.string().max(2048),
   ollamaModel: z.string().max(200),
   ollamaDisableReasoning: z.boolean(),
+  allowAiTodoWrites: z.boolean(),
   geminiModel: z.string().max(200),
   geminiApiKey: z.string().trim().min(1).max(4096),
   targetEcts: z.number().int().min(0).max(360),

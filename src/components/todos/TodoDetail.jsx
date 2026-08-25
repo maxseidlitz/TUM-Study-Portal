@@ -48,7 +48,6 @@ export default function TodoDetail({ todo, onUpdate, onToggle, onDelete, onClose
             onClick={() => onToggle(draft.id)}
             title={draft.done ? t('todoDetail.markOpen') : t('todoDetail.complete')}
             aria-label={draft.done ? t('todoDetail.markOpen') : t('todoDetail.complete')}
-            style={{ width: 44, height: 44 }}
           >
             <CheckIcon />
           </button>

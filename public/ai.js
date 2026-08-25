@@ -51,28 +51,35 @@ function listOllamaModels(ollamaUrl) {
   });
 }
 
-// Default model bundled/expected by the app
-const DEFAULT_MODEL = 'gemma4:e2b';
+const DEFAULT_MODEL = 'qwen3:4b-instruct';
 
-// Resolve which model to use: prefer the configured one, then the app default
-// (gemma4:e2b), then any installed model. Never blindly pick the largest model.
+function isToolCapableModelName(name) {
+  const n = String(name || '').toLowerCase();
+  if (!n || n.includes('gemma')) return false;
+  return /qwen3|llama3\.1|gpt-oss|instruct/.test(n);
+}
+
+function reasoningDisabled(settings) {
+  return settings?.ollamaDisableReasoning !== false;
+}
+
+// Prefer the configured model, then a tool-capable install, then the app default.
 async function resolveModel(ollamaUrl, preferred) {
   let models = [];
   try {
     models = await listOllamaModels(ollamaUrl);
   } catch (e) {
-    return preferred || DEFAULT_MODEL; // let callOllama surface the real error
+    return preferred || DEFAULT_MODEL;
   }
   if (!models.length) return preferred || DEFAULT_MODEL;
   const matchIn = (name) =>
     name && models.find(m => m === name || m.startsWith(`${name}:`));
-  // 1) explicitly configured model
   const configured = matchIn(preferred);
   if (configured) return configured;
-  // 2) the app default model
+  const toolCapable = models.find(isToolCapableModelName);
+  if (toolCapable) return toolCapable;
   const fallbackDefault = matchIn(DEFAULT_MODEL);
   if (fallbackDefault) return fallbackDefault;
-  // 3) last resort: first installed model
   return models[0];
 }
 
@@ -102,7 +109,7 @@ function buildOllamaApiChatBody(model, settings, rest) {
   const r = rest && typeof rest === 'object' ? { ...rest } : {};
   delete r.think;
 
-  if (settings?.ollamaDisableReasoning === true) {
+  if (reasoningDisabled(settings)) {
     return {
       model,
       think: false,
@@ -120,7 +127,7 @@ function buildOllamaApiChatBody(model, settings, rest) {
 
 /** Ergänzt den System-Prompt, falls Modelle `think: false` ignorieren (bekannt z. B. bei manchen Qwen-Builds). */
 function augmentOllamaSystemForNoReasoning(systemPrompt, settings) {
-  if (!systemPrompt || settings?.ollamaDisableReasoning !== true) return systemPrompt;
+  if (!systemPrompt || !reasoningDisabled(settings)) return systemPrompt;
   return `${systemPrompt}\n\n[Wichtig für diesen Aufruf: Antworte nur mit der finalen Antwort; keine ausführlichen Denk-Schritte davor und keine Reasoning-/Thinking-Markierungen im Text.]`;
 }
 
@@ -983,7 +990,18 @@ async function aiChatOllama(settings, messagesFromRenderer, context, dependencie
       throw e;
     }
 
-    const toolCalls = json.message?.tool_calls;
+    let toolCalls = json.message?.tool_calls;
+    let content = json.message?.content || json.response || '';
+
+    if (
+      (!Array.isArray(toolCalls) || toolCalls.length === 0)
+      && !String(content).trim()
+      && !reasoningDisabled(settings)
+    ) {
+      json = await postChat(ollamaUrl, model, { ...settings, ollamaDisableReasoning: true }, { messages, tools });
+      toolCalls = json.message?.tool_calls;
+      content = json.message?.content || json.response || '';
+    }
 
     if (Array.isArray(toolCalls) && toolCalls.length > 0) {
       if (toolCalls.length > CHAT_MAX_CALLS_PER_TURN) {
@@ -1027,7 +1045,6 @@ async function aiChatOllama(settings, messagesFromRenderer, context, dependencie
       continue;
     }
 
-    const content = json.message?.content || json.response || '';
     if (content.trim()) {
       return {
         content: safeTodoFinalContent(content, todoActionResults, context?.locale),

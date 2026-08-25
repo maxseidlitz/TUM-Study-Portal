@@ -20,7 +20,6 @@ export default function Chat() {
   } = useData();
 
   const [input, setInput] = useState('');
-  const [allowTodoWrites, setAllowTodoWrites] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const isMobile = useIsMobile();
   const scrollRef = useRef(null);
@@ -47,11 +46,9 @@ export default function Chat() {
   const send = async (text) => {
     const content = text.trim();
     if (!content || isThinking) return;
-    const todoWriteConsent = allowTodoWrites;
-    setAllowTodoWrites(false);
     setInput('');
     try {
-      await sendAiMessage(content, activeSessionId, messages, todoWriteConsent);
+      await sendAiMessage(content, activeSessionId, messages);
     } finally {
       inputRef.current?.focus();
     }
@@ -67,7 +64,6 @@ export default function Chat() {
   const handleStartNewChat = async () => {
     await startNewChat();
     setInput('');
-    setAllowTodoWrites(false);
     inputRef.current?.focus();
   };
 
@@ -75,7 +71,6 @@ export default function Chat() {
     await selectSession(id);
     setSessionsOpen(false);
     setInput('');
-    setAllowTodoWrites(false);
     inputRef.current?.focus();
   };
 
@@ -208,23 +203,6 @@ export default function Chat() {
           </div>
 
           <div style={styles.composer}>
-            <div style={styles.consentPanel}>
-              <label htmlFor="chat-todo-write-consent" style={styles.consentLabel}>
-                <input
-                  id="chat-todo-write-consent"
-                  type="checkbox"
-                  checked={allowTodoWrites}
-                  disabled={isThinking}
-                  aria-describedby="chat-todo-write-help"
-                  onChange={event => setAllowTodoWrites(event.target.checked)}
-                  style={styles.consentCheckbox}
-                />
-                <span>{t('chat.allowTodoWrites')}</span>
-              </label>
-              <div id="chat-todo-write-help" style={styles.consentHelp}>
-                {t('chat.allowTodoWritesHelp')}
-              </div>
-            </div>
             <div className="chat-input-bar" style={styles.inputBar}>
               <textarea
                 ref={inputRef}
@@ -345,36 +323,6 @@ const styles = {
   },
   messages: { display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 8 },
   composer: { flexShrink: 0, marginTop: 12 },
-  consentPanel: {
-    padding: '8px 10px',
-    border: '1px solid var(--border-color)',
-    borderRadius: 12,
-    background: 'var(--bg-card)',
-  },
-  consentLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    minHeight: 44,
-    color: 'var(--text-primary)',
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  consentCheckbox: {
-    width: 44,
-    height: 44,
-    margin: 0,
-    flexShrink: 0,
-    accentColor: 'var(--accent)',
-    cursor: 'pointer',
-  },
-  consentHelp: {
-    marginLeft: 54,
-    color: 'var(--text-secondary)',
-    fontSize: 11,
-    lineHeight: 1.4,
-  },
   inputBar: {
     display: 'flex', gap: 10, alignItems: 'flex-end', flexShrink: 0,
     marginTop: 8, padding: 10, background: 'var(--bg-card)',

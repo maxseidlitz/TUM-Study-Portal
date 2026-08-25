@@ -290,7 +290,7 @@ class AiService {
       method: 'POST',
       body: {
         model,
-        ...(settings.ollamaDisableReasoning ? { think: false } : {}),
+        ...(settings.ollamaDisableReasoning !== false ? { think: false } : {}),
         stream: false,
         messages: [{ role: 'system', content: system }, ...messages],
       },
@@ -425,7 +425,7 @@ class AiService {
           method: 'POST',
           body: {
             model,
-            ...(settings.ollamaDisableReasoning ? { think: false } : {}),
+            ...(settings.ollamaDisableReasoning !== false ? { think: false } : {}),
             stream: false,
             messages,
             tools: OLLAMA_TOOLS,

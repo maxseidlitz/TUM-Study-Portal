@@ -128,7 +128,7 @@ test('Chat, exams, lectures, modules, and settings render without external servi
   }
 });
 
-test('chat Todo consent is visible, touch-sized, off by default, and resets after send', async ({ page }) => {
+test('chat uses persisted AI todo-write setting', async ({ page }) => {
   const payloads = [];
   await page.route('**/api/v1/ai/chat', async route => {
     payloads.push(route.request().postDataJSON());
@@ -145,28 +145,29 @@ test('chat Todo consent is visible, touch-sized, off by default, and resets afte
   });
 
   await page.goto('/chat');
-  const consent = page.getByRole('checkbox', {
-    name: 'Todo-Erstellung für diese Nachricht erlauben',
-  });
-  await expect(consent).toBeVisible();
-  await expect(consent).not.toBeChecked();
-  await expectMinTouchTarget(consent);
-  await expect(consent).toHaveAttribute('aria-describedby', 'chat-todo-write-help');
-  await expect(page.locator('#chat-todo-write-help')).toContainText('nur für die nächste');
+  await expect(page.getByRole('checkbox', { name: /Todo-Erstellung/ })).toHaveCount(0);
 
   const input = page.getByRole('textbox', { name: 'Nachricht an den KI-Assistenten' });
-  await consent.check();
   await input.fill('Bitte erstelle ein Todo.');
   await page.getByRole('button', { name: 'Nachricht senden' }).click();
   await expect.poll(() => payloads.length).toBe(1);
-  expect(payloads[0].context.allowTodoWrites).toBe(true);
-  await expect(consent).not.toBeChecked();
+  expect(payloads[0].context.allowTodoWrites).toBe(false);
   await expect(page.getByText('Mocked provider response').last()).toBeVisible();
+
+  await page.evaluate(async () => {
+    const csrf = document.querySelector('meta[name="csrf-token"]').content;
+    const response = await fetch('/api/v1/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+      body: JSON.stringify({ allowAiTodoWrites: true }),
+    });
+    if (!response.ok) throw new Error(`settings patch failed: ${response.status}`);
+  });
 
   await input.fill('Bitte erstelle noch ein Todo.');
   await page.getByRole('button', { name: 'Nachricht senden' }).click();
   await expect.poll(() => payloads.length).toBe(2);
-  expect(payloads[1].context.allowTodoWrites).toBe(false);
+  expect(payloads[1].context.allowTodoWrites).toBe(true);
 });
 
 test('desktop sidebar exposes every primary route', async ({ page }, testInfo) => {

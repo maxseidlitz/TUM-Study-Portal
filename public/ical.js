@@ -26,7 +26,11 @@ function parseIcal(text) {
       const value = line.substring(colonIdx + 1);
       // Strip parameters (e.g. DTSTART;TZID=Europe/Berlin → DTSTART)
       const key = rawKey.split(';')[0].toUpperCase();
-      current[key] = value;
+      if (key === 'EXDATE' && current.EXDATE) {
+        current.EXDATE = `${current.EXDATE},${value}`;
+      } else {
+        current[key] = value;
+      }
       if (key === 'DTSTART' || key === 'DTEND') {
         current[`__PROP_${key}`] = rawKey;
       }
@@ -76,21 +80,73 @@ function isAllDayDt(rawProp, value) {
   return /^\d{8}$/.test(v) || /^\d{8}Z$/i.test(v);
 }
 
-/** Local floating or naive-Z-adjusted clock on a calendar day (same rules as legacy parser). */
+function lastSundayOfMonthUtc(year, monthIndex) {
+  const last = new Date(Date.UTC(year, monthIndex + 1, 0));
+  last.setUTCDate(last.getUTCDate() - last.getUTCDay());
+  return last;
+}
+
+/** EU DST: last Sunday of March 01:00 UTC → last Sunday of October 01:00 UTC. */
+function berlinOffsetMinutes(utcMs) {
+  const year = new Date(utcMs).getUTCFullYear();
+  const start = lastSundayOfMonthUtc(year, 2);
+  start.setUTCHours(1, 0, 0, 0);
+  const end = lastSundayOfMonthUtc(year, 9);
+  end.setUTCHours(1, 0, 0, 0);
+  return utcMs >= start.getTime() && utcMs < end.getTime() ? 120 : 60;
+}
+
+function utcToBerlinParts(utcMs) {
+  const local = new Date(utcMs + berlinOffsetMinutes(utcMs) * 60 * 1000);
+  return {
+    y: local.getUTCFullYear(),
+    mo: local.getUTCMonth() + 1,
+    d: local.getUTCDate(),
+    hour: local.getUTCHours(),
+    min: local.getUTCMinutes(),
+  };
+}
+
+/** Local floating time, or UTC (`Z`) converted to Europe/Berlin including DST. */
 function parseClockFromIcal(dtValue) {
   const v = String(dtValue || '').trim();
-  const m = v.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(?:(\d{2}))?/);
+  const m = v.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(?:(\d{2}))?(Z)?$/i);
   if (!m) return null;
-  const y = +m[1];
-  const mo = +m[2];
-  const d = +m[3];
+  let y = +m[1];
+  let mo = +m[2];
+  let d = +m[3];
   let hour = +m[4];
-  const min = +m[5];
-  if (v.endsWith('Z') || v.endsWith('z')) hour = (hour + 1) % 24;
+  let min = +m[5];
+  if (m[7]) {
+    const utcMs = Date.UTC(y, mo - 1, d, hour, min, +(m[6] || 0));
+    const berlin = utcToBerlinParts(utcMs);
+    y = berlin.y;
+    mo = berlin.mo;
+    d = berlin.d;
+    hour = berlin.hour;
+    min = berlin.min;
+  }
   const time = `${pad2(hour)}:${pad2(min)}`;
   const date = formatYmd(y, mo, d);
   const weekday = new Date(y, mo - 1, d).getDay();
   return { date, time, y, mo, d, hour, min, weekday };
+}
+
+function parseExdateYmds(raw) {
+  const set = new Set();
+  if (!raw) return set;
+  for (const part of String(raw).split(',')) {
+    const token = part.trim();
+    if (!token) continue;
+    const clk = parseClockFromIcal(token);
+    if (clk) {
+      set.add(clk.date);
+      continue;
+    }
+    const day = parseIcalDateOnly(token);
+    if (day) set.add(day.date);
+  }
+  return set;
 }
 
 function addMinutesToClock(timeStr, addMin) {
@@ -158,7 +214,7 @@ function eachCalendarDay(fromDate, toDate) {
 function eventsToCalendarItems(events) {
   const rangeStart = new Date();
   rangeStart.setHours(0, 0, 0, 0);
-  rangeStart.setDate(rangeStart.getDate() - 28);
+  rangeStart.setDate(rangeStart.getDate() - 180);
 
   const rangeEnd = new Date();
   rangeEnd.setHours(23, 59, 59, 999);
@@ -180,9 +236,12 @@ function eventsToCalendarItems(events) {
 
   for (const ev of events) {
     evIndex += 1;
+    if (String(ev.STATUS || '').toUpperCase() === 'CANCELLED') continue;
+
     const summary = cleanIcalText(ev.SUMMARY) || '(Ohne Titel)';
     const room = cleanIcalText(ev.LOCATION);
     const uidRaw = cleanIcalText(ev.UID) || `noid-${evIndex}`;
+    const exdates = parseExdateYmds(ev.EXDATE);
     const rruleParsed = parseRruleParts(ev.RRULE);
     const freq = (rruleParsed.FREQ || '').toUpperCase();
     const interval = Math.max(1, parseInt(rruleParsed.INTERVAL, 10) || 1);
@@ -211,6 +270,7 @@ function eventsToCalendarItems(events) {
         const dateStr = formatYmd(d.getFullYear(), d.getMonth() + 1, d.getDate());
         if (dateStr < rangeStartYmd) continue;
         if (dateStr > rangeEndYmd) continue;
+        if (exdates.has(dateStr)) continue;
         const weekday = d.getDay();
         items.push({
           name: summary,
@@ -250,6 +310,7 @@ function eventsToCalendarItems(events) {
     const pushTimed = (dateStr, weekday) => {
       if (dateStr < rangeStartYmd) return;
       if (dateStr > rangeEndYmd) return;
+      if (exdates.has(dateStr)) return;
       items.push({
         name: summary,
         day: DAY_CODES[weekday],

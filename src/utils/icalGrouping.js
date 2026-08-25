@@ -11,10 +11,31 @@
  * @param {Array} items  Vom Parser gelieferte Termine ({ name, day, time, end_time, room, allDay, eventDate, ... })
  * @returns {{ modules: Array, lectures: Array }}
  */
+export function normalizeIcalTitle(name) {
+  const trimmed = String(name || '').replace(/\s+/g, ' ').trim();
+  return trimmed || '(Ohne Titel)';
+}
+
+export function slotOverrideKey(moduleName, slot) {
+  return `${normalizeIcalTitle(moduleName)}|${slot.day || ''}|${slot.time || ''}|${slot.end_time || ''}`;
+}
+
+export function collectSlotOverrides(modules = []) {
+  const map = new Map();
+  for (const mod of modules) {
+    for (const slot of mod.slots || []) {
+      const overrides = slot.overrides && typeof slot.overrides === 'object' ? slot.overrides : null;
+      if (!overrides || !Object.keys(overrides).length) continue;
+      map.set(slotOverrideKey(mod.name, slot), overrides);
+    }
+  }
+  return map;
+}
+
 export function groupImportedItemsToModules(items = []) {
   const byName = new Map();
   for (const it of items) {
-    const key = (it.name || '(Ohne Titel)').trim();
+    const key = normalizeIcalTitle(it.name);
     if (!byName.has(key)) byName.set(key, []);
     byName.get(key).push(it);
   }

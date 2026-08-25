@@ -9,7 +9,7 @@ import { api } from '../api';
 import AccessibleDialog from './ui/AccessibleDialog';
 import AppLogo from './icons/AppLogo';
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
 
 export default function SetupWizard({ onComplete, onVisibilityChange, onNavigate }) {
   const { t } = useLocale();
@@ -21,6 +21,7 @@ export default function SetupWizard({ onComplete, onVisibilityChange, onNavigate
   const [step, setStep] = useState(0);
   const [importStats, setImportStats] = useState({ moduleCount: 0, lectureCount: 0, examCount: 0 });
   const [scheduleImported, setScheduleImported] = useState(false);
+  const [allowAiTodoWrites, setAllowAiTodoWrites] = useState(false);
 
   const saveStep = useCallback(async (nextStep) => {
     try {
@@ -48,6 +49,7 @@ export default function SetupWizard({ onComplete, onVisibilityChange, onNavigate
     const onRestart = () => {
       setStep(0);
       setScheduleImported(false);
+      setAllowAiTodoWrites(false);
       setImportStats({ moduleCount: 0, lectureCount: 0, examCount: 0 });
       setVisible(true);
       onVisibilityChange?.(true);
@@ -127,6 +129,15 @@ export default function SetupWizard({ onComplete, onVisibilityChange, onNavigate
     }
   };
 
+  const goNextFromAiConsent = async () => {
+    try {
+      await api.settings.save({ allowAiTodoWrites });
+    } catch {
+      /* continue — user can still change this later in settings */
+    }
+    await goNext();
+  };
+
   const goBack = async () => {
     if (step > 0) await saveStep(step - 1);
   };
@@ -137,6 +148,7 @@ export default function SetupWizard({ onComplete, onVisibilityChange, onNavigate
     t('setupWizard.stepWelcome'),
     t('setupWizard.stepSchedule'),
     t('setupWizard.stepExams'),
+    t('setupWizard.stepAi'),
     t('setupWizard.stepDone'),
   ];
 
@@ -212,6 +224,24 @@ export default function SetupWizard({ onComplete, onVisibilityChange, onNavigate
 
           {step === 3 && (
             <>
+              <h2 id="setup-wizard-title" style={styles.stepTitle}>{t('setupWizard.aiTitle')}</h2>
+              <p style={styles.stepSub}>{t('setupWizard.aiBody')}</p>
+              <label htmlFor="setup-ai-todo-writes" style={styles.consentLabel}>
+                <input
+                  id="setup-ai-todo-writes"
+                  type="checkbox"
+                  checked={allowAiTodoWrites}
+                  onChange={event => setAllowAiTodoWrites(event.target.checked)}
+                  style={styles.consentCheckbox}
+                />
+                <span>{t('setupWizard.aiAllowTodos')}</span>
+              </label>
+              <p style={styles.consentHelp}>{t('setupWizard.aiAllowTodosHelp')}</p>
+            </>
+          )}
+
+          {step === 4 && (
+            <>
               <div style={styles.icon}>✅</div>
               <h2 id="setup-wizard-title" style={styles.title}>{t('setupWizard.doneTitle')}</h2>
               <p style={styles.body}>{t('setupWizard.doneBody')}</p>
@@ -273,6 +303,11 @@ export default function SetupWizard({ onComplete, onVisibilityChange, onNavigate
             </>
           )}
           {step === 3 && (
+            <button type="button" className="btn btn-primary" onClick={goNextFromAiConsent}>
+              {t('setupWizard.next')}
+            </button>
+          )}
+          {step === 4 && (
             <button
               type="button"
               className="btn btn-primary"
@@ -351,6 +386,33 @@ const styles = {
     color: 'var(--text-primary)', marginBottom: 8,
   },
   stepSub: { fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 },
+  consentLabel: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: '12px 14px',
+    border: '1px solid var(--border-color)',
+    borderRadius: 12,
+    background: 'var(--bg-tertiary)',
+    cursor: 'pointer',
+    color: 'var(--text-primary)',
+    fontSize: 14,
+    fontWeight: 600,
+  },
+  consentCheckbox: {
+    width: 18,
+    height: 18,
+    marginTop: 2,
+    flexShrink: 0,
+    accentColor: 'var(--accent)',
+    cursor: 'pointer',
+  },
+  consentHelp: {
+    marginTop: 10,
+    fontSize: 12,
+    color: 'var(--text-secondary)',
+    lineHeight: 1.5,
+  },
   summaryBox: {
     marginTop: 20, padding: 16, background: 'var(--bg-tertiary)', borderRadius: 10,
     fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', lineHeight: 1.8, textAlign: 'center',

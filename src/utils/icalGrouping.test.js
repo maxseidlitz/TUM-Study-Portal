@@ -64,4 +64,17 @@ describe('groupImportedItemsToModules', () => {
     const { modules } = groupImportedItemsToModules(items);
     expect(modules[0].slots[0].room).toBe('B');
   });
+
+  test('normalisiert Whitespace im Titel, trennt Vorlesung und Übung', () => {
+    const items = [
+      wk('  Analysis   2  ', 'Mo', '10:15', '11:45', { eventDate: '2026-04-13' }),
+      wk('Analysis 2', 'Mo', '10:15', '11:45', { eventDate: '2026-04-20' }),
+      wk('Analysis 2 (Übung)', 'Di', '10:15', '11:45', { eventDate: '2026-04-14' }),
+      wk('Analysis 2 (Übung)', 'Di', '10:15', '11:45', { eventDate: '2026-04-21' }),
+    ];
+    const { modules, lectures } = groupImportedItemsToModules(items);
+    expect(modules).toHaveLength(2);
+    expect(lectures).toHaveLength(0);
+    expect(new Set(modules.map(m => m.name))).toEqual(new Set(['Analysis 2', 'Analysis 2 (Übung)']));
+  });
 });

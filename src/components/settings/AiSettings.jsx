@@ -206,7 +206,7 @@ export default function AiSettings({ settings, setSettings }) {
               <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
                 <input
                   type="checkbox"
-                  checked={Boolean(settings.ollamaDisableReasoning)}
+                  checked={settings.ollamaDisableReasoning !== false}
                   onChange={async (e) => {
                     const checked = e.target.checked;
                     setSettings(s => ({ ...s, ollamaDisableReasoning: checked }));
@@ -222,6 +222,31 @@ export default function AiSettings({ settings, setSettings }) {
                   <strong>{t('settings.ollamaDisableReasoningLabel')}</strong>
                   <div style={{ ...styles.sectionSub, marginTop: 4 }}>
                     {t('settings.ollamaDisableReasoningHint')}
+                  </div>
+                </span>
+              </label>
+            </div>
+
+            <div className="form-group">
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={settings.allowAiTodoWrites === true}
+                  onChange={async (e) => {
+                    const checked = e.target.checked;
+                    setSettings(s => ({ ...s, allowAiTodoWrites: checked }));
+                    try {
+                      await api.settings.save({ allowAiTodoWrites: checked });
+                    } catch {
+                      setSettings(s => ({ ...s, allowAiTodoWrites: !checked }));
+                    }
+                  }}
+                  style={{ marginTop: 4 }}
+                />
+                <span>
+                  <strong>{t('settings.allowAiTodoWritesLabel')}</strong>
+                  <div style={{ ...styles.sectionSub, marginTop: 4 }}>
+                    {t('settings.allowAiTodoWritesHint')}
                   </div>
                 </span>
               </label>

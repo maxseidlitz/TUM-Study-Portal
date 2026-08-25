@@ -108,7 +108,6 @@ export function DataProvider({ children }) {
     content,
     sessionId,
     history,
-    allowTodoWrites = false,
   ) => {
     const userMsg = { role: 'user', content: content.trim() };
     const newHistory = [...history, userMsg];
@@ -121,9 +120,10 @@ export function DataProvider({ children }) {
     });
 
     try {
+      const settings = await api.settings.get().catch(() => ({}));
       const context = buildAiContext({
         locale,
-        allowTodoWrites: allowTodoWrites === true,
+        allowTodoWrites: settings?.allowAiTodoWrites === true,
       });
 
       const result = await api.ai.chat({
