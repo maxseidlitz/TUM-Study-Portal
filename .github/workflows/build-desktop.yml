@@ -114,6 +114,8 @@ jobs:
   build-macos:
     if: github.event_name != 'pull_request'
     runs-on: macos-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
@@ -212,6 +214,9 @@ jobs:
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        # Nicht-fatal: schlägt der Upload am Artefakt-Speicherkontingent fehl,
+        # steht die DMG dennoch über das Preview-Release (unten) zum Download bereit.
+        continue-on-error: true
         with:
           name: TUM-Study-Portal-macOS
           path: |
@@ -219,6 +224,26 @@ jobs:
             release-macos/*.zip
           if-no-files-found: error
           retention-days: 7
+
+      # Direkter Download-Weg, der NICHT gegen das Artefakt-Kontingent zählt:
+      # DMG/ZIP als Assets an ein Preview-Release hängen. Nur bei manuellem Start.
+      - name: Publish macOS preview release
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          tag_name: desktop-preview
+          name: Desktop Preview (macOS)
+          prerelease: true
+          fail_on_unmatched_files: true
+          body: |
+            Automatischer Vorschau-Build der macOS-App (unsigniert) vom Branch
+            `${{ github.ref_name }}` (Commit ${{ github.sha }}).
+
+            Nach der Installation einmalig im Terminal freigeben:
+            `xattr -cr "/Applications/TUM Study Portal.app"`
+          files: |
+            release-macos/*.dmg
+            release-macos/*.zip
 
   release-macos:
     name: Publish macOS release
