@@ -340,8 +340,8 @@
     "deleteWithLecturesBody": "„{name}“ und alle {count} zugehörigen Vorlesungstermine werden unwiderruflich gelöscht.",
     "moodleSync": "Moodle-Sync",
     "moodleInfoTitle": "Moodle-Sync nicht verfügbar",
-    "moodleInfoBody": "Eine automatische Synchronisation mit Moodle ist derzeit nicht möglich, da TUM keinen öffentlichen API-Zugang bereitstellt. Du kannst deine Module manuell anlegen und jeweils den Moodle-Link hinterlegen, um schnell zum Kurs zu navigieren."
-    ,"moodleSyncModalTitle": "Moodle-API-Zugang",
+    "moodleInfoBody": "Eine automatische Synchronisation mit Moodle ist derzeit nicht möglich, da TUM keinen öffentlichen API-Zugang bereitstellt. Du kannst deine Module manuell anlegen und jeweils den Moodle-Link hinterlegen, um schnell zum Kurs zu navigieren.",
+    "moodleSyncModalTitle": "Moodle-API-Zugang",
     "moodleSyncModalBody": "Ein automatischer Moodle-Abgleich ist derzeit nicht verfügbar.",
     "moodleSyncEmailPlaceholder": "deine.email@tum.de",
     "moodleSyncSubmit": "Unterstützen",
@@ -350,7 +350,10 @@
     "weekGridScrollLabel": "Horizontal scrollbarer Wochenplan-Editor",
     "clickGridToAdd": "Zum Anlegen in den Wochenplan tippen",
     "scheduleEditorHint": "Tippe in den Wochenplan, um einen Termin anzulegen. Tippe auf einen Termin, um ihn zu bearbeiten.",
-    "editSlot": "Termin bearbeiten"
+    "editSlot": "Termin bearbeiten",
+    "allSemesters": "Alle Semester",
+    "noneInSemester": "Keine Module in diesem Semester.",
+    "filterSemesterLabel": "Nach Semester filtern"
   },
   "links": {
     "title": "TUM Links",
@@ -529,8 +532,8 @@
     "sug2": "Erstelle mir einen Lernplan für meine nächste Prüfung.",
     "sug3": "Wie viel Zeit habe ich bis zur nächsten Prüfung?",
     "sug4": "Hilf mir, meine offenen Aufgaben sinnvoll zu sortieren.",
-    "placeholder": "Frag mich etwas zu deinem Studium…"
-    ,"send": "Nachricht senden",
+    "placeholder": "Frag mich etwas zu deinem Studium…",
+    "send": "Nachricht senden",
     "inputLabel": "Nachricht an den KI-Assistenten",
     "allowTodoWrites": "Todo-Erstellung für diese Nachricht erlauben",
     "allowTodoWritesHelp": "Das Modell darf höchstens validierte Todos vorschlagen oder anlegen. Die Freigabe gilt nur für die nächste gesendete Nachricht.",
@@ -589,8 +592,8 @@
     "logDurationMinutes": "{min} Minuten",
     "logSave": "Speichern",
     "logSkip": "Überspringen",
-    "logSaveError": "Die Lernsitzung konnte nicht gespeichert werden. Bitte versuche es erneut."
-    ,"toggle": "Pomodoro-Timer öffnen oder schließen",
+    "logSaveError": "Die Lernsitzung konnte nicht gespeichert werden. Bitte versuche es erneut.",
+    "toggle": "Pomodoro-Timer öffnen oder schließen",
     "start": "Start",
     "pause": "Pause",
     "reset": "Zurücksetzen"

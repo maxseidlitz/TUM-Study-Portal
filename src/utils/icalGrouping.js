@@ -16,6 +16,35 @@ export function normalizeIcalTitle(name) {
   return trimmed || '(Ohne Titel)';
 }
 
+/**
+ * TUM-Semester aus einem Datum (YYYY-MM-DD) ableiten.
+ * (Spiegel der Logik in public/ical.js — dort für die Termin-Tags, hier für die UI.)
+ */
+export function semesterForYmd(ymd) {
+  const m = String(ymd || '').match(/^(\d{4})-(\d{2})-/);
+  if (!m) return '';
+  const y = +m[1];
+  const mo = +m[2];
+  if (mo >= 4 && mo <= 9) return `SS ${y}`;
+  const startYear = mo >= 10 ? y : y - 1;
+  return `WS ${startYear}/${String((startYear + 1) % 100).padStart(2, '0')}`;
+}
+
+/** Aktuelles Semester (heute). */
+export function currentSemesterLabel(now = new Date()) {
+  const ymd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  return semesterForYmd(ymd);
+}
+
+/** Sortierschlüssel: neueres Semester = größerer Wert (SS Y < WS Y/…). */
+export function semesterSortKey(label) {
+  const ss = String(label || '').match(/^SS (\d{4})/);
+  if (ss) return +ss[1] * 2;
+  const ws = String(label || '').match(/^WS (\d{4})/);
+  if (ws) return +ws[1] * 2 + 1;
+  return -1;
+}
+
 export function slotOverrideKey(moduleName, slot) {
   return `${normalizeIcalTitle(moduleName)}|${slot.day || ''}|${slot.time || ''}|${slot.end_time || ''}`;
 }
@@ -73,6 +102,7 @@ export function groupImportedItemsToModules(items = []) {
     if (slots.length > 0) {
       modules.push({
         name,
+        semester: mostCommon(group.map(g => g.semester).filter(Boolean)),
         color: group.find(g => g.color)?.color || '#3B82F6',
         source: 'ical',
         slots,
