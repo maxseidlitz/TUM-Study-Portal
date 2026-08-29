@@ -33,7 +33,7 @@ export async function persistIcalItems(items, { addModule, addLectures, imported
     await requireSuccess(() => addModule({
       name: module.name,
       code: '',
-      semester: '',
+      semester: module.semester || '',
       moodleUrl: '',
       color: module.color,
       source: 'ical',

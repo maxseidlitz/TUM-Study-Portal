@@ -197,6 +197,24 @@ function startOfLocalDayFromParts(y, mo, d) {
   return new Date(y, mo - 1, d, 0, 0, 0, 0);
 }
 
+/**
+ * TUM-Semester aus einem Datum (YYYY-MM-DD) ableiten.
+ *  - Apr–Sep  → Sommersemester  "SS <Jahr>"
+ *  - Okt–Dez  → Wintersemester  "WS <Jahr>/<Jahr+1 kurz>"
+ *  - Jan–Mär  → Wintersemester  "WS <Jahr-1>/<Jahr kurz>"
+ * (Gespiegelt in src/utils/icalGrouping.js für die UI — bewusst dupliziert,
+ *  da dieses Modul CommonJS ist und auch serverseitig läuft.)
+ */
+function semesterForYmd(ymd) {
+  const m = String(ymd || '').match(/^(\d{4})-(\d{2})-/);
+  if (!m) return '';
+  const y = +m[1];
+  const mo = +m[2];
+  if (mo >= 4 && mo <= 9) return `SS ${y}`;
+  const startYear = mo >= 10 ? y : y - 1;
+  return `WS ${startYear}/${String((startYear + 1) % 100).padStart(2, '0')}`;
+}
+
 function eachCalendarDay(fromDate, toDate) {
   const out = [];
   const c = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
@@ -212,13 +230,16 @@ function eachCalendarDay(fromDate, toDate) {
  * Includes all-day events; expands FREQ=WEEKLY with BYDAY/INTERVAL/COUNT/UNTIL in a basic way.
  */
 function eventsToCalendarItems(events) {
+  // Praktisch der GANZE Kalender: 2 Jahre zurück, 1 Jahr voraus. Weit genug
+  // für mehrere Semester (inkl. abgeschlossener); die UI filtert per Semester.
+  // Der Rahmen begrenzt zugleich die WEEKLY-RRULE-Expansion (sonst endlos).
   const rangeStart = new Date();
   rangeStart.setHours(0, 0, 0, 0);
-  rangeStart.setDate(rangeStart.getDate() - 180);
+  rangeStart.setFullYear(rangeStart.getFullYear() - 2);
 
   const rangeEnd = new Date();
   rangeEnd.setHours(23, 59, 59, 999);
-  rangeEnd.setDate(rangeEnd.getDate() + 365);
+  rangeEnd.setFullYear(rangeEnd.getFullYear() + 1);
 
   const rangeStartYmd = formatYmd(
     rangeStart.getFullYear(),
@@ -282,6 +303,7 @@ function eventsToCalendarItems(events) {
           imported: true,
           eventDate: dateStr,
           allDay: true,
+          semester: semesterForYmd(dateStr),
           icalUid: `${uidRaw}_allday_${dateStr}`,
         });
       }
@@ -321,6 +343,7 @@ function eventsToCalendarItems(events) {
         imported: true,
         eventDate: dateStr,
         allDay: false,
+        semester: semesterForYmd(dateStr),
         icalUid: `${uidRaw}_${dateStr}_${clk.time}`,
       });
     };
@@ -375,4 +398,4 @@ function eventsToCalendarItems(events) {
   return deduped;
 }
 
-module.exports = { parseIcal, eventsToCalendarItems };
+module.exports = { parseIcal, eventsToCalendarItems, semesterForYmd };

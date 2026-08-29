@@ -7,6 +7,7 @@ import { PlusIcon, CloseIcon, ExternalIcon } from '../components/icons/Icons';
 import ModuleCard from '../components/modules/ModuleCard';
 import WeekScheduleEditor from '../components/modules/WeekScheduleEditor';
 import AccessibleDialog from '../components/ui/AccessibleDialog';
+import { currentSemesterLabel, semesterSortKey } from '../utils/icalGrouping';
 
 const COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4', '#F97316', '#6366F1', '#EF4444', '#14B8A6'];
 const EMPTY_SLOT = { id: '', day: 'Mo', time: '', end_time: '', room: '', lecturer: '', allDay: false };
@@ -20,8 +21,18 @@ export default function Modules() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [semesterFilter, setSemesterFilter] = useState(null); // null → Default (aktuelles Semester)
 
   if (loading) return <div className="loading">{t('common.loading')}</div>;
+
+  // Semester-Filter: verfügbare Semester aus den Modulen, neuestes zuerst.
+  const semesters = [...new Set(modules.map((m) => m.semester).filter(Boolean))]
+    .sort((a, b) => semesterSortKey(b) - semesterSortKey(a));
+  const current = currentSemesterLabel();
+  const effectiveFilter = semesterFilter ?? (semesters.includes(current) ? current : 'all');
+  const visibleModules = effectiveFilter === 'all'
+    ? modules
+    : modules.filter((m) => m.semester === effectiveFilter);
 
   const openAdd = () => {
     setForm(EMPTY_FORM);
@@ -97,17 +108,42 @@ export default function Modules() {
       {modules.length === 0 ? (
         <EmptyState icon="📚" title={t('modules.emptyTitle')} actionLabel={t('modules.emptyCta')} onAction={openAdd} />
       ) : (
-        <div className="grid-2">
-          {modules.map((mod) => (
-            <ModuleCard
-              key={mod.id}
-              mod={mod}
-              onEdit={openEdit}
-              onDelete={setDeleteConfirm}
-              t={t}
-            />
-          ))}
-        </div>
+        <>
+          {semesters.length > 1 && (
+            <div className="semester-filter" style={styles.filterBar} role="group" aria-label={t('modules.filterSemesterLabel')}>
+              {['all', ...semesters].map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  aria-pressed={effectiveFilter === s}
+                  style={effectiveFilter === s ? { ...styles.filterBtn, ...styles.filterBtnActive } : styles.filterBtn}
+                  onClick={() => setSemesterFilter(s)}
+                >
+                  {s === 'all' ? t('modules.allSemesters') : s}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {visibleModules.length === 0 ? (
+            <p style={{ color: 'var(--text-muted)', fontSize: 14, padding: '8px 2px' }}>
+              {t('modules.noneInSemester')}
+            </p>
+          ) : (
+            <div className="grid-2">
+              {visibleModules.map((mod) => (
+                <ModuleCard
+                  key={mod.id}
+                  mod={mod}
+                  onEdit={openEdit}
+                  onDelete={setDeleteConfirm}
+                  t={t}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {showModal && (
@@ -257,6 +293,9 @@ export default function Modules() {
 
 const styles = {
   pageHeader: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32 },
+  filterBar: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 },
+  filterBtn: { flex: '0 0 auto' },
+  filterBtnActive: { borderColor: 'var(--accent)', boxShadow: '0 0 0 1px var(--accent)', color: 'var(--accent-hover)', fontWeight: 600 },
   card: { display: 'flex', flexDirection: 'column', gap: 16 },
   cardTop: { display: 'flex', gap: 14, alignItems: 'flex-start' },
   courseIcon: {

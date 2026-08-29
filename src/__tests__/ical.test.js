@@ -1,5 +1,5 @@
 /* Tests für den iCal-Parser (public/ical.js, CommonJS). */
-const { parseIcal, eventsToCalendarItems } = require('../../public/ical');
+const { parseIcal, eventsToCalendarItems, semesterForYmd } = require('../../public/ical');
 
 /** YYYYMMDD aus einem Datum n Tage ab heute. */
 function icalDay(offsetDays) {
@@ -181,5 +181,32 @@ describe('eventsToCalendarItems', () => {
       'END:VEVENT',
     ].join('\n'));
     expect(eventsToCalendarItems(events)).toHaveLength(1);
+  });
+});
+
+describe('semesterForYmd', () => {
+  test('SS/WS-Grenzen korrekt', () => {
+    expect(semesterForYmd('2026-04-01')).toBe('SS 2026');
+    expect(semesterForYmd('2026-09-30')).toBe('SS 2026');
+    expect(semesterForYmd('2026-10-01')).toBe('WS 2026/27');
+    expect(semesterForYmd('2026-12-31')).toBe('WS 2026/27');
+    expect(semesterForYmd('2026-01-15')).toBe('WS 2025/26');
+    expect(semesterForYmd('2026-03-31')).toBe('WS 2025/26');
+  });
+});
+
+describe('eventsToCalendarItems: Semester-Tag', () => {
+  test('jedes Item trägt ein plausibles Semester', () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 21);
+    const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+    const events = parseIcal([
+      'BEGIN:VEVENT', 'UID:sem-1', 'SUMMARY:Kurs',
+      `DTSTART;TZID=Europe/Berlin:${ymd}T100000`,
+      `DTEND;TZID=Europe/Berlin:${ymd}T113000`,
+      'END:VEVENT',
+    ].join('\n'));
+    const [item] = eventsToCalendarItems(events);
+    expect(item.semester).toMatch(/^(SS|WS) \d{4}/);
   });
 });

@@ -344,14 +344,16 @@
     "deleteTitleBtn": "Delete",
     "deleteWithLecturesTitle": "Delete module?",
     "deleteWithLecturesBody": "\"{name}\" and all {count} associated lecture slots will be permanently deleted.",
-    "moodleSync": "Moodle Sync",
     "moodleInfoTitle": "Moodle sync not available",
     "moodleInfoBody": "Automatic Moodle synchronisation is not possible because TUM does not provide a public API. You can add modules manually and save the Moodle link for quick course access.",
     "colorChoice": "Color {color}",
     "weekGridScrollLabel": "Horizontally scrollable weekly schedule editor",
     "clickGridToAdd": "Tap the schedule to add a session",
     "scheduleEditorHint": "Tap the schedule to add a session. Tap a session to edit it.",
-    "editSlot": "Edit session"
+    "editSlot": "Edit session",
+    "allSemesters": "All semesters",
+    "noneInSemester": "No modules in this semester.",
+    "filterSemesterLabel": "Filter by semester"
   },
   "links": {
     "title": "TUM links",

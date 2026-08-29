@@ -350,7 +350,10 @@
     "weekGridScrollLabel": "Yatay kaydırılabilir haftalık program düzenleyici",
     "clickGridToAdd": "Ders eklemek için programa dokunun",
     "scheduleEditorHint": "Ders eklemek için programa dokunun. Düzenlemek için bir derse dokunun.",
-    "editSlot": "Dersi düzenle"
+    "editSlot": "Dersi düzenle",
+    "allSemesters": "Tüm dönemler",
+    "noneInSemester": "Bu dönemde modül yok.",
+    "filterSemesterLabel": "Döneme göre filtrele"
   },
   "links": {
     "title": "TUM bağlantıları",

@@ -77,4 +77,14 @@ describe('groupImportedItemsToModules', () => {
     expect(lectures).toHaveLength(0);
     expect(new Set(modules.map(m => m.name))).toEqual(new Set(['Analysis 2', 'Analysis 2 (Übung)']));
   });
+
+  test('Modul erhält Semester aus den Terminen (häufigstes)', () => {
+    const items = [
+      wk('Analysis 2', 'Mo', '10:15', '11:45', { eventDate: '2026-04-13', semester: 'SS 2026' }),
+      wk('Analysis 2', 'Mo', '10:15', '11:45', { eventDate: '2026-04-20', semester: 'SS 2026' }),
+    ];
+    const { modules } = groupImportedItemsToModules(items);
+    expect(modules).toHaveLength(1);
+    expect(modules[0].semester).toBe('SS 2026');
+  });
 });
